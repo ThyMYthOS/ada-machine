@@ -14,7 +14,20 @@ is
    --  branch loop on classic AVR at -O1+), not a cycle-exact clock.
    Cycles_Per_Loop : constant := 4;
 
-   procedure Spin (Iterations : Natural) is
+   --  Declared separately from its body: Spin is called from Delay_Us,
+   --  which stays in SPARK, and SPARK code may only call a SPARK_Mode
+   --  Off subprogram if that subprogram has its own SPARK-visible
+   --  declaration (its body's SPARK_Mode Off is then a body-only
+   --  matter). Count needs to be Volatile (else an optimizing compiler
+   --  could prove the countdown's final value is unused and delete the
+   --  whole loop) -- SPARK requires effectively volatile objects to be
+   --  at library level, not local to a subprogram, so the body can't
+   --  stay in SPARK, same as Sleep_Idle below for its own reason.
+   procedure Spin (Iterations : Natural);
+
+   procedure Spin (Iterations : Natural)
+     with SPARK_Mode => Off
+   is
       Count : Natural := Iterations with Volatile;
    begin
       while Count > 0 loop

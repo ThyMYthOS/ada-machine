@@ -16,9 +16,15 @@ is
    procedure Delay_Us (Us : Natural) is
       Start : constant Clock.Ticks := Clock.Now;
       Need  : constant Clock.Ticks := Ticks_For_Us (Us);
+      Now   : Clock.Ticks;
    begin
-      while Clock.Now - Start < Need loop
-         null;
+      loop
+         --  Clock.Now read alone into a local first: it is itself a
+         --  volatile function (successive calls needn't agree), and
+         --  SPARK's interfering-context rule (RM 7.1.3(9)) applies to
+         --  its result exactly as it does to a volatile object.
+         Now := Clock.Now;
+         exit when Now - Start >= Need;
       end loop;
    end Delay_Us;
 

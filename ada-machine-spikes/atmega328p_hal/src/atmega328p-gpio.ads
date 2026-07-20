@@ -16,5 +16,10 @@ is
    procedure Set_Low  (Pin : Pin_Id)
      with Inline_Always, Global => (In_Out => ATmega328P_PAC.Port_B.PORTB);
    function  Is_High  (Pin : Pin_Id) return Boolean
-     with Inline_Always, Global => (Input => ATmega328P_PAC.Port_B.PINB);
+     with Inline_Always, Volatile_Function,
+          Global => (Input => ATmega328P_PAC.Port_B.PINB);
+                    --  a function reading volatile (hardware) state may
+                    --  return differently on identical-looking calls;
+                    --  SPARK requires Volatile_Function to say so (RM
+                    --  7.1.3(9)).
 end ATmega328P.GPIO;

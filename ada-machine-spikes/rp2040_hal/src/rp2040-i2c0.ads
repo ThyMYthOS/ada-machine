@@ -52,7 +52,9 @@ is
           Global => (Input  => (RP2040_PAC.I2C0.IC_RAW_INTR_STAT,
                                 RP2040_PAC.I2C0.IC_TX_ABRT_SOURCE,
                                 RP2040_PAC.I2C0.IC_CLR_TX_ABRT),
-                     Output => RP2040_PAC.I2C0.IC_DATA_CMD),
+                     In_Out => RP2040_PAC.I2C0.IC_DATA_CMD),
+                    --  In_Out, not Output: the write is skipped on the
+                    --  chained/aborted early-return paths.
           Post => (if Status'Old /= Machine.I2C.Ok
                    then Status = Status'Old);      --  §7.1 rule 1: skip if pending
 
@@ -62,7 +64,9 @@ is
           Global => (Input  => (RP2040_PAC.I2C0.IC_RAW_INTR_STAT,
                                 RP2040_PAC.I2C0.IC_TX_ABRT_SOURCE,
                                 RP2040_PAC.I2C0.IC_CLR_TX_ABRT),
-                     Output => RP2040_PAC.I2C0.IC_DATA_CMD),
+                     In_Out => RP2040_PAC.I2C0.IC_DATA_CMD),
+                    --  In_Out, not Output: the write is skipped on the
+                    --  chained/aborted early-return paths.
           Post => (if Status'Old /= Machine.I2C.Ok
                    then Status = Status'Old);
 

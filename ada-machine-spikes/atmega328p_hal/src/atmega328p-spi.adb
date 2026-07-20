@@ -31,15 +31,24 @@ is
    PB_MOSI : constant := 3;
    PB_SS   : constant := 2;
 
+   --  Every volatile (DDRB/SPCR) read below is taken alone into a local
+   --  constant first, then combined with other operators via that
+   --  ordinary local -- SPARK requires a volatile read to be the whole
+   --  right-hand side of an assignment/declaration, not combined with
+   --  other operators in the same expression (SPARK RM 7.1.3(9)).
+
    procedure Enable (Cfg : Config := (others => <>)) is
-      SPR   : Unsigned_8;
-      SPI2X : Unsigned_8;
-      Ctrl  : Unsigned_8 := SPCR_SPE or SPCR_MSTR;
+      SPR      : Unsigned_8;
+      SPI2X    : Unsigned_8;
+      Ctrl     : Unsigned_8 := SPCR_SPE or SPCR_MSTR;
+      Ddrb_Now : Unsigned_8;
    begin
       --  MOSI/SCK/SS as outputs, MISO as input (hardware requirement).
-      DDRB := DDRB or Shift_Left (1, PB_SCK) or Shift_Left (1, PB_MOSI)
-                    or Shift_Left (1, PB_SS);
-      DDRB := DDRB and not Shift_Left (1, PB_MISO);
+      Ddrb_Now := DDRB;
+      DDRB := Ddrb_Now or Shift_Left (1, PB_SCK) or Shift_Left (1, PB_MOSI)
+                        or Shift_Left (1, PB_SS);
+      Ddrb_Now := DDRB;
+      DDRB := Ddrb_Now and not Shift_Left (1, PB_MISO);
 
       case Cfg.Divisor is
          when Div_2   => SPI2X := 1; SPR := 2#00#;
@@ -67,7 +76,11 @@ is
       Busy := False;
    end Disable;
 
-   function Can_Push return Boolean is (not Busy);
+   function Can_Push return Boolean is
+      B : constant Boolean := Busy;
+   begin
+      return not B;
+   end Can_Push;
 
    procedure Push (Data : Machine.Byte;
                    Status : in out Machine.SPI.Bus_Status)
@@ -81,7 +94,11 @@ is
    end Push;
 
    function Can_Pop return Boolean is
-     (Busy and then (SPSR and SPSR_SPIF) /= 0);
+      B    : constant Boolean := Busy;
+      Spsr_Now : constant Unsigned_8 := SPSR;
+   begin
+      return B and then (Spsr_Now and SPSR_SPIF) /= 0;
+   end Can_Pop;
 
    procedure Pop (Data : out Machine.Byte;
                   Status : in out Machine.SPI.Bus_Status)
@@ -96,13 +113,15 @@ is
    end Pop;
 
    procedure Enable_Interrupt is
+      Spcr_Now : constant Unsigned_8 := SPCR;
    begin
-      SPCR := SPCR or SPCR_SPIE;
+      SPCR := Spcr_Now or SPCR_SPIE;
    end Enable_Interrupt;
 
    procedure Disable_Interrupt is
+      Spcr_Now : constant Unsigned_8 := SPCR;
    begin
-      SPCR := SPCR and not SPCR_SPIE;
+      SPCR := Spcr_Now and not SPCR_SPIE;
    end Disable_Interrupt;
 
 end ATmega328P.SPI;

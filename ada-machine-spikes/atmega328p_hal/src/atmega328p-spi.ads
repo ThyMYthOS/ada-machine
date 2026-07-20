@@ -35,18 +35,23 @@ is
 
    --  Never-blocking full-duplex data phase (§6.2). The SPI has no FIFO:
    --  one byte in flight -- Can_Push/Can_Pop reflect the SPIF/idle state.
+   --  Volatile_Function on both: they read hardware/External state, so
+   --  two textually-identical calls need not agree (SPARK RM 7.1.3(9));
+   --  no "Pre => Can_Push" on Push for the same reason a volatile-
+   --  function call in a contract expression is itself an interfering
+   --  context SPARK rejects -- Can_Push is the caller's own check.
    function  Can_Push return Boolean
-     with Inline_Always, Global => (Input => State);
+     with Inline_Always, Volatile_Function, Global => (Input => State);
 
    procedure Push (Data : Machine.Byte;
                    Status : in out Machine.SPI.Bus_Status)
-     with Inline_Always, Pre => Can_Push,          --  SPDR := Data
+     with Inline_Always,                            --  SPDR := Data
           Global => (Output => (State, ATmega328P_PAC.SPI.SPDR)),
           Post   => (if Status'Old /= Machine.SPI.Ok
                      then Status = Status'Old);    --  §7.1 rule 1
 
    function  Can_Pop return Boolean
-     with Inline_Always,
+     with Inline_Always, Volatile_Function,
           Global => (Input => (State, ATmega328P_PAC.SPI.SPSR));
 
    procedure Pop (Data : out Machine.Byte;

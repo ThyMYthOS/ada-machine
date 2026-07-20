@@ -8,10 +8,13 @@ is
    Ticks_Per_Second : constant := 1_000_000;
 
    function Now return Ticks
-     with Inline_Always,
+     with Inline_Always, Volatile_Function,
           Global => (Input => (RP2040_PAC.Timer.TIMERAWH,
                                 RP2040_PAC.Timer.TIMERAWL));
                                 --  read-only external state (§6.5: L2
                                 --  reads time, never owns it, so this is
-                                --  always an Input, never In_Out)
+                                --  always an Input, never In_Out).
+                                --  Volatile_Function: two calls needn't
+                                --  agree, it's a running counter (SPARK
+                                --  RM 7.1.3(9)).
 end RP2040.Clock;
