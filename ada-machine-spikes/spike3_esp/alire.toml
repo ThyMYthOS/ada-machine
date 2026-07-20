@@ -1,0 +1,41 @@
+name = "spike3_esp"
+version = "0.1.0-dev"
+description = "Ada Machine spike 3: BME280 on ESP32-C3 over SPI, DMA-driven"
+long-description = "Ada Machine spike 3: BME280 on ESP32-C3 over SPI, real GDMA block transfers awaited through a protected entry under a tasking runtime (machine_tasking, L3c)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine", "spike", "esp32c3", "riscv", "bme280", "dma", "tasking"]
+
+executables = ["spike3_esp"]
+
+[[depends-on]]
+machine          = "*"
+machine_tasking  = "*"
+machine_regmap   = "*"
+bme280           = "*"
+esp32c3_hal      = "*"
+
+[[pins]]
+machine          = { path = "../machine" }
+machine_tasking  = { path = "../machine_tasking" }
+machine_regmap   = { path = "../machine_regmap" }
+bme280           = { path = "../bme280" }
+esp32c3_hal      = { path = "../esp32c3_hal" }
+
+# Not cross-built in this environment: no light-tasking GNAT runtime for
+# ESP32-C3 (RV32IMC) exists anywhere in this repo, its dependencies, or
+# (as far as this spike's own research went) upstream -- unlike RP2040/
+# AVR, where the *runtime* is merely absent from this sandbox but is
+# known to exist (light_rp2040, avrada_rts), ESP32-C3's tasking-capable
+# Ada runtime is an open item this spike surfaces rather than resolves.
+# This crate is the wiring/documentation artifact for real GDMA-driven
+# SPI under machine_tasking; host_test remains what is actually compiled
+# and run (BME280's own driver logic, unrelated to any of this spike's
+# new register/tasking plumbing). esp32c3_pac and esp32c3_hal's sources,
+# and every machine_tasking generic, ARE compiled (syntax+semantics) and,
+# where runnable, exercised against the native host GNAT as a stand-in --
+# see each crate's own alire.toml/handoff notes for exactly what that
+# covered and what it structurally could not (writing to real MMIO
+# addresses like 0x6002_4000 would segfault off real silicon).

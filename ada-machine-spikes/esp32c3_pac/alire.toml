@@ -1,0 +1,22 @@
+name = "esp32c3_pac"
+version = "0.1.0-dev"
+description = "ESP32-C3 peripheral access crate (curated register bindings)"
+long-description = "ESP32-C3 peripheral access crate (curated register bindings, spike subset: GPIO, GP-SPI2, GDMA channel 0)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine", "esp32c3", "riscv", "pac"]
+
+# Real PACs are generated from a curated SVD (patch overlay over the vendor
+# SVD, §9 rule 1) and never hand-edited. This spike hand-authors the same
+# shape directly -- the register subset the L2 crate (esp32c3_hal) needs
+# for spike 3, not the ESP32-C3's full register file.
+#
+# Addresses and bit positions were cross-checked against Espressif's
+# public ESP-IDF SoC headers (components/soc/esp32c3/register/soc/
+# {gpio,spi,gdma}_reg.h and reg_base.h, components/soc/esp32c3/include/
+# soc/interrupts.h, components/esp_hal_dma/include/hal/dma_types.h,
+# commit current as of 2026-07), not guessed from memory -- but this is
+# still a curated subset, not the vendor SVD; re-verify against the TRM
+# before real hardware use, same caveat rp2040_pac/atmega328p_pac carry.

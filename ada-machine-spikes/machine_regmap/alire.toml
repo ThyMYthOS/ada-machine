@@ -1,0 +1,15 @@
+name = "machine_regmap"
+version = "0.1.0-dev"
+description = "Ada Machine: typed remote-register access over I2C/SPI"
+long-description = "Ada Machine: typed remote-register access over I2C/SPI buses"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine"]
+
+[[depends-on]]
+machine = "*"
+
+[[pins]]
+machine = { path = "../machine" }

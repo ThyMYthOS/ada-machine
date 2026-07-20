@@ -1,0 +1,30 @@
+name = "spike1_pico"
+version = "0.1.0-dev"
+description = "Ada Machine spike 1: BME280 on RP2040 over I2C, blocking"
+long-description = "Ada Machine spike 1: BME280 on RP2040 (Raspberry Pi Pico) over I2C, blocking (Appendix B)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine", "spike", "rp2040", "bme280"]
+
+executables = ["spike1_pico"]
+
+[[depends-on]]
+machine = "*"
+machine_blocking = "*"
+machine_regmap = "*"
+bme280 = "*"
+rp2040_hal = "*"
+
+[[pins]]
+machine          = { path = "../machine" }
+machine_blocking = { path = "../machine_blocking" }
+machine_regmap   = { path = "../machine_regmap" }
+bme280   = { path = "../bme280" }
+rp2040_hal       = { path = "../rp2040_hal" }
+
+# Not cross-built in this environment (no light_rp2040/toolchain here,
+# §10) -- this crate is the wiring/documentation artifact for Appendix B;
+# host_test is what is actually compiled and run to check the shared
+# BME280 driver logic (Appendix A.3).

@@ -1,0 +1,35 @@
+name = "esp32c3_hal"
+version = "0.1.0-dev"
+description = "Ada Machine L2 for ESP32-C3 (GPIO, SPI2 polled + GDMA spike subset)"
+long-description = "Ada Machine L2 for ESP32-C3: never-blocking package-spec convention (spike subset: GPIO, SPI2 byte-polled data phase, SPI2+GDMA block transfer)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine", "esp32c3", "riscv"]
+
+[[depends-on]]
+machine = "*"
+esp32c3_pac = "*"
+
+[[pins]]
+machine = { path = "../machine" }
+esp32c3_pac = { path = "../esp32c3_pac" }
+
+# A real esp32c3_hal also depends on a light-tasking runtime crate
+# providing Runtime ("Ada") for RV32IMC (no such crate exists yet, for
+# ESP32-C3 or any RISC-V target, anywhere in this repo or its
+# architecture doc -- see the "toolchain availability" note in this
+# spike's README/handoff; the closest existing precedent is PolarFire
+# SoC's bb-runtimes target, external to this repo). Omitted here for the
+# same reason as rp2040_hal/atmega328p_hal -- no cross toolchain in this
+# environment (see host_test for what IS built and run; esp32c3_pac's
+# register-level units and machine_tasking's generics ARE compiled and
+# exercised against the native host GNAT as a stand-in, see their own
+# alire.toml/handoff notes).
+#
+# machine_tasking is deliberately NOT a dependency of this crate: layering
+# discipline (§4/§5) keeps L2 (this crate) unaware of L3c: SPI2's
+# Start_Transfer/Cancel_Transfer/Read_Response/Handle_DMA_Interrupt match
+# Machine.Tasking.Generic_DMA_SPI's formal shape by construction, but the
+# instantiation happens at board-wiring level (spike3_esp), not here.

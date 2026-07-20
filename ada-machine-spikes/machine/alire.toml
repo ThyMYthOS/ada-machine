@@ -1,0 +1,9 @@
+name = "machine"
+version = "0.1.0-dev"
+description = "Ada Machine: the portable contract (spec crate)"
+long-description = "Ada Machine platform: the portable contract (spec crate)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine"]

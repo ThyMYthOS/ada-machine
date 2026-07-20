@@ -1,0 +1,11 @@
+# Per-crate GNAT/gprbuild output -- matches at any depth, so this one
+# file covers every crate (machine, machine_blocking, ..., host_test,
+# spike1_pico, spike2_avr) instead of needing one .gitignore each.
+obj/
+bin/
+lib/
+
+# Alire's own local state, if a crate is ever `alr`-initialized in place.
+/.alire/
+alire/
+config/

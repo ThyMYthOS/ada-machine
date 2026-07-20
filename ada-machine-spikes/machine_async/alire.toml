@@ -1,0 +1,15 @@
+name = "machine_async"
+version = "0.1.0-dev"
+description = "Ada Machine: interrupt-driven execution adapters (L3b)"
+long-description = "Ada Machine: interrupt-driven execution adapters (L3b), access-free"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine"]
+
+[[depends-on]]
+machine = "*"
+
+[[pins]]
+machine = { path = "../machine" }

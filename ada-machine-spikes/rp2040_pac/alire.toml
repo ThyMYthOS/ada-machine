@@ -1,0 +1,14 @@
+name = "rp2040_pac"
+version = "0.1.0-dev"
+description = "RP2040 peripheral access crate (curated register bindings)"
+long-description = "RP2040 peripheral access crate (curated register bindings, spike subset)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine", "rp2040", "pac"]
+
+# Real PACs are generated from a curated SVD (patch overlay over the vendor
+# SVD, §9 rule 1) and never hand-edited. This spike hand-authors the same
+# shape directly -- the register subset the L2 crate (rp2040_hal) needs for
+# spike 1 (Appendix B), not RP2040's full register file.

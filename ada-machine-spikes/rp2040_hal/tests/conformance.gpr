@@ -1,0 +1,7 @@
+with "../../machine/machine.gpr";
+with "../rp2040_hal.gpr";
+project Conformance is
+   for Source_Dirs use (".");
+   for Object_Dir use "obj";
+   for Main use ();
+end Conformance;

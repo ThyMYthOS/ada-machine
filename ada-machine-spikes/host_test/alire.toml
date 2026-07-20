@@ -1,0 +1,30 @@
+name = "host_test"
+version = "0.1.0-dev"
+description = "Native host-side check of the portable BME280 driver"
+long-description = "Native host-side check of the portable BME280 driver"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine", "test", "bme280"]
+
+executables = ["host_test"]
+
+[[depends-on]]
+machine        = "*"
+bme280 = "*"
+
+[[pins]]
+machine        = { path = "../machine" }
+bme280 = { path = "../bme280" }
+
+# The only crate in this spike meant to be built with the *host* GNAT
+# (no MCU HAL/PAC, no cross runtime) -- it exercises exactly the part
+# that is target-independent: BME280's integer compensation math
+# (Appendix A.3), via a mock Machine.Regmap.Generic_Device seeded with
+# the widely-cited Bosch reference calibration/raw-ADC vector (dig_T1 =
+# 27504 ... adc_T = 519888) whose expected compensated output is
+# 25.08 degC / 1006.53 hPa / 20.78 %RH. Independently cross-checked
+# against the datasheet's double-precision reference formula in Python
+# before being encoded here (see session notes) -- catching a real bug
+# in the humidity term grouping that this same check would have caught.

@@ -1,0 +1,25 @@
+name = "atmega328p_hal"
+version = "0.1.0-dev"
+description = "Ada Machine L2 for ATmega328P (SPI, Delays, GPIO spike subset)"
+long-description = "Ada Machine L2 for ATmega328P: never-blocking package-spec convention (spike subset: SPI, Delays, GPIO/PORTB)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine", "atmega328p", "avr"]
+
+[[depends-on]]
+machine = "*"
+atmega328p_pac = "*"
+
+[[pins]]
+machine = { path = "../machine" }
+atmega328p_pac = { path = "../atmega328p_pac" }
+
+[configuration.variables]
+F_CPU = { type = "Integer", default = 16_000_000 }
+
+# A real atmega328p_hal also depends on avrada_rts (ZFP, §10) for
+# Runtime ("Ada"); omitted here for the same reason as rp2040_hal --
+# no cross toolchain in this environment (see host_test for the part
+# that IS built and run).

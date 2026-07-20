@@ -1,0 +1,22 @@
+name = "rp2040_hal"
+version = "0.1.0-dev"
+description = "Ada Machine L2 for RP2040 (Clock, GPIO, I2C0 spike subset)"
+long-description = "Ada Machine L2 for RP2040: never-blocking package-spec convention (spike subset: Clock, GPIO, I2C0)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine", "rp2040"]
+
+[[depends-on]]
+machine = "*"
+rp2040_pac = "*"
+
+[[pins]]
+machine = { path = "../machine" }
+rp2040_pac = { path = "../rp2040_pac" }
+
+# A real rp2040_hal also depends on a light-runtime crate providing
+# Runtime ("Ada") for the target (e.g. light_rp2040, §10); omitted here
+# since this spike does not perform an actual cross build (no toolchain
+# in this environment -- see host_test for what IS built and run).

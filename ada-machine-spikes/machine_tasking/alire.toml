@@ -1,0 +1,19 @@
+name = "machine_tasking"
+version = "0.1.0-dev"
+description = "Ada Machine: tasking-profile execution adapters (L3c)"
+long-description = "Ada Machine: tasking-profile execution adapters (L3c). Provides two variants: Generic_SPI wraps Machine.Async.SPI with a Suspension_Object await (replaces Generic_Await busy-spin, no enforced deadline); Generic_DMA_SPI awaits block-level DMA completion via a protected status flag polled under a real Ada.Real_Time deadline (not a protected entry: Ravenscar's No_Select_Statements rules out timed entry calls)."
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine", "tasking", "ravenscar", "dma"]
+
+[[depends-on]]
+machine          = "*"
+machine_async    = "*"
+machine_blocking = "*"
+
+[[pins]]
+machine          = { path = "../machine" }
+machine_async    = { path = "../machine_async" }
+machine_blocking = { path = "../machine_blocking" }

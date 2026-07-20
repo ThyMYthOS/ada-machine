@@ -1,0 +1,15 @@
+name = "atmega328p_pac"
+version = "0.1.0-dev"
+description = "ATmega328P peripheral access crate (curated register bindings)"
+long-description = "ATmega328P peripheral access crate (curated register bindings, spike subset)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine", "atmega328p", "avr", "pac"]
+
+# AVR has no SVD culture (§9 AVR note): a real atmega328p_pac would be
+# generated via ATDF->SVD conversion or a hand-authored SVD seeded from
+# AVRAda's avrada_mcu. This spike hand-authors the same shape directly --
+# only the registers rp2040_hal's counterpart, atmega328p_hal, needs for
+# spike 2 (Appendix C): PORTB (GPIO/CS), SPI, and sleep control.
