@@ -19,7 +19,9 @@ is
                              Status : in out Machine.SPI.Transaction_Status)
      with Post => (if Status'Old /= Machine.SPI.Ok
                    then Status = Status'Old);      --  §7.1 rule 1
-   function  Busy return Boolean with Inline;
+   --  Volatile_Function: Busy reads volatile state (Active), so two
+   --  textually-identical calls need not agree (SPARK RM 7.1.3(9)).
+   function  Busy return Boolean with Inline, Volatile_Function;
    procedure Read_Response (Into : out Byte_Array;
                             Last : out Natural);  --  copy out after completion
 

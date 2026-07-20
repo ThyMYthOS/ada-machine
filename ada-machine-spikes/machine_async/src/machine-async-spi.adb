@@ -6,13 +6,21 @@ is
 
    --  Adapter state: single producer of commands (mainline), single
    --  consumer (ISR pump). Volatile: shared with interrupt context.
-   TX_Buf : Byte_Array (1 .. Buffer_Size) with Volatile;
-   RX_Buf : Byte_Array (1 .. Buffer_Size) with Volatile;
-   Length : Natural := 0 with Volatile;    --  bytes in this transfer
-   Sent   : Natural := 0 with Volatile;    --  bytes pushed so far
-   Got    : Natural := 0 with Volatile;    --  bytes popped so far
-   Active : Boolean := False with Volatile;
-   Result : Machine.SPI.Transaction_Status := Machine.SPI.Ok with Volatile;
+   --  Async_Readers/Async_Writers named explicitly: bare Volatile
+   --  defaults to *all four* of Async_Readers/Async_Writers/
+   --  Effective_Reads/Effective_Writes (SPARK RM C.6), and
+   --  Effective_Reads on a plain in-memory flag/counter/buffer (as
+   --  opposed to a hardware register with real read side-effects) makes
+   --  a function that merely reads it look, to flow analysis, like it
+   --  has an output too -- exactly what tripped up Busy below.
+   TX_Buf : Byte_Array (1 .. Buffer_Size) with Volatile, Async_Readers, Async_Writers;
+   RX_Buf : Byte_Array (1 .. Buffer_Size) with Volatile, Async_Readers, Async_Writers;
+   Length : Natural := 0 with Volatile, Async_Readers, Async_Writers;    --  bytes in this transfer
+   Sent   : Natural := 0 with Volatile, Async_Readers, Async_Writers;    --  bytes pushed so far
+   Got    : Natural := 0 with Volatile, Async_Readers, Async_Writers;    --  bytes popped so far
+   Active : Boolean := False with Volatile, Async_Readers, Async_Writers;
+   Result : Machine.SPI.Transaction_Status := Machine.SPI.Ok
+     with Volatile, Async_Readers, Async_Writers;
 
    function To_Transaction (B : Bus_Status) return Transaction_Status is
      (case B is
@@ -22,15 +30,27 @@ is
 
    function Busy return Boolean is (Active);
 
+   --  Every volatile (Active/Length/Sent/Got/Result/TX_Buf/RX_Buf) read
+   --  below, and every Port.Can_Push/Can_Pop call, is taken alone into a
+   --  local first, then combined with other operators (or passed as an
+   --  actual) via that ordinary local -- SPARK requires a volatile read
+   --  to be the whole right-hand side of an assignment/declaration, the
+   --  whole condition of an if/while, or the whole actual parameter, not
+   --  combined with anything else in the same expression, nor passed
+   --  directly as an actual (SPARK RM 7.1.3(9)).
+
    procedure Start_Exchange (TX     : Byte_Array;
                              Status : in out Machine.SPI.Transaction_Status)
    is
-      B : Bus_Status := Machine.SPI.Ok;
+      B            : Bus_Status := Machine.SPI.Ok;
+      Active_Now   : constant Boolean := Active;
+      Can_Push_Now : Boolean;
    begin
       if Status /= Machine.SPI.Ok then
          return;                            --  chained: skip if pending
       end if;
-      if Active or else TX'Length = 0 or else TX'Length > Buffer_Size then
+      if Active_Now or else TX'Length = 0 or else TX'Length > Buffer_Size
+      then
          Status := Other_Error;
          return;
       end if;
@@ -41,8 +61,13 @@ is
       Result := Machine.SPI.Ok;
       Active := True;
       --  Kick the first byte; the rest moves in interrupt context.
-      if Port.Can_Push then
-         Port.Push (TX_Buf (1), B);
+      Can_Push_Now := Port.Can_Push;
+      if Can_Push_Now then
+         declare
+            Byte_To_Send : constant Byte := TX_Buf (1);
+         begin
+            Port.Push (Byte_To_Send, B);
+         end;
          if B /= Machine.SPI.Ok then
             Active := False;
             Status := To_Transaction (B);
@@ -53,39 +78,69 @@ is
    end Start_Exchange;
 
    procedure On_Interrupt is
-      B : Bus_Status := Machine.SPI.Ok;
-      D : Byte;
+      B            : Bus_Status := Machine.SPI.Ok;
+      D            : Byte;
+      Active_Now   : constant Boolean := Active;
+      Can_Pop_Now  : Boolean;
+      Can_Push_Now : Boolean;
+      Got_Now      : Natural;
+      Sent_Now     : Natural;
+      Length_Now   : Natural;
+      Result_Now   : Machine.SPI.Transaction_Status;
    begin
-      if not Active then
+      if not Active_Now then
          return;
       end if;
-      if Port.Can_Pop then
+      Can_Pop_Now := Port.Can_Pop;
+      if Can_Pop_Now then
          Port.Pop (D, B);
          if B /= Machine.SPI.Ok then
-            Result := To_Transaction (B);
-            Active := False;
-            On_Complete (Got, Result);
+            Result     := To_Transaction (B);
+            Active     := False;
+            Got_Now    := Got;
+            Result_Now := Result;
+            On_Complete (Got_Now, Result_Now);
             return;
          end if;
-         Got := Got + 1;
-         RX_Buf (Got) := D;
+         --  "Got := Got + 1" reads and writes Got in the same statement
+         --  (RHS combines the read with "+1") -- read once into a local,
+         --  do the arithmetic there, then write the whole object.
+         Got_Now := Got;
+         Got_Now := Got_Now + 1;
+         Got     := Got_Now;
+         RX_Buf (Got_Now) := D;
       end if;
-      if Got >= Length then
-         Active := False;
-         On_Complete (Got, Result);
-      elsif Sent < Length and then Port.Can_Push then
-         Sent := Sent + 1;
-         Port.Push (TX_Buf (Sent), B);
-         if B /= Machine.SPI.Ok then
-            Result := To_Transaction (B);
-            Active := False;
-            On_Complete (Got, Result);
+      Got_Now    := Got;
+      Length_Now := Length;
+      if Got_Now >= Length_Now then
+         Active     := False;
+         Result_Now := Result;
+         On_Complete (Got_Now, Result_Now);
+      else
+         Sent_Now     := Sent;
+         Can_Push_Now := Port.Can_Push;
+         if Sent_Now < Length_Now and then Can_Push_Now then
+            Sent_Now := Sent_Now + 1;
+            Sent     := Sent_Now;
+            declare
+               Byte_To_Send : constant Byte := TX_Buf (Sent_Now);
+            begin
+               Port.Push (Byte_To_Send, B);
+            end;
+            if B /= Machine.SPI.Ok then
+               Result     := To_Transaction (B);
+               Active     := False;
+               Got_Now    := Got;
+               Result_Now := Result;
+               On_Complete (Got_Now, Result_Now);
+            end if;
          end if;
       end if;
    end On_Interrupt;
 
    procedure Read_Response (Into : out Byte_Array; Last : out Natural) is
-      N : constant Natural := Natural'Min (Into'Length, Got);
+      Got_Now : constant Natural := Got;
+      N       : constant Natural := Natural'Min (Into'Length, Got_Now);
    begin
       Into := (others => 0);
       for I in 1 .. N loop
@@ -107,7 +162,8 @@ is
          Spins_Per_Ms : constant := 10_000;
          Budget : Long_Long_Integer :=
            Long_Long_Integer (Timeout_Ms) * Spins_Per_Ms;
-         Last : Natural;
+         Last     : Natural;
+         Busy_Now : Boolean;
       begin
          RX := (others => 0);
          if Status /= Machine.SPI.Ok then
@@ -117,7 +173,13 @@ is
          if Status /= Machine.SPI.Ok then
             return;
          end if;
-         while Busy loop
+         loop
+            --  Busy read alone into a local first, then used bare as the
+            --  exit condition via that local (SPARK RM 7.1.3(9): a
+            --  volatile-reading call can't be the condition of a while
+            --  loop directly, even unaccompanied).
+            Busy_Now := Busy;
+            exit when not Busy_Now;
             Sleep_Until_Interrupt;
             Budget := Budget - 1;
             if Budget <= 0 then
