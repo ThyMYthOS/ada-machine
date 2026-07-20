@@ -326,6 +326,44 @@ On tasking runtimes the body reads the same hardware as `Ada.Real_Time.Clock` (o
 
 This is the direct answer to [ADL #401](https://github.com/AdaCore/Ada_Drivers_Library/issues/401): the reason the current [`hal` crate](#g-halcrate) cannot be proved (`access all …'Class`) is structurally impossible here, because the contract layer has no access types by construction.
 
+### 6.7 Package-hierarchy ordering: exec-first vs. peripheral-first
+
+A peripheral-plus-execution contract straddles two orthogonal axes — the **peripheral class** (SPI, I2C, UART, …) and the **execution model** ([blocking](#g-light)/async/tasking) — so it can be named two ways. Both appear in this design, and the choice between them is settled by Ada's child-unit visibility rules, not by taste. This subsection is the rationale behind §6.3's two-axis grid and decision D18 (§18).
+
+**The two viable orderings** (leaf [generic](#g-generic), parent an ordinary package):
+
+- **Exec-first — `Machine.<exec>.<generic_peripheral>`** (adopted for L3): `Machine.Blocking.Generic_SPI_Master`, `Machine.Blocking.Generic_I2C_Master`, `Machine.Tasking.Generic_DMA_SPI`.
+- **Peripheral-first — `Machine.<peripheral>.<generic_exec>`**: `Machine.SPI.Generic_Blocking_Master`, `Machine.I2C.Generic_Blocking_Master`, `Machine.SPI.Generic_Tasking_DMA`.
+
+Both are the *cheap* Ada shape — a generic child of a **non-generic** parent, instantiated in one step (`package B is new …Generic_… (…)`). A third conceivable ordering, making the *peripheral generic itself* the parent (`Machine.Generic_SPI_Master.Blocking`), is excluded outright: RM 10.1.1(19) requires a child of a generic unit to itself be generic, and such a child is instantiable only *through an instance of the parent* (`package B is new Some_SPI_Instance.Blocking (…)`) — which breaks both the formal-package parameters (§6.3) and the `As_Signature` self-conformance pattern (Appendix A) the design leans on. It is not considered further.
+
+So the real question is which *axis* is the parent. Ada child visibility (RM 10.1.1, 10.1.2, 8.1) flows strictly downward and asymmetrically: a child's visible part sees the parent's visible part; a child's private part and body additionally see the parent's private part; the parent never sees the child. **The parent is therefore the home of whatever its children share** — and each ordering shares a different axis's vocabulary for free:
+
+- *Exec-first:* `Machine.Blocking` (parent) offers the execution vocabulary — `Milliseconds`, deadline/timeout notions — to every blocking contract with no `with`. Peripheral types (`Machine.SPI.Transaction_Status`) arrive via an explicit `with Machine.SPI`.
+- *Peripheral-first:* `Machine.SPI` (parent) offers the peripheral vocabulary — `Bus_Status`, `Transaction_Status`, `Address_7_Bit` — to every SPI contract for free (no `with`, no qualification). The execution vocabulary arrives via a `with`.
+
+A transaction signature references both, but the **status type appears in every operation** whereas the timeout is a plain `Natural`. Peripheral-first thus grants free visibility to the more-used vocabulary — a real but small ergonomic edge (and since naming a child in a `with` also makes its ancestors visible, RM 10.1.2, exec-first's extra `with Machine.SPI` costs one line, not more). Note this is *not* a repeat of the type-identity trap that killed the generic-parent ordering: because both parents here are **non-generic**, both yield exactly one `Transaction_Status` shared across all instantiations — on the single-shared-type requirement the two are equal.
+
+Where they diverge decisively is **alignment with the crate and runtime-gating structure**:
+
+- The execution model is the axis that determines *runtime-profile compatibility* (§5, §10): blocking compiles everywhere; tasking needs a tasking runtime. Exec-first makes the top-level package name answer "does this compile on a light runtime?", and mirrors the adapter crates one-to-one — `machine_blocking` contributes `Machine.Blocking.*`, `machine_tasking` contributes `Machine.Tasking.*` (cross-crate children of one root, §16). The package tree *is* the crate/runtime tree.
+- Peripheral-first cross-cuts that: `machine_blocking` and `machine_tasking` would both inject children into `Machine.SPI`, so one peripheral node is co-owned by crates with different runtime requirements, and a contract's runtime tier is legible only in the leaf name (`…Generic_Tasking_DMA`). A runtime-gated, tasking-only contract like `Generic_DMA_SPI` reads naturally as `Machine.Tasking.Generic_DMA_SPI` but awkwardly as `Machine.SPI.Generic_Tasking_DMA`, mixing tiers under a runtime-neutral node.
+
+Exec-first also keeps the **L2/L3 layer visible in the parent**. The L2 data-phase signatures are deliberately *peripheral-first* — `Machine.SPI.Generic_Master`, `Machine.I2C.Generic_Master` (§6.3) — because at L2 there is no execution model yet, only hardware vocabulary. Hanging the L3 transaction contracts off exec parents makes the *parent name the layer and role*: `Machine.SPI.*` is "class vocabulary + never-blocking data phase," `Machine.Blocking.*` is "bounded blocking transactions." Peripheral-first would collapse both layers under `Machine.SPI`, which would then accrete the data-phase signature and every blocking/tasking transaction contract together, pushing the L2/L3 distinction down into leaf names.
+
+**Verdict — a deliberate hybrid, which is what §6.3's grid already encodes:** peripheral-first for L2 vocabulary and data-phase signatures (`Machine.SPI`, `Machine.I2C`); exec-first for the L3 execution-flavored contracts (`Machine.Blocking`, `Machine.Tasking`). Peripheral-first's advantages — free peripheral-vocabulary visibility, "all of SPI in one place" — are real but modest; exec-first's alignment with the crate/runtime-gating story, and its clean handling of runtime-gated, execution-only contracts, decide it for L3.
+
+| Criterion (RM) | Exec-first `Machine.<exec>.<generic_peripheral>` | Peripheral-first `Machine.<peripheral>.<generic_exec>` |
+|---|---|---|
+| Ada shape (RM 10.1.1) | generic child of non-generic parent | same |
+| Free-visible vocabulary (RM 10.1.1/10.1.2/8.1) | execution (`Milliseconds`, deadlines) | peripheral (`Transaction_Status`, addresses) — the more-used |
+| Extra `with`/qualification | `with Machine.SPI` for status types | `with` a `Machine.Blocking`-style pkg for timeouts |
+| Single shared status type | yes (non-generic parent) | yes (non-generic parent) |
+| Crate / runtime-gating alignment (§10, §16) | one-to-one with adapter crates; tier in top-level name | peripheral node co-owned across runtime tiers |
+| L2/L3 separation | parent encodes layer/role | L2 + L3 collapse under one peripheral node |
+| Execution-only contracts (`Generic_DMA_SPI`) | natural (`Machine.Tasking.*`) | mixes tiers under the peripheral node |
+| Third ordering (generic parent) | — | ruled out by RM 10.1.1(19) |
+
 ## 7. Error model
 
 Adopted from [embedded-hal 1.0's `ErrorKind`](https://blog.rust-embedded.org/embedded-hal-v1/), adapted to Ada:
@@ -900,7 +938,7 @@ Where Ada Machine sits relative to the platforms an embedded developer would act
 | D15 | Runtime console | `Ada.Text_IO` = diagnostic channel only; sink is a non-blocking SPSC RAM FIFO in RTT-compatible layout (`console := fifo`, §10.3), probe-read or application-drained through L2 to any transport; drain ownership declared in `HAL_Info`/`boardgen`; application console goes through L2 | UART driver inside the runtime: peripheral knowledge in L0, hidden UART ownership, double-init conflicts with L2 users; blocking sinks: a runtime must not stall because nobody listens; making `Ada.Text_IO` the application console couples portable code to runtime IO presence (absent on AVR). |
 | D16 | Cross-cutting services | Null-object formals (`is null` defaults) + [deferred-formatting](#g-defmt) event logging with static thresholds; one sink shared by console, LCH and logs; critical sections via signature (§14) | Global logger singleton / sink registries: global state, access types, unprovable; runtime string formatting: flash cost, unbounded time, secondary stack; per-crate bespoke logging hooks: heterogeneity is the disease, not a symptom. |
 | D17 | Typed I/O | Representation-clause'd records + flat codecs with `'Valid_Scalars` receive gate (`machine_typed_io`, §15.2) as the core mechanism; real streams quarantined in `machine_streams` (embedded profile, application-only) | `'Read`/`'Write` as core: tagged + class-wide access (breaks D1/D10), absent from light runtimes, default attributes are compiler-defined — not a wire format between differing nodes; per-component dispatching in bounded-time paths. |
-| D18 | Naming & namespace | Domain status names per class (`Bus_Status`, `Line_Status`, `Transaction_Status`); two-axis grid: class packages hold hardware vocabulary + data-phase signatures, spec-crate-owned `Machine.<Exec>` roots hold execution-semantics contracts (`Machine.Blocking.Generic_I2C_Master`) with adapter crates providing the implementation children (`Machine.Blocking.I2C`); `Machine.*` reserved to AMRM crates, third parties use own roots (§6.3, §16) | Generic `Status_Kind`: a workaround name carrying no meaning; blocking signatures inside class packages: misplace the execution model and hide the master role; separate `Machine_Block`-style roots: fragment the namespace the AMRM must document; open `Machine.*`: uncoordinated children make the standard's namespace a land grab. |
+| D18 | Naming & namespace | Domain status names per class (`Bus_Status`, `Line_Status`, `Transaction_Status`); two-axis grid: class packages hold hardware vocabulary + data-phase signatures, spec-crate-owned `Machine.<Exec>` roots hold execution-semantics contracts (`Machine.Blocking.Generic_I2C_Master`) with adapter crates providing the implementation children (`Machine.Blocking.I2C`); `Machine.*` reserved to AMRM crates, third parties use own roots (§6.3, §6.7, §16) | Generic `Status_Kind`: a workaround name carrying no meaning; blocking signatures inside class packages: misplace the execution model and hide the master role; separate `Machine_Block`-style roots: fragment the namespace the AMRM must document; open `Machine.*`: uncoordinated children make the standard's namespace a land grab. |
 
 ## 19. Open questions and roadmap
 
