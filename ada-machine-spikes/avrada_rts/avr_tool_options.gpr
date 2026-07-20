@@ -8,7 +8,11 @@ with "config/avrada_rts_config.gpr";
 abstract project AVR_Tool_Options is
 
    type Build_Type is ("Production", "Debug");
-   Build : Build_Type := external ("AVR_RUNTIME_BUILD", "Debug");
+   --  Upstream default is "Debug"; this fork defaults to "Production"
+   --  instead (-Os, checks suppressed, full inlining) since the ATmega328P
+   --  targeted here has only 32KB flash and the RTS's own Debug-profile
+   --  size overhead alone leaves no room for a real application.
+   Build : Build_Type := external ("AVR_RUNTIME_BUILD", "Production");
    
    MCU := AVRAda_RTS_Config.AVR_MCU;
    
