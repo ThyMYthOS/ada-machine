@@ -1,0 +1,82 @@
+--  This is the default version of the target_options.gpr file,
+--  imported by runtime_build.gpr. Variables defined here are appended
+--  to the corresponding variables there. Target configurations may
+--  their own version of this file.
+
+with "config/avrada_rts_config.gpr";
+
+abstract project AVR_Tool_Options is
+
+   type Build_Type is ("Production", "Debug");
+   Build : Build_Type := external ("AVR_RUNTIME_BUILD", "Debug");
+   
+   MCU := AVRAda_RTS_Config.AVR_MCU;
+   
+   --  COMFLAGS here is common flags (used for Assembler, C and Ada).
+   COMFLAGS := ("-fcallgraph-info=su,da",
+                "-ffunction-sections",  --  create separate function sections
+                "-fdata-sections",      --  create separate data sections
+                "-mmcu=" & MCU);        --  set the target device 
+
+   --  Per language flags (COMFLAGS will be added later)
+   ADAFLAGS := ("-gnatef",           --  full path in error messages
+                "-fverbose-asm",     --  include names of variables in asm code
+                "-gnateDMCU=" & Mcu  --  name of the micro controler for preprocessor
+                --  "-fno-delete-null-pointer-checks" --  This is completely disabled on AVR anyway
+               );
+   ASMFLAGS := ("");
+   CFLAGS := ("-DIN_RTS",
+              "-Dinhibit_libc", 
+              "-Wall");
+   
+   case Build is
+      when "Production" =>
+         --  Optimize for size
+         COMFLAGS := COMFLAGS & ("-Os");
+         ADAFLAGS := ADAFLAGS & ("-gnatp",     --  suppress run-time checks
+                                 "-frename-registers", 
+                                 --  avoid false dependencies in scheduled code
+                                 --  Attempt to avoid false dependencies in scheduled code by
+                                 --  making use of registers left over after register
+                                 --  allocation.  This optimization will most benefit
+                                 --  processors with lots of registers. It can, however, make
+                                 --  debugging impossible, since variables will no longer stay
+                                 --  in a "home register".
+                                 "-gnatVn",    --  no validity checks (smaller code)
+                                 "-gnatn2");   --  full inlining across units
+      when "Debug" =>
+         --  Set optimization for debug and add specific debug symbols
+         COMFLAGS := COMFLAGS & ("-Og",        --  optimize for debugging
+                                 "-gdwarf-2"   --  generate debug symbols in dwarf-2 format
+                                );
+         ASMFLAGS := ASMFLAGS & ("-g");
+   end case;
+
+   --  Concatenate with common flags
+   ALL_ADAFLAGS := ADAFLAGS & COMFLAGS;
+   ALL_CFLAGS := CFLAGS & COMFLAGS;
+   ALL_ASMFLAGS := ASMFLAGS & COMFLAGS;
+   
+   package Builder is
+      for Global_Configuration_Pragmas use "gnat.adc";
+      for Executable_Suffix use ".elf";
+   end Builder;
+   
+   
+   --  Provide options for binder and linker.  They are not needed for
+   --  the RTS itself, but must be referenced in the application
+   --  gpr-files
+   
+   Binder_Switches := (--  "--RTS=" & Arch, -- binder must know about RTS
+                       "-D" & AVRAda_RTS_Config.Sec_Stack_Size,  -- set secondary stack size
+                       "-minimal"       -- smaller binder file
+                      );
+   
+   Linker_Switches := (-- linking the MCU specific libgcc and lib<<mcu>> 
+                       "-mmcu=" & MCU,
+                       "-Wl,--gc-sections", -- remove sections of unused code
+                       "-g",                -- keep binder file (needed???)
+                       "-Wl,--relax"        -- linker relaxation is a must on AVR
+                      ); 
+
+end AVR_Tool_Options;
