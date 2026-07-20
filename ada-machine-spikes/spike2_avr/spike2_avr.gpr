@@ -4,8 +4,11 @@ with "../machine_blocking/machine_blocking.gpr";
 with "../machine_regmap/machine_regmap.gpr";
 with "../bme280/bme280.gpr";
 with "../atmega328p_hal/atmega328p_hal.gpr";
+with "../avrada_rts/avrada_rts.gpr";
 
 project Spike2_AVR is
+   for Target use "avr";
+   for Runtime ("Ada") use "../avrada_rts";
    for Source_Dirs use ("src");
    for Object_Dir use "obj";
    for Main use ("main.adb");
@@ -15,9 +18,18 @@ project Spike2_AVR is
       --  gprbuild otherwise names the binary "main" (after the source
       --  file); alire.toml's executables/"alr run" expect "spike2_avr".
       for Executable ("main.adb") use "spike2_avr";
+
+      --  ATmega328P has 32KB flash; unoptimized (-O0), checks-enabled Ada
+      --  code -- even with avrada_rts itself built for size (§10) -- does
+      --  not fit. -Os/-gnatp here match avrada_rts's own Production
+      --  profile default and apply across the whole closure (HAL/PAC/
+      --  machine*/bme280 sources too, not just this crate's own), which
+      --  a per-project Compiler'Default_Switches would not.
+      for Global_Compilation_Switches ("Ada") use ("-Os", "-gnatp");
    end Builder;
 
-   --  A real build inherits Runtime ("Ada") from avrada_rts (ZFP, §10);
-   --  out of scope here (no avr-gcc/GNAT for AVR in this environment --
-   --  see host_test for what IS run).
+   --  Target ("avr") and Runtime ("Ada") come from avrada_rts.gpr itself
+   --  (it declares both for its own project directory, §10); "with"ing
+   --  it above is enough to make the whole closure build against the
+   --  real AVR cross-compiler instead of the native host GNAT.
 end Spike2_AVR;

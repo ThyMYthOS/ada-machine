@@ -7,15 +7,18 @@
 #
 # Crates that target real hardware (rp2040_pac, rp2040_hal,
 # atmega328p_pac, atmega328p_hal, esp32c3_pac, esp32c3_hal, spike1_pico,
-# spike2_avr, spike3_esp) have no cross toolchain in most environments --
-# see each crate's own alire.toml for that note. Building them here
-# compiles/checks their sources against the *native host* GNAT as a
-# stand-in (real target code generation is out of scope); host_test is
-# the one crate meant to actually run, which `make test` does.
+# spike3_esp) have no cross toolchain in most environments -- see each
+# crate's own alire.toml for that note. Building them here compiles/
+# checks their sources against the *native host* GNAT as a stand-in
+# (real target code generation is out of scope); host_test is the one
+# crate meant to actually run, which `make test` does.
 #
-# One known, structural failure: spike2_avr's main.adb contains literal
-# AVR inline assembly ("sei", a real AVR CPU instruction) for global
-# interrupt enable -- this cannot assemble on any non-AVR host ISA.
+# spike2_avr is the exception: it really does cross-build (avrada_rts is
+# a local fork of RREE/AVRAda_RTS, patched to build against gnat_avr_elf
+# =15.3.1 -- see avrada_rts/alire.toml). `alr build` there invokes the
+# real AVR GNAT and produces a linked ELF for the ATmega328P, not a
+# native stand-in -- its main.adb's literal AVR inline assembly ("sei")
+# is exactly why it couldn't build natively before this.
 #
 # `make gnatprove` runs `alr gnatprove` (SPARK flow analysis + proof) the
 # same way, per crate. Generic-only crates (machine, machine_async,
@@ -50,6 +53,7 @@ CRATES := \
 	rp2040_hal \
 	atmega328p_pac \
 	atmega328p_hal \
+	avrada_rts \
 	esp32c3_pac \
 	esp32c3_hal \
 	host_test \

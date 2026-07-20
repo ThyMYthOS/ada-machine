@@ -941,11 +941,12 @@ These appendices previously sketched contract specs before any code existed. The
 | MCU | RP2040 (Cortex-M0+) | ATmega328P (AVR 8-bit) | ESP32-C3 (RV32IMC) |
 | Bus | I²C | SPI | SPI |
 | Execution model | blocking (L3a) | interrupt-driven (L3b) | DMA + tasking (L3c) |
-| Runtime floor | [light](#g-light) | AVR [ZFP](#g-zfp) | light-tasking |
+| Runtime floor | [light](#g-light) | AVR [ZFP](#g-zfp) (`avrada_rts`) | light-tasking |
 | Adapter crate | `machine_blocking` | `machine_async` | `machine_tasking` |
 | Data movement | busy-wait poll | one byte per `SPI_STC` IRQ | whole-block GDMA |
 | Timekeeping | busy-wait over `RP2040.Clock` | calibrated busy-wait | `delay until` / `Ada.Real_Time` |
 | Host build | ✔ | ✗ (one line: inline `sei`) | ✔ |
+| AVR cross build | — | ✔ (real linked ELF; see App. B) | — |
 
 **Shared across all three** — the point of the exercise is that none of this changes between spikes:
 
@@ -954,7 +955,7 @@ These appendices previously sketched contract specs before any code existed. The
 - the portable BME280 driver (`bme280`, §11): one body, `SPARK_Mode`, no access types, a ~26-byte calibration block, the Bosch integer compensation formulas (datasheet 4.2.3);
 - `host_test`: instantiates that same driver over recording mocks and checks it against the well-known Bosch reference vector (dig_T1 = 27504 …, adc_T = 519888 → **25.08 °C / 1006.53 hPa / 20.78 %RH**). `make test` builds and runs it; it passes.
 
-**On "real code" vs. "specs only."** The draft that these appendices replace showed specs and deferred bodies to "implementation." That work is done: the HAL bodies, the three adapters and the driver are implemented and `SPARK_Mode`. `make` builds every crate; targets with no cross toolchain in a typical environment (the [PACs](#g-pac), HALs and the three spike executables) are compiled against the host GNAT as a stand-in — real target code generation is out of scope for the spikes. The lone structural exception is spike 2's `sei` (Appendix B). What the spikes validate is that the *shapes* of D1/D2/D4/D18 compose in compilable Ada; what they do not attempt is on-silicon bring-up.
+**On "real code" vs. "specs only."** The draft that these appendices replace showed specs and deferred bodies to "implementation." That work is done: the HAL bodies, the three adapters and the driver are implemented and `SPARK_Mode`. `make` builds every crate; targets with no cross toolchain in a typical environment (RP2040 and ESP32-C3's [PACs](#g-pac)/HALs/executables) are compiled against the host GNAT as a stand-in — real target code generation is out of scope for those. Spike 2 is the exception, in the other direction: its literal `sei` instruction structurally cannot host-compile at all, and a real AVR cross toolchain (a local fork of `avrada_rts`, Appendix B) resolves that gap, so spike 2 actually cross-builds — a genuine linked ELF, not a stand-in. What the spikes validate is that the *shapes* of D1/D2/D4/D18 compose in compilable Ada (and, for spike 2, in real cross-compiled AVR machine code); what none of them attempt is on-silicon bring-up.
 
 ### Appendix A — Spike 1: BME280 on RP2040 over I²C, blocking
 
@@ -1021,8 +1022,9 @@ Chip select is an ordinary GPIO owned by the binding — `CS_Set` drives PB2 (th
 5. **Vector attachment needs ABI care:** `Export` to `__vector_17` places the handler; `pragma Machine_Attribute (…, "signal")` gives it the ISR prologue/epilogue — D5's "the application attaches" policy meeting a real calling convention.
 6. **Clock-less timeouts are approximate:** with no `Generic_Clock` on this floor, `Generic_Await` can only bound waiting by an iteration count, not a deadline — honest, and stated as such (also `TODO.md` P0 #2, the ISR-race note).
 7. **RAM budget:** the 32-byte adapter buffer + a few bytes of bookkeeping + the driver's ~26-byte calibration block sit comfortably inside 2 KB.
+8. **A minimal RTS's completeness gaps are discoverable only by linking real code against it.** `avrada_rts` had gone unused against anything beyond trivial programs; wiring a real driver (checked 64-bit arithmetic, real ISR vectors, a real HAL) through it for the first time is what surfaced the missing `System.Arith_64` — plain compilation of the RTS in isolation could not have found it.
 
-**Build.** This is the one spike with a structural host-build failure: the literal AVR `sei` instruction cannot assemble on a non-AVR host ISA. An AVR cross toolchain ([`avrada_rts`](https://github.com/RREE/AVRAda_RTS)) resolves it; nothing at the Ada level can. Every other unit host-compiles.
+**Build.** This is the one spike with a structural host-build failure: the literal AVR `sei` instruction cannot assemble on a non-AVR host ISA. Resolved — not with a stand-in, with a real AVR cross toolchain. [`avrada_rts`](ada-machine-spikes/avrada_rts/), a local fork of RREE's [AVRAda_RTS](https://github.com/RREE/AVRAda_RTS), is `with`ed straight into `spike2_avr.gpr` (`Target => "avr"`, `Runtime ("Ada")` pointed at the fork's own directory); `spike2_avr.gpr` restates both, since gprbuild's toolchain auto-configuration reads only the *root* project's attributes, not a `with`ed dependency's. Upstream's `gnat_avr_elf^11 | ^12.2` constraint has no Aarch64/Apple Silicon binary in the Alire index; the fork widens it to also accept `^15.1`. The `-gnatg`-mode runtime sources needed no changes for that jump except one real, pre-existing gap: `System.Arith_64` (`__gnat_mulv64`, checked 64-bit multiply) was missing outright, surfaced only once BME280's Bosch fixed-point math actually got linked against this runtime for the first time — unrelated to the GCC version, just never exercised before. Ported from FSF GCC 9's `libgnat` (the last vintage before SPARK ghost/Big_Numbers annotations, which this minimal runtime can't support). The fork also defaults its own build profile to `Production` (`-Os`, checks suppressed) rather than upstream's `Debug`, and `spike2_avr.gpr` forces the same (`Global_Compilation_Switches`) across its whole dependency closure — the ATmega328P's 32 KB flash has no room for unoptimized Ada exception/tag machinery otherwise. Result: a genuine linked AVR ELF (6.6 KB `.text`, 254 B RAM), with `alr build`/`alr gnatprove` exercising the real cross-compiler end to end. Every other unit host-compiles.
 
 ### Appendix C — Spike 3: BME280 on ESP32-C3 over SPI, DMA-driven under tasking
 

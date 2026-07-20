@@ -17,6 +17,7 @@ machine_blocking = "*"
 machine_regmap   = "*"
 bme280   = "*"
 atmega328p_hal   = "*"
+avrada_rts       = "*"
 
 [[pins]]
 machine          = { path = "../machine" }
@@ -25,7 +26,20 @@ machine_blocking = { path = "../machine_blocking" }
 machine_regmap   = { path = "../machine_regmap" }
 bme280   = { path = "../bme280" }
 atmega328p_hal   = { path = "../atmega328p_hal" }
+avrada_rts       = { path = "../avrada_rts" }
 
-# Not cross-built in this environment (no avrada_rts/avr-gcc toolchain
-# here, §10) -- this crate is the wiring/documentation artifact for
-# Appendix C; host_test is what is actually compiled and run.
+# `alr search avr` (§10) found avrada_rts/avrada_mcu/avrada_lib (Ada
+# runtime + drivers for AVR, from RREE/AVRAda) and gnat_avr_elf (the
+# AdaCore/GNAT-FSF AVR cross-compiler). gnat_avr_elf=15.3.1 installs and
+# runs here, but ships no Ada runtime (no adainclude/adalib) -- and the
+# registry's avrada_rts=2.0.1 depends on `gnat_avr_elf^11 | ^12.2`, whose
+# macOS origins only publish X86_64 binaries (no Aarch64/Apple Silicon
+# build), so it could not resolve on this host as published.
+#
+# ../avrada_rts is a local fork (cloned from RREE/AVRAda_RTS) with that
+# constraint widened to also accept `^15.1`: its runtime sources
+# (a-except, s-secsta, system.ads, etc., compiled with -gnatg against
+# gnat_avr_elf's own avr-gnat1) needed no source changes to build clean
+# against GCC 15.3 -- see ../avrada_rts/alire.toml. This crate now really
+# is cross-built (see spike2_avr.gpr for the Target/Runtime wiring);
+# host_test remains the one thing exercised against the native host GNAT.
