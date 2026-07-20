@@ -1,4 +1,4 @@
---  atmega328p-delays.ads -- Appendix C.1, verbatim: calibrated busy-wait;
+--  atmega328p-delays.ads -- spike 2 (Appendix B): calibrated busy-wait;
 --  F_CPU is an Alire crate configuration variable, folded at compile time.
 --  Global contracts added beyond the literal excerpt (§6.6).
 with ATmega328P_PAC.Sleep;

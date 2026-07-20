@@ -1,6 +1,6 @@
 --  ATmega328P SMCR -- Sleep Mode Control Register, data-space address
 --  0x53. Idle mode (SM[2:0] = 000) keeps every peripheral clocked, so
---  the SPI_STC interrupt still wakes the core (Appendix C.1's Sleep_Idle).
+--  the SPI_STC interrupt still wakes the core (Appendix B's Sleep_Idle).
 with System;
 with Interfaces; use Interfaces;
 

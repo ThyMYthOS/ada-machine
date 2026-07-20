@@ -1,4 +1,4 @@
---  host_test main: instantiates the portable BME280 driver (Appendix A.3)
+--  host_test main: instantiates the portable BME280 driver (the bme280 crate, §11)
 --  over Mock_Regmap/Mock_Delays and checks its output against the
 --  well-known Bosch reference vector (dig_T1=27504 ... adc_T=519888 ->
 --  25.08 degC / 1006.53 hPa / 20.78 %RH), independently cross-checked

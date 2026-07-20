@@ -1,4 +1,4 @@
---  RP2040 RESETS -- base 0x4000_c000. Only the three bits Appendix B's
+--  RP2040 RESETS -- base 0x4000_c000. Only the three bits Appendix A's
 --  I2C0/GPIO path needs to bring itself out of reset: I2C0, IO_BANK0,
 --  PADS_BANK0 (bit numbers per the RP2040 datasheet's RESETS_RESET
 --  field, alphabetical peripheral order).

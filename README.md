@@ -1,6 +1,6 @@
 # Ada Machine — An Opinionated Platform Architecture for Embedded Ada
 
-- **Status:** Draft 0.3 — 2026-07-14 (renames the platform from *EHAL* to *Ada Machine*; draft 0.2 archived as `ada-embedded-hal-architecture-concept-draft-0.2.md`)
+- **Status:** Draft 0.4 — 2026-07-20 (appendices rewritten to document the three implemented spikes now under `ada-machine-spikes/`; draft 0.3 renamed the platform from *EHAL* to *Ada Machine*; draft 0.2 archived as `ada-embedded-hal-architecture-concept-draft-0.2.md`)
 - **Author:** Manuel Stahl (with research assistance)
 - **In scope:** 8-bit (ATtiny/ATmega AVR) through 32-bit (RP2040-class Cortex-M) to 64-bit (PolarFire SoC-class RISC-V); [MPU](#g-mpu)-based memory protection; [SMP](#g-smp) and [AMP](#g-amp) multicore; two privilege levels (RISC-V M-/U-Mode, ARM privileged/unprivileged) — always on embedded runtime profiles (bare metal / [Ravenscar](#g-ravenscar)-class tasking).
 - **Out of scope:** [MMU](#g-mmu)-based virtual memory and IOMMU — the line where full OSes begin (§2) — and x86 targets.
@@ -726,7 +726,7 @@ Ada's actual superpower for wire data is that the *type itself* can define the w
 type Telemetry is record
    Kind     : Message_Kind;              --  enum, 8 bits on the wire
    Sequence : Interfaces.Unsigned_16;
-   Temp     : Celsius;                   --  16-bit fixed point (Appendix A)
+   Temp     : Celsius;                   --  16-bit fixed point (cf. the BME280 driver)
 end record
   with Size => 40,
        Bit_Order            => System.Low_Order_First,
@@ -804,7 +804,7 @@ is
 end Machine.Regmap.I2C_Device;
 ```
 
-A device driver then becomes mostly declarative — and the spike appendices exercise the byte-level core of this design: `Machine.Regmap.Generic_Device` plus the I2C/SPI bindings (Appendix A.2) carry one BME280 driver across both buses. Precedents for the shape: Linux's [regmap](https://docs.kernel.org/driver-api/regmap.html) (one register API over MMIO/I2C/SPI) and Rust's [device-driver](https://github.com/diondokter/device-driver) toolkit (typed register interfaces over embedded-hal buses, generated from a description file). Device interrupt pins (INT/DRDY) need no new machinery — they are ordinary L2 GPIO events pumped through `machine_async`.
+A device driver then becomes mostly declarative — and the spike appendices exercise the byte-level core of this design: `Machine.Regmap.Generic_Device` plus the I2C/SPI bindings carry one BME280 driver across three spikes and two buses (Appendices A–C). Precedents for the shape: Linux's [regmap](https://docs.kernel.org/driver-api/regmap.html) (one register API over MMIO/I2C/SPI) and Rust's [device-driver](https://github.com/diondokter/device-driver) toolkit (typed register interfaces over embedded-hal buses, generated from a description file). Device interrupt pins (INT/DRDY) need no new machinery — they are ordinary L2 GPIO events pumped through `machine_async`.
 
 **Generating remote register maps from SVD.** The §9 pipeline can serve external chips too, and inspection of [svd2ada](#g-svd2ada) shows the path is shorter than expected. What exists today: svd2ada emits exactly the right *types* (register records with representation clauses, field subtypes, `enumeratedValues` as Ada enums, reset defaults) before locating them; it already has a real configuration surface (`--no-arrays`, `--no-vfa-on-types`, `--gen-uint-always`, `--base-types-package`, `--no-elaboration-code-all`); and it already honors a **helper-file hook** — a `<name>.svd2ada` file beside the SVD, parsed as generation hints — i.e. the annotation mechanism §9 rule 2 calls for half-exists. What is missing for remote maps:
 
@@ -931,590 +931,130 @@ Where Ada Machine sits relative to the platforms an embedded developer would act
 
 ---
 
-## Appendix A — Shared spike specs: contract excerpts and the portable driver
+## Appendices — the three spikes
 
-Appendices A–C form one experiment. Appendix A holds what is *common*: the `machine` contract excerpts, the bus-neutral register-map bindings (§15.4), and the portable BME280 driver. Appendix B wires that driver to a Raspberry Pi Pico (RP2040) over **I2C**, blocking, on the light runtime; Appendix C wires the *identical* driver to an ATmega328P over **SPI**, interrupt-driven, on the AVR [ZFP](#g-zfp) floor. The BME280 speaks both buses — which is exactly what makes it the right spike device: one driver, two buses, two execution models. Specs only throughout — bodies, register work and compensation math are implementation; the point is to check that the shapes of D1/D2/D4/D18 compose.
+These appendices previously sketched contract specs before any code existed. They are rewritten here to document the three end-to-end spikes now implemented as Alire crates under [`ada-machine-spikes/`](ada-machine-spikes/). One driver, three targets spanning the whole scope range, three execution models, two buses:
 
-### A.1 Contract excerpts (`machine` crate)
+| | Spike 1 (App. A) | Spike 2 (App. B) | Spike 3 (App. C) |
+|---|---|---|---|
+| Crate | `spike1_pico` | `spike2_avr` | `spike3_esp` |
+| MCU | RP2040 (Cortex-M0+) | ATmega328P (AVR 8-bit) | ESP32-C3 (RV32IMC) |
+| Bus | I²C | SPI | SPI |
+| Execution model | blocking (L3a) | interrupt-driven (L3b) | DMA + tasking (L3c) |
+| Runtime floor | [light](#g-light) | AVR [ZFP](#g-zfp) | light-tasking |
+| Adapter crate | `machine_blocking` | `machine_async` | `machine_tasking` |
+| Data movement | busy-wait poll | one byte per `SPI_STC` IRQ | whole-block GDMA |
+| Timekeeping | busy-wait over `RP2040.Clock` | calibrated busy-wait | `delay until` / `Ada.Real_Time` |
+| Host build | ✔ | ✗ (one line: inline `sei`) | ✔ |
 
-```ada
---  machine.ads — the root holds only the shared vocabulary
-package Machine
-  with Pure, SPARK_Mode
-is
-   type Byte is mod 2**8;
-   type Byte_Array is array (Positive range <>) of Byte;
-end Machine;
-```
+**Shared across all three** — the point of the exercise is that none of this changes between spikes:
 
-```ada
---  machine-i2c.ads — the class child holds the class vocabulary (§7 rule 2)
-package Machine.I2C
-  with Pure, SPARK_Mode
-is
-   type Address_7_Bit is range 0 .. 16#7F#;       --  unshifted (§7.2)
+- the `machine` contract crate ([`ada-machine-spikes/machine/`](ada-machine-spikes/machine/)): the class packages, [signatures](#g-signature), error kinds and `Machine.<Exec>` roots quoted throughout §6–§15 — now real source, not excerpts;
+- the bus-neutral register-map bindings (`machine_regmap`, §15.4) — `Generic_I2C_Binding` for spike 1, `Generic_SPI_Binding` for spikes 2 & 3;
+- the portable BME280 driver (`bme280`, §11): one body, `SPARK_Mode`, no access types, a ~26-byte calibration block, the Bosch integer compensation formulas (datasheet 4.2.3);
+- `host_test`: instantiates that same driver over recording mocks and checks it against the well-known Bosch reference vector (dig_T1 = 27504 …, adc_T = 519888 → **25.08 °C / 1006.53 hPa / 20.78 %RH**). `make test` builds and runs it; it passes.
 
-   --  L2 status: no Timed_Out — L2 never waits (§7):
-   type Bus_Status is
-     (Ok, Nack_Address, Nack_Data, Arbitration_Lost, Bus_Error, Other_Error);
+**On "real code" vs. "specs only."** The draft that these appendices replace showed specs and deferred bodies to "implementation." That work is done: the HAL bodies, the three adapters and the driver are implemented and `SPARK_Mode`. `make` builds every crate; targets with no cross toolchain in a typical environment (the [PACs](#g-pac), HALs and the three spike executables) are compiled against the host GNAT as a stand-in — real target code generation is out of scope for the spikes. The lone structural exception is spike 2's `sei` (Appendix B). What the spikes validate is that the *shapes* of D1/D2/D4/D18 compose in compilable Ada; what they do not attempt is on-silicon bring-up.
 
-   --  L3a status: adapters add the timeout outcome (§7 rule 3):
-   type Transaction_Status is
-     (Ok, Timed_Out,
-      Nack_Address, Nack_Data, Arbitration_Lost, Bus_Error, Other_Error);
-end Machine.I2C;
-```
+### Appendix A — Spike 1: BME280 on RP2040 over I²C, blocking
 
-```ada
---  machine-log.ads   (§14.2, deferred formatting: ids + scalars, no strings)
-package Machine.Log
-  with Pure, SPARK_Mode
-is
-   type Event_Id is mod 2**16;
-   type Arg is mod 2**32;
-   No_Arg : constant Arg := 0;
-end Machine.Log;
-```
+**Stack.** `spike1_pico` → `rp2040_hal` (+ `rp2040_pac`), `machine_blocking`, `machine_regmap`, `bme280`, `machine`. The [light](#g-light)-runtime, Cortex-M0+ end of the range, and the one I²C spike.
+
+**L2 exercised.** `RP2040.Clock` (the 64-bit TIMER, read through `Now`); `RP2040.I2C0` (the DW_apb_i2c command-FIFO data phase — `Set_Target` / `Can_Push` / `Push_Write` / `Push_Read_Request` / `Can_Pop` / `Pop`, each chained on `Bus_Status`, each `Inline_Always`); and `RP2040.GPIO` for a status LED. `RP2040.I2C0.Enable` performs the RP2040-specific configuration (baud, SDA/SCL pin mux) — native, never contract (D8).
+
+**Wiring** ([`ada-machine-spikes/spike1_pico/src/board.ads`](ada-machine-spikes/spike1_pico/src/board.ads)) reads like the schematic and is the canonical shape the other two spikes vary from:
 
 ```ada
---  machine-generic_clock.ads
-generic
-   type Ticks is mod <>;                       --  monotonic counter, >= 2**32 (§6.5)
-   Ticks_Per_Second : Positive;                --  rate at which Now advances
-   with function Now return Ticks;             --  read the clock; never blocks
-package Machine.Generic_Clock is end;
+package Clock_Sig is new Machine.Generic_Clock
+  (Ticks => RP2040.Clock.Ticks, Ticks_Per_Second => RP2040.Clock.Ticks_Per_Second,
+   Now   => RP2040.Clock.Now);
+package I2C0_Sig is new Machine.I2C.Generic_Master     --  instantiating the signature
+  (Set_Target => RP2040.I2C0.Set_Target, Can_Push => RP2040.I2C0.Can_Push,
+   Push_Write => RP2040.I2C0.Push_Write, …);            --  *is* the conformance check (§6.1)
+package Delays is new Machine.Blocking.Delays (Clock => Clock_Sig);
+package I2C    is new Machine.Blocking.I2C (Port => I2C0_Sig, Clock => Clock_Sig);
+package Regs   is new Machine.Regmap.Generic_I2C_Binding
+  (Bus => I2C.As_Signature, Device_Address => 16#76#);
+package Env_Sensor is new BME280 (Regs => Regs.As_Device, Wait => Delays.As_Signature);
 ```
+
+**Application** ([`…/src/main.adb`](ada-machine-spikes/spike1_pico/src/main.adb)): configures GP25 (the onboard LED), enables I²C0 at 400 kHz on GP4/5, then runs `Initialize` / `Configure` / `Measure` in a loop with a single status inspection at the bottom (§7.1). Status is surfaced physically — one long LED pulse per good measurement, `Device_Status'Pos + 1` short pulses on failure — and the transaction owner resets `Status := Ok` to retry (§7.1 rule 3). There is no runtime console on this floor (§10.3 is a full-runtime feature this spike does not pull in).
+
+**What it surfaces:**
+
+1. **The `As_Signature` / `As_Device` self-conformance export works and should be normative** — adapters instantiate their own signatures, so wiring never re-lists subprogram names that already exist.
+2. **Four chained status types coexist cleanly** — `I2C.Bus_Status` → `I2C.Transaction_Status` → `Regmap.Access_Status` → `BME280.Device_Status`, mapped at each boundary, with `Last_Access_Status` as the detail escape. §7.1 rule 4 survives contact with a real driver, and the regmap level is what buys bus neutrality (Appendices B and C swap the two lower levels for their SPI counterparts without the driver noticing).
+3. **`Ticks_Per_Second` must be a formal object** of the clock signature, or delays cannot be computed portably — a detail §6.5's prose glossed over.
+4. **Whole-stack property check:** no access, tagged or heap types anywhere; every spec `SPARK_Mode`; each layer instantiated exactly once (jere's bloat rule trivially met).
+5. **The command-FIFO shape of `I2C.Generic_Master`** matches DW_apb_i2c but is still validated by only this one controller — open question 3, tracked as `TODO.md` P0 #1.
+
+**Build.** Host-compiles. A real cross-build needs a light RP2040 runtime (e.g. `light_rp2040`), which the spike's manifest deliberately does not pin ([`…/alire.toml`](ada-machine-spikes/spike1_pico/alire.toml)).
+
+### Appendix B — Spike 2: BME280 on ATmega328P over SPI, interrupt-driven
+
+**Stack.** `spike2_avr` → `atmega328p_hal` (+ `atmega328p_pac`), `machine_async`, `machine_blocking`, `machine_regmap`, `bme280`, `machine`. The 2 KB, 8-bit, no-tasking floor — and the *other* bus.
+
+Why SPI and not TWI here: classic AVR has no [DMA](#g-dma), and where the family does (XMEGA's DMAC) SPI/USART are the trigger sources, so SPI is the realistic AVR async story. (The AVR **TWI** data point for the I²C signature is therefore still missing — `TODO.md` P0 #1.)
+
+**L2 exercised.** `ATmega328P.SPI` presents the never-blocking data phase over a FIFO-less peripheral: `Can_Push` / `Can_Pop` reflect the SPIF/idle state — a *depth-1 FIFO*. `ATmega328P.Delays` is a calibrated busy-wait (`F_CPU` an [Alire](#g-alire) config variable) plus `Sleep_Idle` (the `SLEEP` instruction, wakes on any IRQ).
+
+**Adapter.** `Machine.Async.SPI` (L3b) owns the buffers (access-free ⇒ no caller buffers), pumps one byte per interrupt through `On_Interrupt`, and exposes a blocking *view* via `Generic_Await` — which turns the async core into a `Machine.Blocking.Generic_SPI_Master`, so the BME280 driver instantiates unchanged. `Generic_Await` is parameterized with `Sleep_Until_Interrupt => ATmega328P.Delays.Sleep_Idle`, so the CPU sleeps between bytes.
+
+**Wiring** ([`…/src/avr_board.ads`](ada-machine-spikes/spike2_avr/src/avr_board.ads), [`…/src/avr_board.adb`](ada-machine-spikes/spike2_avr/src/avr_board.adb)): the delta from spike 1 is the interrupt attachment. ZFP-AVR has no `Attach_Handler`, so the handler is exported directly onto the vector symbol:
 
 ```ada
---  machine-blocking.ads — root of the blocking execution model. Owned by
---  the spec crate (it hosts contracts); the implementation children
---  (Machine.Blocking.I2C, .UART, .Delays) come from crate machine_blocking.
-package Machine.Blocking
-  with Pure, SPARK_Mode
-is
-   subtype Milliseconds is Natural;
-end Machine.Blocking;
+procedure SPI_Interrupt with Export, External_Name => "__vector_17";  --  SPI_STC_vect
+pragma Machine_Attribute (SPI_Interrupt, "signal");                   --  ISR prologue/epilogue
+--  body: SPI_Async.On_Interrupt;
 ```
+
+Chip select is an ordinary GPIO owned by the binding — `CS_Set` drives PB2 (the hardware /SS repurposed as a plain output in master mode), wrapped as a `Generic_Digital_Out` and handed to `Generic_SPI_Binding` (§6.1: CS is never part of the SPI class).
+
+**Application** ([`…/src/main.adb`](ada-machine-spikes/spike2_avr/src/main.adb), `SPARK_Mode => Off`): the one line outside SPARK is `Asm ("sei", …)` — global interrupt enable, the application's decision on this floor (D5). It configures PB2, enables SPI (`Div_16`, mode 0, MSB-first), enables the SPI interrupt, then runs the same `Initialize` / `Configure` / `Measure` retry loop; the last `Device_Status` is held in a `Volatile` local for probe inspection (no spare pin for an LED).
+
+**What it surfaces:**
+
+1. **Portability holds at the extreme, across buses.** The BME280 body is byte-for-byte the spike-1 body; only the wiring package differs. D2 (adapters) plus the bus-neutral regmap seam are what make that sentence true.
+2. **The never-blocking L2 shape degenerates gracefully** to a depth-1 FIFO — one `Generic_Master` shape spans RP2040's real FIFOs and AVR's single in-flight byte.
+3. **[DMA](#g-dma) is genuinely an implementation detail:** a DMA-capable body of `Machine.Async.SPI` would pump descriptors instead of bytes, with neither the adapter spec nor the driver changing — Appendix C then shows exactly that, at block granularity, on real DMA.
+4. **Access-free async forces adapter-owned buffers:** the ISR pump cannot retain a caller's buffer, so exchanged bytes land in a buffer sized at instantiation (32 B here; the 27-byte calibration burst fits) and are copied out. Zero-copy DMA into caller storage would need ownership machinery — a real trade-off to document in the AMRM async clause.
+5. **Vector attachment needs ABI care:** `Export` to `__vector_17` places the handler; `pragma Machine_Attribute (…, "signal")` gives it the ISR prologue/epilogue — D5's "the application attaches" policy meeting a real calling convention.
+6. **Clock-less timeouts are approximate:** with no `Generic_Clock` on this floor, `Generic_Await` can only bound waiting by an iteration count, not a deadline — honest, and stated as such (also `TODO.md` P0 #2, the ISR-race note).
+7. **RAM budget:** the 32-byte adapter buffer + a few bytes of bookkeeping + the driver's ~26-byte calibration block sit comfortably inside 2 KB.
+
+**Build.** This is the one spike with a structural host-build failure: the literal AVR `sei` instruction cannot assemble on a non-AVR host ISA. An AVR cross toolchain ([`avrada_rts`](https://github.com/RREE/AVRAda_RTS)) resolves it; nothing at the Ada level can. Every other unit host-compiles.
+
+### Appendix C — Spike 3: BME280 on ESP32-C3 over SPI, DMA-driven under tasking
+
+New in this draft; the top-of-scope counterpart to spike 2's floor. Same sensor, same SPI bus, but every transfer rides a whole-block GDMA transfer awaited under a tasking runtime rather than a byte-pumped ISR.
+
+**Stack.** `spike3_esp` → `esp32c3_hal` (+ `esp32c3_pac`), `machine_tasking`, `machine_regmap`, `bme280`, `machine`. Note the adapter dependency: `machine_tasking` composes `machine_async` / `machine_blocking` — the deviation from §4's "adapters depend on `machine` only" that `TODO.md` P1 #4 tracks.
+
+**L2 exercised.** `ESP32C3.SPI2` provides both a polled data phase (conformance-checked in the HAL's own `conformance.ads`) and a block-DMA path — `Start_Transfer` (kicks one GDMA block and returns immediately, §6.2), `Cancel_Transfer` (on timeout, *synchronously* stops the engine so no late completion can be misattributed to the next transfer — §7.1 rule 2 extended to DMA hardware), `Read_Response`, and `Handle_DMA_Interrupt`. The GDMA descriptor/header records live in `esp32c3_pac` with full representation clauses.
+
+**Adapter.** `Machine.Tasking.Generic_DMA_SPI` (L3c) awaits block completion through a body-private protected object, polled in a `delay until` loop under a real `Ada.Real_Time` deadline. It is deliberately **not** a protected entry / timed entry call: [Ravenscar](#g-ravenscar)'s `No_Select_Statements` bans those (an earlier version that used a timed entry call failed to compile under the profile). The trade — up to one poll period of latency after the completion signal, in exchange for a genuine deadline — is the explicit distinction from the sibling `Machine.Tasking.Generic_SPI`, which uses a `Suspension_Object` (zero latency, but no deadline at all). `Machine.Tasking.Delays` uses `delay until` over `Ada.Real_Time.Clock`.
+
+**Wiring** ([`…/src/board.ads`](ada-machine-spikes/spike3_esp/src/board.ads), [`…/src/board.adb`](ada-machine-spikes/spike3_esp/src/board.adb)): the DMA-done bridge is a protected object whose procedure calls `ESP32C3.SPI2.Handle_DMA_Interrupt` and forwards the outcome to `DMA_SPI.Signal_Complete` — the tasking, block-transfer counterpart of spike 2's `SPI_Interrupt`. CS is GPIO10 (the default IOMUX FSPICS0 pin), again an ordinary `Generic_Digital_Out`:
 
 ```ada
---  machine-blocking-generic_delays.ads — delaying is inherently blocking,
---  so the delays contract lives under the blocking model.
-generic
-   with procedure Delay_Us (Us : Natural);     --  wait at least Us microseconds
-   with procedure Delay_Ms (Ms : Natural);     --  wait at least Ms milliseconds
-package Machine.Blocking.Generic_Delays is end;
+package DMA_SPI is new Machine.Tasking.Generic_DMA_SPI
+  (Start_Transfer => ESP32C3.SPI2.Start_Transfer, Cancel_Transfer => ESP32C3.SPI2.Cancel_Transfer,
+   Read_Response  => ESP32C3.SPI2.Read_Response);
+package Regs is new Machine.Regmap.Generic_SPI_Binding (Bus => DMA_SPI.As_Blocking, CS => CS);
+package Env_Sensor is new BME280 (Regs => Regs.As_Device, Wait => Machine.Tasking.Delays.As_Signature);
 ```
 
-```ada
---  machine-i2c-generic_master.ads — generic child of Machine.I2C,
---  so the class types are directly visible.
---  The never-blocking L2 data phase (§5, §6.3): command/data FIFO
---  primitives, chained on Bus_Status (§7.1).
-generic
-   with procedure Set_Target (Address : Address_7_Bit);
-                                          --  select the addressed device
-   with function  Can_Push return Boolean;
-                                          --  True when the command FIFO has room
-   with procedure Push_Write (Data : Byte; Stop : Boolean;
-                              Status : in out Bus_Status);
-                                          --  enqueue a write byte (+ STOP flag)
-   with procedure Push_Read_Request (Stop : Boolean;
-                                     Status : in out Bus_Status);
-                                          --  enqueue a read slot (+ STOP flag)
-   with function  Can_Pop return Boolean;
-                                          --  True when received data is available
-   with procedure Pop (Data : out Byte; Status : in out Bus_Status);
-                                          --  dequeue one received byte
-package Machine.I2C.Generic_Master is end;
-```
+**Application** ([`…/src/main.adb`](ada-machine-spikes/spike3_esp/src/main.adb)) stays fully in [SPARK](#g-spark) — no inline asm is needed, since global interrupt enable and interrupt attachment are runtime-owned on a light-tasking profile (unlike spike 2's ZFP floor). It sets CS idle-high, enables SPI2, and runs the measure loop.
 
-```ada
---  machine-blocking-generic_i2c_master.ads — the blocking model's I2C
---  master contract: whole bounded transactions that complete (or fail)
---  before returning. What blocking L4 code programs against (§11);
---  implemented by Machine.Blocking.I2C and by async Generic_Await.
-with Machine.I2C;
-generic
-   with procedure Write (Address    : Machine.I2C.Address_7_Bit;
-                         Data       : Byte_Array;
-                         Timeout_Ms : Natural;
-                         Status     : in out Machine.I2C.Transaction_Status);
-                                    --  one complete write transaction, bounded
-   with procedure Write_Read (Address    : Machine.I2C.Address_7_Bit;
-                              Command    : Byte_Array;
-                              Response   : out Byte_Array;
-                              Timeout_Ms : Natural;
-                              Status     : in out Machine.I2C.Transaction_Status);
-                                    --  write, repeated-start, read — one transaction
-package Machine.Blocking.Generic_I2C_Master is end;
-```
+**What it surfaces:**
 
-```ada
---  machine-spi.ads — the SPI class child (statuses per D18; SPI has no
---  addresses or NACKs, and chip select is NOT part of the class: it is a
---  Generic_Digital_Out wired by whoever owns the bus topology)
-package Machine.SPI
-  with Pure, SPARK_Mode
-is
-   type Bus_Status is (Ok, Mode_Fault, Other_Error);   --  L2: never waits
-   type Transaction_Status is
-     (Ok, Timed_Out, Mode_Fault, Other_Error);         --  L3a (§7 rule 3)
-end Machine.SPI;
-```
+1. **DMA-as-detail, proven at block granularity.** Going from spike 2's byte pump to real GDMA changed neither the `bme280` driver nor the portable adapter *contract* — only the L2 body and the choice of L3 adapter. This is §8.2's central claim, demonstrated at the opposite end of the range from spike 2.
+2. **Two tasking await strategies, two honest trade-offs** (`Suspension_Object` vs. `delay until` polling), forced by Ravenscar's restrictions rather than chosen freely — a genuine finding about what the profile allows.
+3. **Tasking-floor code stays SPARK-clean** without the inline-asm escape spike 2 needed — the runtime owns the interrupt plumbing.
+4. **The runtime-gating mechanism is real and bites here.** The DMA-done interrupt is left *unattached*: an actual attachment needs an `Ada.Interrupts.Interrupt_ID` for ESP32-C3's SPI2/DMA source, which needs the interrupt matrix programmed by a light-tasking runtime for the ESP32-C3 that does not exist in this repo or its dependencies (§10). The `DMA_Handler` protected object is the wiring artifact marking exactly where that attachment goes — the spike compiles but cannot run for real until that runtime exists ([`…/esp32c3_hal/alire.toml`](ada-machine-spikes/esp32c3_hal/alire.toml); `TODO.md` P1 #4).
 
-```ada
---  machine-spi-generic_master.ads — never-blocking full-duplex data phase
-generic
-   with function  Can_Push return Boolean;
-                                    --  True when a byte may be started
-   with procedure Push (Data : Byte; Status : in out Bus_Status);
-                                    --  start exchanging one byte; never blocks
-   with function  Can_Pop return Boolean;
-                                    --  True when the exchanged byte is ready
-   with procedure Pop (Data : out Byte; Status : in out Bus_Status);
-                                    --  fetch the exchanged byte
-package Machine.SPI.Generic_Master is end;
-```
-
-```ada
---  machine-blocking-generic_spi_master.ads — the blocking model's SPI
---  master contract (chip select excluded, as in Machine.SPI).
-with Machine.SPI;
-generic
-   with procedure Exchange (TX         : Byte_Array;
-                            RX         : out Byte_Array;
-                            Timeout_Ms : Natural;
-                            Status     : in out Machine.SPI.Transaction_Status);
-                                    --  full duplex; RX'Length = TX'Length
-package Machine.Blocking.Generic_SPI_Master is end;
-```
-
-```ada
---  machine-regmap.ads — bus-neutral register-access vocabulary (§15.4)
-package Machine.Regmap
-  with Pure, SPARK_Mode
-is
-   type Reg_Address is new Byte;    --  device-local register index
-   type Access_Status is            --  chained (§7.1); mapped from bus kinds
-     (Ok, Timed_Out, Bus_Fault, Other_Error);
-end Machine.Regmap;
-```
-
-```ada
---  machine-regmap-generic_device.ads — what register-map drivers (L4)
---  program against; implemented by the bus bindings of A.2.
-generic
-   with procedure Write_Reg (Reg : Reg_Address; Value : Byte;
-                             Status : in out Access_Status);
-                                    --  one register write, bounded time
-   with procedure Read_Regs (Start : Reg_Address;
-                             Data  : out Byte_Array;
-                             Status : in out Access_Status);
-                                    --  auto-incrementing burst read
-package Machine.Regmap.Generic_Device is end;
-```
-
-### A.2 Register-map bindings (`machine_regmap` crate)
-
-```ada
---  machine-regmap-generic_i2c_binding.ads
-with Machine.Blocking.Generic_I2C_Master, Machine.Regmap.Generic_Device;
-generic
-   with package Bus is new Machine.Blocking.Generic_I2C_Master (<>);
-                                    --  blocking transactions on the device's bus
-   Device_Address : Machine.I2C.Address_7_Bit;
-                                    --  the chip's address on that bus
-   Timeout_Ms : Natural := 100;     --  per register access
-package Machine.Regmap.Generic_I2C_Binding is
-   procedure Write_Reg (Reg : Reg_Address; Value : Byte;
-                        Status : in out Access_Status);
-   procedure Read_Regs (Start : Reg_Address; Data : out Byte_Array;
-                        Status : in out Access_Status);
-   package As_Device is new Generic_Device (Write_Reg, Read_Regs);
-end Machine.Regmap.Generic_I2C_Binding;
-```
-
-```ada
---  machine-regmap-generic_spi_binding.ads
-with Machine.Blocking.Generic_SPI_Master, Machine.Generic_Digital_Out,
-     Machine.Regmap.Generic_Device;
-generic
-   with package Bus is new Machine.Blocking.Generic_SPI_Master (<>);
-                                    --  blocking full-duplex exchanges
-   with package CS  is new Machine.Generic_Digital_Out (<>);
-                                    --  chip select, active low, per device
-   Timeout_Ms : Natural := 100;     --  per register access
-package Machine.Regmap.Generic_SPI_Binding is
-   --  BME280-style SPI register convention (§15.4): bit 7 of the register
-   --  address is 1 for read, 0 for write. A convention formal could
-   --  generalize this; fixed here for the spike.
-   procedure Write_Reg (Reg : Reg_Address; Value : Byte;
-                        Status : in out Access_Status);
-   procedure Read_Regs (Start : Reg_Address; Data : out Byte_Array;
-                        Status : in out Access_Status);
-   package As_Device is new Generic_Device (Write_Reg, Read_Regs);
-end Machine.Regmap.Generic_SPI_Binding;
-```
-
-### A.3 The portable L4 driver (`bme280` crate)
-
-```ada
---  bme280.ads
-with Machine.Regmap.Generic_Device, Machine.Blocking.Generic_Delays, Machine.Log;
-generic
-   with package Regs is new Machine.Regmap.Generic_Device (<>);
-                                    --  bus-neutral register access (A.1/A.2):
-                                    --  the same driver serves I2C and SPI.
-                                    --  Bus address / chip select live in the
-                                    --  binding, where the topology is known.
-   with package Wait is new Machine.Blocking.Generic_Delays (<>);
-                                    --  waits for conversion/reset times
-   with procedure Log_Event (E : Machine.Log.Event_Id;
-                             A : Machine.Log.Arg := Machine.Log.No_Arg) is null;
-                                    --  optional trace hook; default: no-op
-package BME280
-  with SPARK_Mode
-is
-   --  Driver-level chained status (§7.1 rule 4): access kinds are mapped,
-   --  not re-exported.
-   type Device_Status is
-     (Ok, Wrong_Chip_Id, Bus_Fault, Timed_Out, Not_Initialized);
-   function Last_Access_Status return Machine.Regmap.Access_Status;  --  detail escape
-
-   type Oversampling is (Skipped, X1, X2, X4, X8, X16);
-
-   --  Compensated readings as fixed-point, per datasheet ranges:
-   type Celsius     is delta 0.01 range -40.00 .. 85.00;
-   type Hectopascal is delta 0.01 range 300.00 .. 1100.00;
-   type Percent_RH  is delta 0.01 range 0.00 .. 100.00;
-   type Measurement is record
-      Temperature : Celsius;
-      Pressure    : Hectopascal;
-      Humidity    : Percent_RH;
-   end record;
-
-   --  Soft-reset, probe chip id (16#60#), load calibration coefficients.
-   --  Calibration state lives in the package body — one device per
-   --  instantiation, no access types, no heap.
-   procedure Initialize (Status : in out Device_Status);
-
-   procedure Configure
-     (Temperature_Oversampling : Oversampling := X2;
-      Pressure_Oversampling    : Oversampling := X16;
-      Humidity_Oversampling    : Oversampling := X1;
-      Status                   : in out Device_Status);
-
-   --  Forced-mode cycle: trigger, Wait.Delay_Ms (max conversion time for
-   --  the configured oversampling), burst-read 16#F7#..16#FE#, compensate.
-   procedure Measure (Result : out Measurement;
-                      Status : in out Device_Status);
-end BME280;
-```
-
-## Appendix B — Spike 1: BME280 on RP2040, blocking
-
-The Pico wiring: L2 convention packages, the blocking adapters, the board package. Everything below is target-specific; nothing in Appendix A's driver knows which appendix it runs in.
-
-### B.1 L2 excerpts (`rp2040_hal` crate)
-
-```ada
---  rp2040-clock.ads
-package RP2040.Clock
-  with Preelaborate, SPARK_Mode
-is
-   type Ticks is mod 2**64;                    --  the 64-bit TIMER peripheral
-   Ticks_Per_Second : constant := 1_000_000;
-   function Now return Ticks with Inline_Always;
-end RP2040.Clock;
-```
-
-```ada
---  rp2040-i2c0.ads
-with Machine;
-package RP2040.I2C0
-  with Preelaborate, SPARK_Mode
-is
-   --  Configuration: deliberately RP2040-specific (D8) — pins, pad
-   --  options, bus speed. Not part of the portable contract.
-   type Config is record
-      Baud_Hz : Positive range 1 .. 1_000_000 := 100_000;
-      SDA_Pin : Pin_Id := 4;
-      SCL_Pin : Pin_Id := 5;
-      --  … pull-ups, slew, RP2040 pad controls
-   end record;
-   procedure Enable  (Cfg : Config := (others => <>));
-   procedure Disable;
-   procedure Set_Target (Address : Machine.I2C.Address_7_Bit);
-
-   --  Never-blocking data phase over the DW_apb_i2c command FIFO;
-   --  Stop => True sets the STOP bit on that FIFO entry:
-   function  Can_Push return Boolean with Inline_Always;
-   procedure Push_Write (Data : Machine.Byte; Stop : Boolean;
-                         Status : in out Machine.I2C.Bus_Status)
-     with Inline_Always, Pre => Can_Push;
-   procedure Push_Read_Request (Stop : Boolean;
-                                Status : in out Machine.I2C.Bus_Status)
-     with Inline_Always, Pre => Can_Push;
-   function  Can_Pop return Boolean with Inline_Always;
-   procedure Pop (Data : out Machine.Byte; Status : in out Machine.I2C.Bus_Status)
-     with Inline_Always;
-
-   --  Event plumbing for L3b (§6.2), unused in this blocking spike:
-   --  Enable_Event / Disable_Event / Pending_Event / Clear_Event …
-end RP2040.I2C0;
-```
-
-### B.2 L3a adapters (`machine_blocking` crate)
-
-```ada
---  machine-blocking-delays.ads    (busy-wait over any Clock; §6.5, §8.1)
-with Machine.Generic_Clock, Machine.Blocking.Generic_Delays;
-generic
-   with package Clock is new Machine.Generic_Clock (<>);
-                                    --  time base to busy-wait on
-package Machine.Blocking.Delays
-  with SPARK_Mode
-is
-   procedure Delay_Us (Us : Natural);
-   procedure Delay_Ms (Ms : Natural);
-
-   --  Adapter exports its own conformance — the normative pattern:
-   package As_Signature is new Machine.Blocking.Generic_Delays
-     (Delay_Us => Delay_Us, Delay_Ms => Delay_Ms);
-end Machine.Blocking.Delays;
-```
-
-```ada
---  machine-blocking-i2c.ads    (blocking transactions over the L2 data phase)
-with Machine.Generic_Clock, Machine.I2C.Generic_Master,
-     Machine.Blocking.Generic_I2C_Master;
-generic
-   with package Port  is new Machine.I2C.Generic_Master (<>);
-                                    --  the never-blocking L2 data phase
-   with package Clock is new Machine.Generic_Clock (<>);
-                                    --  time base for the timeouts
-package Machine.Blocking.I2C
-  with SPARK_Mode
-is
-   procedure Write (Address    : Machine.I2C.Address_7_Bit;
-                    Data       : Machine.Byte_Array;
-                    Timeout_Ms : Natural;
-                    Status     : in out Machine.I2C.Transaction_Status);
-   procedure Write_Read (Address    : Machine.I2C.Address_7_Bit;
-                         Command    : Machine.Byte_Array;
-                         Response   : out Machine.Byte_Array;
-                         Timeout_Ms : Natural;
-                         Status     : in out Machine.I2C.Transaction_Status);
-
-   package As_Signature is new Machine.Blocking.Generic_I2C_Master
-     (Write => Write, Write_Read => Write_Read);
-end Machine.Blocking.I2C;
-```
-
-### B.3 Wiring (application or `boardgen` output; §6.3, §13)
-
-```ada
---  board.ads — pure declarations; reads like the schematic.
-with Machine.Generic_Clock, Machine.I2C.Generic_Master;
-with Machine.Regmap.Generic_I2C_Binding;
-with RP2040.Clock, RP2040.I2C0;
-with Machine.Blocking.Delays, Machine.Blocking.I2C, BME280;
-package Board is
-
-   package Clock_Sig is new Machine.Generic_Clock
-     (Ticks            => RP2040.Clock.Ticks,
-      Ticks_Per_Second => RP2040.Clock.Ticks_Per_Second,
-      Now              => RP2040.Clock.Now);
-
-   package I2C0_Sig is new Machine.I2C.Generic_Master   --  conformance check
-     (Set_Target        => RP2040.I2C0.Set_Target,     --  of RP2040.I2C0,
-      Can_Push          => RP2040.I2C0.Can_Push,       --  §6.1, for free
-      Push_Write        => RP2040.I2C0.Push_Write,
-      Push_Read_Request => RP2040.I2C0.Push_Read_Request,
-      Can_Pop           => RP2040.I2C0.Can_Pop,
-      Pop               => RP2040.I2C0.Pop);
-
-   package Delays is new Machine.Blocking.Delays (Clock => Clock_Sig);
-   package I2C    is new Machine.Blocking.I2C (Port => I2C0_Sig, Clock => Clock_Sig);
-
-   package Regs is new Machine.Regmap.Generic_I2C_Binding
-     (Bus => I2C.As_Signature, Device_Address => 16#76#);
-
-   package Env_Sensor is new BME280
-     (Regs => Regs.As_Device,
-      Wait => Delays.As_Signature);
-
-   --  Native configuration stays native (D8): the (not shown) main or a
-   --  boardgen-generated Initialize body calls
-   --    RP2040.I2C0.Enable ((Baud_Hz => 400_000, SDA_Pin => 4, SCL_Pin => 5));
-   --  before first use of Env_Sensor.
-end Board;
-```
-
-Usage, for flavor: `S := Ok; Env_Sensor.Initialize (S); Env_Sensor.Configure (Status => S); Env_Sensor.Measure (M, S);` — one status inspection at the end (§7.1).
-
-### B.4 What spike 1 surfaces
-
-1. **The adapter-exports-signature pattern (`As_Signature`) works and should be normative** — adapters instantiate their own conformance, so wiring never repeats subprogram lists that already exist.
-2. **Whole-stack property check:** no access types, no tagged types, no heap, every spec `SPARK_Mode` — the D1/D10 claims hold in the concrete shapes, and every layer is instantiated exactly once per program (jere's bloat rule trivially satisfied).
-3. **Four chained status types coexist cleanly** (`I2C.Bus_Status` → `I2C.Transaction_Status` → `Regmap.Access_Status` → `BME280.Device_Status`) with mapping at each boundary and `Last_Access_Status` as the detail escape — §7.1 rule 4 survives contact with a real driver, and the regmap level is what buys bus neutrality (Appendix C swaps the two lower levels for their SPI counterparts without the driver noticing).
-4. **`Ticks_Per_Second` must be a formal object** of the clock signature, or delays can't be computed portably — a detail §6.5's prose glossed over.
-5. **The command-FIFO shape of the L2 I2C data phase** (`Push_Write`/`Push_Read_Request` with per-entry `Stop`) matches RP2040's DW_apb_i2c but needs validation against at least one controller with a different transaction model (STM32, AVR TWI) before `I2C.Generic_Master` freezes — this is open question 3 made concrete (spike 2, Appendix C, adds the adjacent SPI data point; the AVR TWI test itself is still open).
-
-## Appendix C — Spike 2: BME280 on ATmega328P over SPI, interrupt-driven
-
-Same sensor, same driver, opposite end of the scope — and the *other bus*: an ATmega328P (2 KB RAM, AVR [ZFP](#g-zfp) runtime, no tasking) driving the BME280 over SPI, with every bus byte moved in interrupt context (`SPI_STC`) and the CPU sleeping between bytes. SPI is the realistic AVR choice for the async story: classic AVR has no [DMA](#g-dma), and where the AVR family *does* have it (XMEGA's DMAC), SPI/USART are the trigger sources — I2C-via-DMA is rare on 8-bit parts. The L3b async adapter provides a blocking *view* through its await generic (§8.2), so `BME280` from Appendix A instantiates unchanged.
-
-### C.1 L2 excerpts (`atmega328p_hal` crate)
-
-```ada
---  atmega328p-spi.ads
-with Machine.SPI;
-package ATmega328P.SPI
-  with Preelaborate, SPARK_Mode
-is
-   --  Configuration: ATmega-specific (D8). Bus pins are fixed (PB3/PB4/PB5);
-   --  chip selects are ordinary GPIOs owned by the application/binding.
-   type Clock_Divisor is (Div_2, Div_4, Div_8, Div_16, Div_32, Div_64, Div_128);
-   type Config is record
-      Divisor   : Clock_Divisor := Div_16;      --  SPR1:0 / SPI2X
-      Mode      : Natural range 0 .. 3 := 0;    --  CPOL/CPHA (BME280: 0 or 3)
-      MSB_First : Boolean := True;              --  DORD
-   end record;
-   procedure Enable  (Cfg : Config := (others => <>));
-   procedure Disable;
-
-   --  Never-blocking full-duplex data phase (§6.2). The SPI has no FIFO:
-   --  one byte in flight — Can_Push/Can_Pop reflect the SPIF/idle state.
-   function  Can_Push return Boolean with Inline_Always;
-   procedure Push (Data : Machine.Byte;
-                   Status : in out Machine.SPI.Bus_Status)
-     with Inline_Always, Pre => Can_Push;       --  SPDR := Data
-   function  Can_Pop return Boolean with Inline_Always;
-   procedure Pop (Data : out Machine.Byte;
-                  Status : in out Machine.SPI.Bus_Status)
-     with Inline_Always;                        --  reads SPDR
-
-   --  Event plumbing, reduced to the single interrupt the SPI has:
-   procedure Enable_Interrupt  with Inline_Always;   --  sets SPIE (SPI STC)
-   procedure Disable_Interrupt with Inline_Always;
-end ATmega328P.SPI;
-```
-
-```ada
---  atmega328p-delays.ads — calibrated busy-wait; F_CPU is an Alire crate
---  configuration variable (§16), folded at compile time.
-package ATmega328P.Delays
-  with Preelaborate, SPARK_Mode
-is
-   procedure Delay_Us (Us : Natural);
-   procedure Delay_Ms (Ms : Natural);
-   procedure Sleep_Idle with Inline_Always;   --  SLEEP (idle); wakes on any IRQ
-end ATmega328P.Delays;
-```
-
-### C.2 L3b adapter (`machine_async` crate)
-
-```ada
---  machine-async-spi.ads    (§8.2: transfer-oriented, access-free)
-with Machine.SPI.Generic_Master, Machine.Blocking.Generic_SPI_Master;
-generic
-   with package Port is new Machine.SPI.Generic_Master (<>);
-                                    --  never-blocking L2 data phase to pump
-   Buffer_Size : Positive := 32;    --  adapter-owned TX/RX buffers: no
-                                    --  access types (§6.6) ⇒ no caller buffers
-   with procedure On_Complete (Transferred : Natural;
-                               Status : Machine.SPI.Transaction_Status) is null;
-                                    --  completion hook; runs in ISR context
-package Machine.Async.SPI
-  with SPARK_Mode
-is
-   --  Initiation: never blocks; chained (§7.1); rejected while Busy.
-   --  Full duplex: TX is copied in; the exchanged bytes accumulate in the
-   --  adapter buffer and are copied out after completion.
-   procedure Start_Exchange (TX     : Machine.Byte_Array;
-                             Status : in out Machine.SPI.Transaction_Status);
-   function  Busy return Boolean with Inline_Always;
-   procedure Read_Response (Into : out Machine.Byte_Array;
-                            Last : out Natural);   --  copy out after completion
-
-   --  The pump: bounded, never blocks; the APPLICATION attaches it (D5).
-   procedure On_Interrupt;
-
-   --  A0B-style await (§8.2): turns the async core into a blocking view —
-   --  and thereby into a Generic_SPI_Master conformance:
-   generic
-      with procedure Sleep_Until_Interrupt is null;   --  default: spin
-   package Generic_Await is
-      procedure Exchange (TX         : Machine.Byte_Array;
-                          RX         : out Machine.Byte_Array;
-                          Timeout_Ms : Natural;
-                          Status     : in out Machine.SPI.Transaction_Status);
-      package As_Blocking is new Machine.Blocking.Generic_SPI_Master
-        (Exchange => Exchange);
-   end Generic_Await;
-end Machine.Async.SPI;
-```
-
-### C.3 Wiring
-
-```ada
---  avr_board.ads — pure declarations plus the one exported vector symbol
-with Machine.SPI.Generic_Master, Machine.Generic_Digital_Out,
-     Machine.Blocking.Generic_Delays, Machine.Async.SPI,
-     Machine.Regmap.Generic_SPI_Binding;
-with ATmega328P.SPI, ATmega328P.Delays;
-with BME280;
-package AVR_Board is
-
-   package SPI_Sig is new Machine.SPI.Generic_Master   --  SPI conformance,
-     (Can_Push => ATmega328P.SPI.Can_Push,             --  checked for free
-      Push     => ATmega328P.SPI.Push,
-      Can_Pop  => ATmega328P.SPI.Can_Pop,
-      Pop      => ATmega328P.SPI.Pop);
-
-   package SPI_Async is new Machine.Async.SPI
-     (Port => SPI_Sig, Buffer_Size => 32);     --  27-byte calibration burst fits
-
-   --  Interrupt attachment is the application's decision (D5). ZFP-AVR has
-   --  no Attach_Handler: export onto the vector symbol, with the AVR ISR
-   --  calling convention:
-   procedure SPI_Interrupt
-     with Export, External_Name => "__vector_17";       --  ATmega328P SPI_STC_vect
-   pragma Machine_Attribute (SPI_Interrupt, "signal");  --  ISR prologue/epilogue
-   --  (body: SPI_Async.On_Interrupt;)
-
-   package Await is new SPI_Async.Generic_Await
-     (Sleep_Until_Interrupt => ATmega328P.Delays.Sleep_Idle);
-
-   procedure CS_Set (High : Boolean);          --  (body: drive PB2; §6.4 pattern)
-   package CS is new Machine.Generic_Digital_Out (Set => CS_Set);
-
-   package Regs is new Machine.Regmap.Generic_SPI_Binding
-     (Bus => Await.As_Blocking, CS => CS);
-
-   package Delays_Sig is new Machine.Blocking.Generic_Delays
-     (Delay_Us => ATmega328P.Delays.Delay_Us,
-      Delay_Ms => ATmega328P.Delays.Delay_Ms);
-
-   --  Byte-for-byte the same driver as spike 1 (Appendix A.3):
-   package Env_Sensor is new BME280
-     (Regs => Regs.As_Device,
-      Wait => Delays_Sig);
-end AVR_Board;
-```
-
-### C.4 What spike 2 surfaces
-
-1. **The portability claim holds at the extreme — across buses.** `BME280` instantiates unchanged from a dual-core Cortex-M0+ on I2C, blocking, to a 2 KB 8-bit MCU on SPI, interrupt-driven; only the wiring package differs. D2 (adapters) plus the bus-neutral regmap signature (A.1) are what make that sentence true.
-2. **The never-blocking L2 shape degenerates gracefully to FIFO-less hardware.** The ATmega SPI has no FIFO; `Can_Push` is the SPIF/idle state — a depth-1 FIFO. One `Generic_Master` shape spans RP2040's real FIFOs and AVR's single in-flight byte, further informing open question 3 (the AVR *TWI* data point for I2C remains to be taken).
-3. **DMA really is an implementation detail — and SPI is where AVR proves it.** Classic AVR has no DMA; XMEGA's DMAC exists and triggers on SPI/USART (not I2C), and an XMEGA or RP2040 body of `Machine.Async.SPI` would pump DMA descriptors instead of bytes. Neither the adapter spec nor the driver changes — §8.2's claim, demonstrated on the one 8-bit family branch where DMA is real.
-4. **Access-free async forces adapter-owned buffers.** Without access types (§6.6), the ISR pump cannot retain a caller's buffer; exchanged bytes land in an adapter buffer sized at instantiation and are copied out. Zero-copy DMA into caller storage would need ownership machinery — a real trade-off to document in the AMRM async clause.
-5. **Vector attachment needs ABI care on AVR:** `Export` to `__vector_17` (`SPI_STC_vect`) places the handler, and `pragma Machine_Attribute (…, "signal")` provides the ISR prologue/epilogue — D5's "the application attaches" policy meeting a real calling convention.
-6. **Timeouts without a clock are approximate.** On this clock-less floor, `Generic_Await` can only bound waiting by iteration counts, not deadlines; strict timeouts need a `Machine.Generic_Clock` instance — to be stated honestly in the AMRM async clause.
-7. **Chip select composes from existing pieces.** The SPI class deliberately excludes CS; the regmap binding takes it as a `Generic_Digital_Out` formal — bus topology (shared bus, one CS per device) is expressed in wiring, not in the SPI or driver contracts.
-8. **RAM budget:** adapter state is the 32-byte buffer plus a few bytes of bookkeeping; with the driver's ~26-byte calibration block, the whole stack sits comfortably inside 2 KB.
+**Build.** Host-compiles. A real cross-build needs an ESP32-C3 light-tasking runtime (interrupt matrix + timer) that the ecosystem does not yet provide.
 
 ---
 
-*Prepared 2026-07-14, revised same day. Sources: [Towards a HAL for multiple runtimes (thread 4364)](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364); [An embedded ecosystem for beginners (thread 4296)](https://forum.ada-lang.io/t/an-embedded-ecosystem-for-beginners/4296); [Ada_Drivers_Library](https://github.com/AdaCore/Ada_Drivers_Library) and issues [#25](https://github.com/AdaCore/Ada_Drivers_Library/issues/25)/[#401](https://github.com/AdaCore/Ada_Drivers_Library/issues/401); [Alire crate index](https://alire.ada.dev/crates.html); [embedded-hal 1.0 announcement](https://blog.rust-embedded.org/embedded-hal-v1/) and [migration notes](https://github.com/rust-embedded/embedded-hal/blob/master/docs/migrating-from-0.2-to-1.0.md); [Zephyr device model](https://docs.zephyrproject.org/latest/kernel/drivers/index.html) and [devicetree](https://docs.zephyrproject.org/latest/build/dts/index.html); [ArduinoCore-API](https://github.com/arduino/ArduinoCore-API); [TinyGo machine package](https://tinygo.org/docs/reference/machine/); [modm](https://modm.io); [A0B](https://github.com/godunko/a0b-i2c) (godunko); [rp2040_hal](https://github.com/JeremyGrosser/rp2040_hal) (JeremyGrosser); [AVRAda](https://github.com/RREE/AVRAda_Lib) (RREE); [damaki runtime crates](https://github.com/damaki/stm32g4xx-runtimes); [bb-runtimes](https://github.com/AdaCore/bb-runtimes) (PolarFire SoC targets); [svd2ada](https://github.com/AdaCore/svd2ada); [startup_gen](https://github.com/AdaCore/startup-gen).*
+*Prepared 2026-07-14; appendices rewritten 2026-07-20 to document the implemented spikes. Sources: [Towards a HAL for multiple runtimes (thread 4364)](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364); [An embedded ecosystem for beginners (thread 4296)](https://forum.ada-lang.io/t/an-embedded-ecosystem-for-beginners/4296); [Ada_Drivers_Library](https://github.com/AdaCore/Ada_Drivers_Library) and issues [#25](https://github.com/AdaCore/Ada_Drivers_Library/issues/25)/[#401](https://github.com/AdaCore/Ada_Drivers_Library/issues/401); [Alire crate index](https://alire.ada.dev/crates.html); [embedded-hal 1.0 announcement](https://blog.rust-embedded.org/embedded-hal-v1/) and [migration notes](https://github.com/rust-embedded/embedded-hal/blob/master/docs/migrating-from-0.2-to-1.0.md); [Zephyr device model](https://docs.zephyrproject.org/latest/kernel/drivers/index.html) and [devicetree](https://docs.zephyrproject.org/latest/build/dts/index.html); [ArduinoCore-API](https://github.com/arduino/ArduinoCore-API); [TinyGo machine package](https://tinygo.org/docs/reference/machine/); [modm](https://modm.io); [A0B](https://github.com/godunko/a0b-i2c) (godunko); [rp2040_hal](https://github.com/JeremyGrosser/rp2040_hal) (JeremyGrosser); [AVRAda](https://github.com/RREE/AVRAda_Lib) (RREE); [damaki runtime crates](https://github.com/damaki/stm32g4xx-runtimes); [bb-runtimes](https://github.com/AdaCore/bb-runtimes) (PolarFire SoC targets); [svd2ada](https://github.com/AdaCore/svd2ada); [startup_gen](https://github.com/AdaCore/startup-gen).*

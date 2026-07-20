@@ -93,8 +93,8 @@ is
    SPI_MISC_CK_IDLE_EDGE : constant := 2#1# * 2**29;
 
    --  SPI_DMA_CONF (0x30) -- bits 27/28 gate the DMA path per direction;
-   --  set together for the full-duplex block transfer §8.2/Appendix C.4
-   --  finding 3 talks about (DMA as an <mcu>_hal implementation detail
+   --  set together for the full-duplex block transfer §8.2/Appendix C
+   --  finding 1 talks about (DMA as an <mcu>_hal implementation detail
    --  behind the same portable adapter shape).
    SPI_DMA_CONF : Unsigned_32
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#30#;

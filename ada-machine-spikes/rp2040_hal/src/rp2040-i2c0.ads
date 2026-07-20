@@ -1,4 +1,4 @@
---  rp2040-i2c0.ads -- Appendix B.1, plus Global/Post contracts added
+--  rp2040-i2c0.ads -- the L2 I2C of spike 1 (Appendix A), plus Global/Post contracts added
 --  beyond the literal excerpt (§6.6/§7.1: the chained skip-semantics
 --  postcondition is the one contract worth stating uniformly at every
 --  layer, and Global documents exactly which registers each operation

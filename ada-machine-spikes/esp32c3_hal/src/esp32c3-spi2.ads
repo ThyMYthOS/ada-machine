@@ -13,7 +13,7 @@
 --      bridges ATmega328P.SPI's ISR to Machine.Async.SPI.On_Interrupt).
 --
 --  "Busy" bookkeeping for the polled path mirrors ATmega328P.SPI's own
---  reasoning verbatim (Appendix C.4 finding 2: SPI_CMD's USR bit alone
+--  reasoning verbatim (Appendix B finding 2: SPI_CMD's USR bit alone
 --  doesn't distinguish "never started" from "already collected") -- it
 --  is External abstract state, touched by both mainline code and (for
 --  the DMA path) the application's attached interrupt handler.

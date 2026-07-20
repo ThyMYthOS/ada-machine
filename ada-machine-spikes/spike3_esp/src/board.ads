@@ -1,4 +1,5 @@
---  board.ads -- spike 3's wiring, same shape as Appendix B.3/C.3: pure
+--  board.ads -- spike 3's wiring (Appendix C), same shape as spikes 1 & 2
+--  (Appendices A & B): pure
 --  declarations reading like the schematic. The novel piece relative to
 --  spike 1 (blocking I2C) and spike 2 (interrupt-driven SPI) is the data
 --  path: Env_Sensor's SPI transfers ride real GDMA block transfers

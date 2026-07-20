@@ -1,6 +1,6 @@
 --  ATmega328P SPI -- SPCR/SPSR/SPDR, data-space addresses per the
 --  datasheet register summary. No FIFO: SPDR is a single-byte shift
---  register (Appendix C.1's "depth-1 FIFO" data point).
+--  register (Appendix B's "depth-1 FIFO" data point).
 with System;
 with Interfaces; use Interfaces;
 

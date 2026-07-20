@@ -1,5 +1,5 @@
 --  atmega328p-gpio.ads -- §6.4's GPIO shape, PORTB-only for this spike
---  (the chip select in Appendix C.3 is an ordinary output pin here).
+--  (the chip select in Appendix B is an ordinary output pin here).
 --  Global contracts added beyond the literal §6.4 excerpt (§6.6).
 with ATmega328P_PAC.Port_B;
 

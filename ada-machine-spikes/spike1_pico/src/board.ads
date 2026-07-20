@@ -1,5 +1,5 @@
---  board.ads -- Appendix B.3, verbatim: pure declarations; reads like
---  the schematic.
+--  board.ads -- spike 1's wiring (Appendix A): pure declarations; reads
+--  like the schematic.
 with Machine.Generic_Clock, Machine.I2C.Generic_Master;
 with Machine.Regmap.Generic_I2C_Binding;
 with RP2040.Clock, RP2040.I2C0;

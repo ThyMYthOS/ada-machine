@@ -1,4 +1,4 @@
---  Spike 2 main: ATmega328P, BME280 over SPI, interrupt-driven (Appendix C).
+--  Spike 2 main: ATmega328P, BME280 over SPI, interrupt-driven (Appendix B).
 --  No status LED wired for this port (PORTB's only spare pin doubles as
 --  SCK/MOSI/SS); the last Device_Status is simply held in a volatile for
 --  debugger/probe inspection.

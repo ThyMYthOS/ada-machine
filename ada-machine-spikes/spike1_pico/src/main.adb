@@ -1,4 +1,4 @@
---  Spike 1 main: RP2040 (Pico), BME280 over I2C0, blocking (Appendix B).
+--  Spike 1 main: RP2040 (Pico), BME280 over I2C0, blocking (Appendix A).
 --  No runtime console on this floor (§10.3 is a full runtime feature
 --  this spike doesn't pull in) -- status is a GP25 (onboard LED) blink
 --  pattern: one long pulse per successful Measure, short pulses counting

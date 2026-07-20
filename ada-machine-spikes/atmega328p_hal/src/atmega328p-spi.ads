@@ -1,7 +1,7 @@
---  atmega328p-spi.ads -- Appendix C.1, plus contracts added beyond the
---  literal excerpt (§6.6/§7.1). "Busy" (the depth-1-FIFO bookkeeping,
---  Appendix C.4 finding 2) is package-private state touched from both
---  mainline code and the SPI_STC interrupt handler (Appendix C.2/C.3),
+--  atmega328p-spi.ads -- the L2 SPI of spike 2 (Appendix B), plus contracts
+--  added beyond the prose description (§6.6/§7.1). "Busy" (the depth-1-FIFO
+--  bookkeeping, Appendix B finding 2) is package-private state touched from
+--  both mainline code and the SPI_STC interrupt handler (Appendix B),
 --  so it is modeled as External abstract state -- an asynchronous
 --  reader/writer from this package's point of view, exactly like the
 --  hardware registers it sits next to.

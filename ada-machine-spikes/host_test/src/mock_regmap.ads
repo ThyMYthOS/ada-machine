@@ -1,6 +1,6 @@
 --  Mock_Regmap -- an in-memory stand-in for a real I2C/SPI regmap
 --  binding (§15.4), implementing exactly the Machine.Regmap.Generic_Device
---  formal shape so BME280 (Appendix A.3) instantiates over it unchanged.
+--  formal shape so BME280 (the shared bme280 crate, §11) instantiates over it unchanged.
 --  Seeded with the widely-cited BME280 reference calibration/raw-ADC
 --  vector so Measure's output can be checked against a known value
 --  without any real bus or hardware.

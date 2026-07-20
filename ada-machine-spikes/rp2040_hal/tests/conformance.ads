@@ -26,7 +26,7 @@ is
 
    --  Machine.Generic_Digital_Out needs one formal procedure bound to a
    --  fixed pin (§6.4): a real conformance unit wraps RP2040.GPIO the
-   --  same way board wiring does (Appendix B.3's CS_Set pattern).
+   --  same way board wiring does (the §6.4 CS_Set pattern).
    procedure GPIO5_Set (High : Boolean)
      with Global => (Output => (RP2040_PAC.SIO.GPIO_OUT_SET,
                                 RP2040_PAC.SIO.GPIO_OUT_CLR));

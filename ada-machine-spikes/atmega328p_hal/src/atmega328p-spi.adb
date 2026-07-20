@@ -12,8 +12,8 @@ is
    --  No FIFO on this hardware: one byte in flight. The HAL keeps the
    --  "is a transfer outstanding" bit itself, since SPDR/SPSR alone
    --  don't distinguish "never started" from "already collected"
-   --  (Appendix C.4 finding 2: a depth-1 FIFO). Touched from both
-   --  mainline code and the SPI_STC interrupt handler (Appendix C.2/C.3
+   --  (Appendix B finding 2: a depth-1 FIFO). Touched from both
+   --  mainline code and the SPI_STC interrupt handler (Appendix B
    --  calls Push/Pop from On_Interrupt) -- Volatile for correctness
    --  under that. No "Part_Of => State": Refined_State above already
    --  associates Busy with State by name, and Part_Of would be

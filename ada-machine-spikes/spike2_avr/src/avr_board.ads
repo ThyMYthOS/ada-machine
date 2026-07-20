@@ -1,5 +1,5 @@
---  avr_board.ads -- Appendix C.3, verbatim: pure declarations plus the
---  one exported vector symbol.
+--  avr_board.ads -- spike 2's wiring (Appendix B): pure declarations plus
+--  the one exported vector symbol.
 with Machine.SPI.Generic_Master, Machine.Generic_Digital_Out,
      Machine.Blocking.Generic_Delays, Machine.Async.SPI,
      Machine.Regmap.Generic_SPI_Binding;
@@ -48,7 +48,7 @@ is
      (Delay_Us => ATmega328P.Delays.Delay_Us,
       Delay_Ms => ATmega328P.Delays.Delay_Ms);
 
-   --  Byte-for-byte the same driver as spike 1 (Appendix A.3):
+   --  Byte-for-byte the same driver as spike 1 (the shared bme280 crate, §11):
    package Env_Sensor is new BME280
      (Regs => Regs.As_Device,
       Wait => Delays_Sig);

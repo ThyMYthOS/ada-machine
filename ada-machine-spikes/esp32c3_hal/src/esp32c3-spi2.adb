@@ -33,7 +33,7 @@ is
    --  declaration (Async_Readers, Async_Writers only) doesn't have.
    --
    --  Polled path: no FIFO depth beyond one byte -- same depth-1
-   --  bookkeeping ATmega328P.SPI keeps (Appendix C.4 finding 2).
+   --  bookkeeping ATmega328P.SPI keeps (Appendix B finding 2).
    Busy : Boolean := False
      with Volatile, Async_Readers, Async_Writers;
 
