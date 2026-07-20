@@ -3,8 +3,9 @@
 --  the crate conforms -- CI-only, not part of the library sources.
 with Machine.Generic_Clock;
 with Machine.I2C.Generic_Master;
+with Machine.UART.Generic_Port;
 with Machine.Generic_Digital_Out;
-with RP2040.Clock, RP2040.I2C0, RP2040.GPIO;
+with RP2040.Clock, RP2040.I2C0, RP2040.UART0, RP2040.GPIO;
 with RP2040_PAC.SIO;
 
 package Conformance
@@ -23,6 +24,13 @@ is
       Push_Read_Request => RP2040.I2C0.Push_Read_Request,
       Can_Pop           => RP2040.I2C0.Can_Pop,
       Pop               => RP2040.I2C0.Pop);
+
+   package UART0_Check is new Machine.UART.Generic_Port
+     (Frame       => RP2040.UART0.Frame,
+      Is_Tx_Ready => RP2040.UART0.Is_Tx_Ready,
+      Put_Frame   => RP2040.UART0.Put_Frame,
+      Is_Rx_Ready => RP2040.UART0.Is_Rx_Ready,
+      Get_Frame   => RP2040.UART0.Get_Frame);
 
    --  Machine.Generic_Digital_Out needs one formal procedure bound to a
    --  fixed pin (§6.4): a real conformance unit wraps RP2040.GPIO the

@@ -5,6 +5,8 @@
 --  Device_Status'Pos on failure.
 with RP2040.GPIO;
 with RP2040.I2C0;
+with RP2040.UART0;
+with Machine.Log;
 with Board;
 
 procedure Main
@@ -20,7 +22,7 @@ is
    --  host_test needed "use type Sensor.Device_Status": naming an
    --  instance's type via dot notation doesn't make its predefined
    --  operators directly visible).
-   use type Board.Env_Sensor.Device_Status;
+   use type Board.Env_Sensor.Device_Status, Board.Env_Sensor.Celsius;
 
    procedure Blink (Times : Natural; Ms : Natural) is
    begin
@@ -37,6 +39,7 @@ is
 begin
    RP2040.GPIO.Configure (LED, RP2040.GPIO.Output);
    RP2040.I2C0.Enable ((Baud_Hz => 400_000, SDA_Pin => 4, SCL_Pin => 5));
+   RP2040.UART0.Enable ((Baud_Hz => 115_200, TX_Pin => 0, RX_Pin => 1));
 
    Board.Env_Sensor.Initialize (Status);
    if Status = Board.Env_Sensor.Ok then
@@ -49,6 +52,14 @@ begin
       end if;
       case Status is
          when Board.Env_Sensor.Ok =>
+            --  Per-measurement Info trace (§14.2): a decision/state
+            --  transition, not a per-byte data phase, so it belongs
+            --  here and not inside the driver's L2/L3 primitives.
+            if Machine.Log.Enabled (Machine.Log.Info) then
+               Board.Sink.Emit
+                 (Machine.Log.Info, Board.Ev_Measured,
+                  Machine.Log.Arg (Integer (M.Temperature * 100)));
+            end if;
             Blink (Times => 1, Ms => 500);       --  one long-ish pulse: OK
          when others =>
             Blink (Times => Board.Env_Sensor.Device_Status'Pos (Status) + 1,

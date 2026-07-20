@@ -1,7 +1,7 @@
---  RP2040 RESETS -- base 0x4000_c000. Only the three bits Appendix A's
---  I2C0/GPIO path needs to bring itself out of reset: I2C0, IO_BANK0,
---  PADS_BANK0 (bit numbers per the RP2040 datasheet's RESETS_RESET
---  field, alphabetical peripheral order).
+--  RP2040 RESETS -- base 0x4000_c000. Bits Appendix A's I2C0/GPIO/UART0
+--  paths need to bring themselves out of reset: I2C0, IO_BANK0,
+--  PADS_BANK0, UART0 (bit numbers per the RP2040 datasheet's
+--  RESETS_RESET field, alphabetical peripheral order).
 with System;
 with System.Storage_Elements; use System.Storage_Elements;
 with Interfaces; use Interfaces;
@@ -14,6 +14,7 @@ is
    RESET_I2C0       : constant := 2#1# * 2**3;
    RESET_IO_BANK0   : constant := 2#1# * 2**5;
    RESET_PADS_BANK0 : constant := 2#1# * 2**8;
+   RESET_UART0      : constant := 2#1# * 2**22;
 
    RESET      : Unsigned_32
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#00#;

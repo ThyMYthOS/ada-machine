@@ -14,6 +14,7 @@ is
 
    subtype Pin_Index is Natural range 0 .. 29;
 
+   FUNCSEL_UART : constant := 2;   --  F2: UART TX/RX alt function
    FUNCSEL_I2C  : constant := 3;   --  F3: I2C SDA/SCL alt function
    FUNCSEL_SIO  : constant := 5;   --  F5: software-driven GPIO
 
