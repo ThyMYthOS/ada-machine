@@ -9,8 +9,9 @@
 with Machine.Generic_Clock, Machine.I2C.Generic_Master;
 with Machine.Blocking.Delays, Machine.Blocking.I2C;
 with Machine.Regmap.Generic_I2C_Binding;
-with ATmega328P.I2C, ATmega328P.Clock;
-with ATmega328P_PAC.TWI, ATmega328P_PAC.Timer0;
+with Machine.UART.Generic_Port, Machine.Blocking.Log_Sink, Machine.Log;
+with ATmega328P.I2C, ATmega328P.Clock, ATmega328P.USART0;
+with ATmega328P_PAC.TWI, ATmega328P_PAC.Timer0, ATmega328P_PAC.USART0;
 with BME280;
 
 package AVR_Board
@@ -43,15 +44,40 @@ is
    package Regs is new Machine.Regmap.Generic_I2C_Binding
      (Bus => I2C.As_Signature, Device_Address => 16#76#);
 
+   package UART0_Sig is new Machine.UART.Generic_Port  --  conformance check
+     (Frame       => ATmega328P.USART0.Frame,           --  of ATmega328P.USART0
+      Is_Tx_Ready => ATmega328P.USART0.Is_Tx_Ready,
+      Put_Frame   => ATmega328P.USART0.Put_Frame,
+      Is_Rx_Ready => ATmega328P.USART0.Is_Rx_Ready,
+      Get_Frame   => ATmega328P.USART0.Get_Frame);
+
+   --  The UART-backed log sink (§10.3/§14.2): a direct blocking drain
+   --  over USART0, same choice as spike1_pico (no runtime FIFO here).
+   package Sink is new Machine.Blocking.Log_Sink (UART => UART0_Sig);
+
+   --  BME280's Log_Event formal predates the Level vocabulary (it takes
+   --  only Event_Id + Arg), so board wiring assigns every driver-observed
+   --  event (Wrong_Chip_Id/Bus_Fault/Timed_Out) the same severity here,
+   --  same as spike1_pico's board wiring.
+   procedure Log_Event (E : Machine.Log.Event_Id;
+                        A : Machine.Log.Arg := Machine.Log.No_Arg);
+
+   --  A per-measurement trace line, emitted directly by main.adb (not
+   --  through the driver's Log_Event, which only reports faults): Info
+   --  severity, Arg = Temperature in hundredths of a degree Celsius.
+   Ev_Measured : constant Machine.Log.Event_Id := 16#1000#;
+
    --  Byte-for-byte the same driver as spike 1 and this crate's SPI variant
    --  (the shared bme280 crate, §11):
    package Env_Sensor is new BME280
-     (Regs => Regs.As_Device,
-      Wait => Delays.As_Signature);
+     (Regs      => Regs.As_Device,
+      Wait      => Delays.As_Signature,
+      Log_Event => Log_Event);
 
    --  Bus-specific bring-up (D8): I2C + the Timer0 tick it needs for
-   --  timeouts, global interrupts on. The one shared main.adb (src/
-   --  main.adb) calls this and the SPI variant's counterpart identically.
+   --  timeouts, USART0 enabled, global interrupts on. The one shared
+   --  main.adb (src/main.adb) calls this and the SPI variant's
+   --  counterpart identically.
    procedure Setup
      with Global => (In_Out => ATmega328P_PAC.TWI.TWCR,
                      Output => (ATmega328P_PAC.TWI.TWBR,
@@ -60,5 +86,10 @@ is
                                 ATmega328P_PAC.Timer0.TCCR0B,
                                 ATmega328P_PAC.Timer0.TIMSK0,
                                 ATmega328P.I2C.State,
-                                ATmega328P.Clock.State));
+                                ATmega328P.Clock.State,
+                                ATmega328P_PAC.USART0.UCSR0A,
+                                ATmega328P_PAC.USART0.UCSR0B,
+                                ATmega328P_PAC.USART0.UCSR0C,
+                                ATmega328P_PAC.USART0.UBRR0L,
+                                ATmega328P_PAC.USART0.UBRR0H));
 end AVR_Board;

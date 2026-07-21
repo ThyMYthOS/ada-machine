@@ -7,5 +7,5 @@ is
    Has_GPIO   : constant Boolean := True;
    Has_Delays : constant Boolean := True;
    Has_I2C    : constant Boolean := False;   --  spike 2 open question (B.4/C.4)
-   Has_UART   : constant Boolean := False;
+   Has_UART   : constant Boolean := True;
 end ATmega328P.HAL_Info;
