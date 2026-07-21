@@ -188,34 +188,44 @@ after #3.
 - [x] Extend `machine/src/machine-log.ads`: add `type Level is (Error, Warning,
       Info, Debug, Trace)` and the enabled threshold as an Alire config variable
       rendered to a static constant (so disabled `if L <= Enabled_Level` folds away —
-      §14.2). Ties into the config plumbing in #7.
+      §14.2). Ties into the config plumbing in #7. Done via `machine/alire.toml`'s
+      `Log_Level` `[configuration.variables]` entry, bridged into `Machine.Log.
+      Enabled_Level` through `Machine_Config.Log_Level_Kind'Pos`/`Level'Val` (a static
+      expression, so the fold still holds) — `machine` is the first crate wired
+      end-to-end per #7's config plumbing; a dependent crate overrides it from its
+      own `alire.toml` (`spike1_pico/alire.toml` does, as a working example).
 - [x] Define the log-sink shape as a generic formal (deferred formatting: the sink
       receives `Level` + `Event_Id` + scalar `Arg`, never a formatted string — §14.2),
-      defaulted `is null` so not wiring it still costs nothing (§14.1). (`BME280`'s
-      own `Log_Event` formal, `bme280/src/bme280.ads`.)
+      defaulted `is null` so not wiring it still costs nothing (§14.1). Done via
+      `Machine.UART`/`Machine.UART.Generic_Port`/`Machine.Blocking.Generic_UART` in
+      `machine`, plus BME280's pre-existing `Log_Event ... is null` formal.
 - [x] Provide a `machine_blocking`-based sink implementation that drains log events
       over an L2/L3 UART ("a log sink is just the §10.3 diagnostic channel wearing a
       different hat"). The spikes have no runtime FIFO (§10.3), so the pragmatic
-      transport is a direct blocking UART drain —
-      `machine_blocking/src/machine-blocking-log_sink.ads/.adb`.
-- [x] In `spike1_pico`, instantiated `bme280` with a real `Log_Event` bound to
-      `Machine.Blocking.Log_Sink` over `RP2040.UART0` (`board.ads`); emits the
-      existing driver fault events plus a per-measurement Info trace line
-      (`main.adb`'s `Ev_Measured`).
-- [ ] In `spike2_avr`, instantiate a real `Log_Event` — blocked on `atmega328p_hal`
-      not yet having a UART L2 package (item 3).
-- [ ] In `spike3_esp`, instantiate a real `Log_Event` — blocked on `esp32c3_hal`
-      not yet having a UART L2 package (item 3).
-- [ ] Keep the discipline from §14.2: log only decisions/state transitions/error
-      paths — never per-byte data phases, never inside L2 primitives. Followed so
-      far in spike 1; re-check once spike 2/3 are wired.
+      transport is a direct blocking UART drain — document that choice. Done via
+      `machine_blocking`'s `Machine.Blocking.UART` (chained `Put`, §8.1) and
+      `Machine.Blocking.Log_Sink` (the direct drain, generic over any
+      `Machine.UART.Generic_Port` instance; documents the no-runtime-FIFO choice
+      in its own header comment).
+- [x] In each board wiring (`spike1_pico`, `spike2_avr`, `spike3_esp`), instantiate
+      `bme280` with a real `Log_Event` bound to that UART sink instead of the null
+      default; emit at least the existing driver events (`Wrong_Chip_Id`, `Bus_Fault`,
+      `Timed_Out`) and a per-measurement Info/Trace line. Done for all three: RP2040
+      UART0, ATmega328P USART0 (both the SPI and I2C bus variants share one
+      `main.adb`), and ESP32-C3 UART0 each got a real PAC + L2 HAL package and a
+      `Log_Event` wired at Warning severity, plus an Info-level per-measurement line
+      emitted directly by each `main.adb`.
+- [x] Keep the discipline from §14.2: log only decisions/state transitions/error
+      paths — never per-byte data phases, never inside L2 primitives. Held
+      throughout: the per-measurement trace is emitted once per `Measure` call
+      from `main.adb`, never inside a UART L2 body.
 - [x] Extend `host_test` to instantiate the driver with a recording log sink and
       assert on emitted events (the logging formals double as test probes — §14.5).
-      (`host_test/src/recording_log_sink.ads/.adb`, asserted in `main.adb`.)
+      Done via `host_test`'s `Recording_Log_Sink` + a bad-chip-id mock regmap,
+      asserting the `Wrong_Chip_Id` path emits exactly the expected event/arg.
 - **Done when:** all three spikes route their driver's log events through a
       UART-backed sink using the deferred-formatting + static-threshold facility, and
-      `host_test` verifies emitted events via a recording sink. → 1 of 3 (spike 1);
-      spike 2/3 need a UART L2 package in their HALs first (item 3).
+      `host_test` verifies emitted events via a recording sink. **Met.**
 
 ### 11. Close spike 4's open items (I²C target + RNG, Appendix D)
 Spike 4 (`spike4_g474`, STM32G474) introduced two new `machine` signatures --
