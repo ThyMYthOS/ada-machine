@@ -67,8 +67,29 @@ README §6.3 advertises v1 = `Digital_Out, Digital_In, UART, SPI_Master,
 I2C_Master, Clock, Delays`. Shipped: `Digital_Out, Clock, Delays, I2C, SPI, UART`.
 GPIO `Is_High` in every HAL still conforms to nothing because there is no `Digital_In`.
 
-- [ ] Add `machine/src/machine-generic_digital_in.ads` and instantiate it in each
-      HAL's conformance unit against `Is_High`.
+- [ ] **Refine the GPIO shape first (review feedback, 2026-07-21), then add `Digital_In`
+      under it — one unit of work.** Introduce a `Machine.GPIO` class package with
+      `type Level is (Low, High)`; move `Machine.Generic_Digital_Out` →
+      `Machine.GPIO.Generic_Digital_Out` (its `Set (High : Boolean)` becomes
+      `Set (To : Machine.GPIO.Level)`); add `Machine.GPIO.Generic_Digital_In`
+      (`with function Get return Level`) and instantiate it against each HAL's `Is_High`.
+      *Honest feedback on the two suggestions that prompted this:*
+      (1) the `(Low, High)` type is worth adopting — for **explicitness/type-safety** and to
+      match embedded-hal's `PinState {Low, High}` (§3), **not** "more states in future": a
+      digital *output* is two-state by definition, and Hi-Z / open-drain are
+      *configuration/direction* concerns the contract deliberately keeps out of the data
+      phase (D8, §6.1), so the enum stays binary.
+      (2) moving it under `Machine.GPIO` is exactly what §6.3/D18's two-axis grid prescribes
+      **once a companion type exists** — it removes the "standalone because no companion
+      type" exception §6.3 currently grants `Generic_Digital_Out`, and lets
+      `Digital_In`/`Digital_Out` share one `Level` (mirroring `Machine.I2C`/`Machine.UART`).
+- [ ] Ripple the rename/type change through every consumer: each HAL `conformance.ads`,
+      every `CS_Set` wrapper (`(High : Boolean)` → `(To : Machine.GPIO.Level)`), the regmap
+      SPI binding's `CS` formal (`Machine.Generic_Digital_Out` →
+      `Machine.GPIO.Generic_Digital_Out`), and board/spike wiring; then update the README
+      (§6.3's "standalone direct children" example drops `Generic_Digital_Out`, leaving
+      `Generic_Clock`; optionally align §6.4's L2 `Set_High`/`Set_Low`/`Is_High` with
+      `Level`; D18).
 - [x] Decide UART: either add a minimal `Machine.UART` + `Generic_Port` spike
       (README's showcase example), or explicitly mark UART out-of-scope for the
       spikes in the README so the v1 claim isn't overstated. Done via
