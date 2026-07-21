@@ -64,16 +64,19 @@ Files: `machine_async/src/machine-async-spi.adb`
 
 ### 3. Close the "v1 signature list" gap or re-scope the claim
 README §6.3 advertises v1 = `Digital_Out, Digital_In, UART, SPI_Master,
-I2C_Master, Clock, Delays`. Shipped: `Digital_Out, Clock, Delays, I2C, SPI`.
-GPIO `Is_High` in every HAL conforms to nothing because there is no `Digital_In`.
+I2C_Master, Clock, Delays`. Shipped: `Digital_Out, Clock, Delays, I2C, SPI, UART`.
+GPIO `Is_High` in every HAL still conforms to nothing because there is no `Digital_In`.
 
 - [ ] Add `machine/src/machine-generic_digital_in.ads` and instantiate it in each
       HAL's conformance unit against `Is_High`.
-- [ ] Decide UART: either add a minimal `Machine.UART` + `Generic_Port` spike
-      (README's showcase example), or explicitly mark UART out-of-scope for the
-      spikes in the README so the v1 claim isn't overstated.
+- [x] Decided UART: added it for real rather than scoping it out —
+      `Machine.UART.Generic_Port` (`machine/src/machine-uart-generic_port.ads`)
+      plus `RP2040.UART0` as its first (and so far only) L2 instantiation, driving
+      spike 1's status line and the UART-backed log sink (item 10). Not yet
+      implemented for `atmega328p_hal` or `esp32c3_hal`.
 - **Done when:** every convention subprogram a HAL exposes has a signature it is
-      checked against, or the README scopes the exception.
+      checked against, or the README scopes the exception. → UART is resolved;
+      `Digital_In` is the one remaining gap.
 
 ---
 
@@ -171,38 +174,48 @@ uniformly. Converge on the ESP32-C3 encoding (the review's model).
       it's the example people copy.
 
 ### 10. Wire a UART-backed logging facility into every spike
-Every spike currently instantiates `bme280` with the default **null** `Log_Event`,
-so the logging design is entirely unexercised. All three spikes should demonstrate
+Originally: every spike instantiated `bme280` with the default **null** `Log_Event`,
+so the logging design was entirely unexercised. All three spikes should demonstrate
 the architecture's logging facility, backed by a UART, end-to-end. (README §14.1
 null-object formals, §14.2 deferred formatting + static thresholds, §10.3 the
-diagnostic channel a log sink reuses.)
+diagnostic channel a log sink reuses.) Spike 1 now does; spikes 2 and 3 still use
+the null default.
 
 **Depends on the UART work in P0 #3** — a log sink backed by a UART presupposes a
 `Machine.UART` signature and a `<MCU>.UARTx` L2 package in each HAL. Sequence this
 after #3.
 
-- [ ] Extend `machine/src/machine-log.ads`: add `type Level is (Error, Warning,
+- [x] Extend `machine/src/machine-log.ads`: add `type Level is (Error, Warning,
       Info, Debug, Trace)` and the enabled threshold as an Alire config variable
       rendered to a static constant (so disabled `if L <= Enabled_Level` folds away —
       §14.2). Ties into the config plumbing in #7.
-- [ ] Define the log-sink shape as a generic formal (deferred formatting: the sink
+- [x] Define the log-sink shape as a generic formal (deferred formatting: the sink
       receives `Level` + `Event_Id` + scalar `Arg`, never a formatted string — §14.2),
-      defaulted `is null` so not wiring it still costs nothing (§14.1).
-- [ ] Provide a `machine_blocking`-based sink implementation that drains log events
+      defaulted `is null` so not wiring it still costs nothing (§14.1). (`BME280`'s
+      own `Log_Event` formal, `bme280/src/bme280.ads`.)
+- [x] Provide a `machine_blocking`-based sink implementation that drains log events
       over an L2/L3 UART ("a log sink is just the §10.3 diagnostic channel wearing a
       different hat"). The spikes have no runtime FIFO (§10.3), so the pragmatic
-      transport is a direct blocking UART drain — document that choice.
-- [ ] In each board wiring (`spike1_pico`, `spike2_avr`, `spike3_esp`), instantiate
-      `bme280` with a real `Log_Event` bound to that UART sink instead of the null
-      default; emit at least the existing driver events (`Wrong_Chip_Id`, `Bus_Fault`,
-      `Timed_Out`) and a per-measurement Info/Trace line.
+      transport is a direct blocking UART drain —
+      `machine_blocking/src/machine-blocking-log_sink.ads/.adb`.
+- [x] In `spike1_pico`, instantiated `bme280` with a real `Log_Event` bound to
+      `Machine.Blocking.Log_Sink` over `RP2040.UART0` (`board.ads`); emits the
+      existing driver fault events plus a per-measurement Info trace line
+      (`main.adb`'s `Ev_Measured`).
+- [ ] In `spike2_avr`, instantiate a real `Log_Event` — blocked on `atmega328p_hal`
+      not yet having a UART L2 package (item 3).
+- [ ] In `spike3_esp`, instantiate a real `Log_Event` — blocked on `esp32c3_hal`
+      not yet having a UART L2 package (item 3).
 - [ ] Keep the discipline from §14.2: log only decisions/state transitions/error
-      paths — never per-byte data phases, never inside L2 primitives.
-- [ ] Extend `host_test` to instantiate the driver with a recording log sink and
+      paths — never per-byte data phases, never inside L2 primitives. Followed so
+      far in spike 1; re-check once spike 2/3 are wired.
+- [x] Extend `host_test` to instantiate the driver with a recording log sink and
       assert on emitted events (the logging formals double as test probes — §14.5).
+      (`host_test/src/recording_log_sink.ads/.adb`, asserted in `main.adb`.)
 - **Done when:** all three spikes route their driver's log events through a
       UART-backed sink using the deferred-formatting + static-threshold facility, and
-      `host_test` verifies emitted events via a recording sink.
+      `host_test` verifies emitted events via a recording sink. → 1 of 3 (spike 1);
+      spike 2/3 need a UART L2 package in their HALs first (item 3).
 
 ### 11. Close spike 4's open items (I²C target + RNG, Appendix D)
 Spike 4 (`spike4_g474`, STM32G474) introduced two new `machine` signatures --
