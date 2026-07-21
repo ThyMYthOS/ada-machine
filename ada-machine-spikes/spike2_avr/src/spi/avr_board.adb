@@ -1,4 +1,5 @@
 with ATmega328P.GPIO;
+with System.GCC_Builtins;
 
 package body AVR_Board
   with SPARK_Mode
@@ -20,5 +21,21 @@ is
          ATmega328P.GPIO.Set_Low (2);
       end if;
    end CS_Set;
+
+   procedure Setup is
+   begin
+      --  CS idle-high before the bus is touched.
+      ATmega328P.GPIO.Configure (2, ATmega328P.GPIO.Output);
+      ATmega328P.GPIO.Set_High (2);
+
+      ATmega328P.SPI.Enable ((Divisor => ATmega328P.SPI.Div_16, Mode => 0,
+                              MSB_First => True));
+      ATmega328P.SPI.Enable_Interrupt;
+      System.GCC_Builtins.Sei;  --  global interrupt enable (D5: the
+                                --  application's decision, not the
+                                --  runtime's, on this ZFP floor) -- the
+                                --  GCC intrinsic, not inline asm, so this
+                                --  stays in SPARK (§6.6).
+   end Setup;
 
 end AVR_Board;

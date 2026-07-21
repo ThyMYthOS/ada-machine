@@ -45,19 +45,24 @@ is
      with Inline_Always, Volatile_Function,
           Global => (Input => (ATmega328P_PAC.TWI.TWCR, State));
 
+   --  TWDR is In_Out, not Output, on all three of these -- like TWCR, it
+   --  has Effective_Reads/Writes (ATmega328P_PAC.TWI), and GNATprove's
+   --  auto-derived Global for a subprogram touching such an object
+   --  classifies it In_Out regardless of whether the body itself ever
+   --  reads it back.
    procedure Push_Write (Data : Machine.Byte; Stop : Boolean;
                          Status : in out Machine.I2C.Bus_Status)
-     with Global => (In_Out => (State, ATmega328P_PAC.TWI.TWCR),
-                     Input  => ATmega328P_PAC.TWI.TWSR,
-                     Output => ATmega328P_PAC.TWI.TWDR),
+     with Global => (In_Out => (State, ATmega328P_PAC.TWI.TWCR,
+                                 ATmega328P_PAC.TWI.TWDR),
+                     Input  => ATmega328P_PAC.TWI.TWSR),
           Post   => (if Status'Old /= Machine.I2C.Ok
                      then Status = Status'Old);      --  §7.1 rule 1
 
    procedure Push_Read_Request (Stop : Boolean;
                                 Status : in out Machine.I2C.Bus_Status)
-     with Global => (In_Out => (State, ATmega328P_PAC.TWI.TWCR),
-                     Input  => ATmega328P_PAC.TWI.TWSR,
-                     Output => ATmega328P_PAC.TWI.TWDR),
+     with Global => (In_Out => (State, ATmega328P_PAC.TWI.TWCR,
+                                 ATmega328P_PAC.TWI.TWDR),
+                     Input  => ATmega328P_PAC.TWI.TWSR),
           Post   => (if Status'Old /= Machine.I2C.Ok
                      then Status = Status'Old);
 
@@ -67,9 +72,9 @@ is
 
    procedure Pop (Data : out Machine.Byte;
                   Status : in out Machine.I2C.Bus_Status)
-     with Global => (In_Out => State,
-                     Input  => (ATmega328P_PAC.TWI.TWDR, ATmega328P_PAC.TWI.TWSR),
-                     Output => ATmega328P_PAC.TWI.TWCR),
+     with Global => (In_Out => (State, ATmega328P_PAC.TWI.TWCR,
+                                 ATmega328P_PAC.TWI.TWDR),
+                     Input  => ATmega328P_PAC.TWI.TWSR),
           Post   => (if Status'Old /= Machine.I2C.Ok
                      then Status = Status'Old and Data = 0);
 end ATmega328P.I2C;

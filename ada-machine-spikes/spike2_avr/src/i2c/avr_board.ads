@@ -10,6 +10,7 @@ with Machine.Generic_Clock, Machine.I2C.Generic_Master;
 with Machine.Blocking.Delays, Machine.Blocking.I2C;
 with Machine.Regmap.Generic_I2C_Binding;
 with ATmega328P.I2C, ATmega328P.Clock;
+with ATmega328P_PAC.TWI, ATmega328P_PAC.Timer0;
 with BME280;
 
 package AVR_Board
@@ -47,4 +48,17 @@ is
    package Env_Sensor is new BME280
      (Regs => Regs.As_Device,
       Wait => Delays.As_Signature);
+
+   --  Bus-specific bring-up (D8): I2C + the Timer0 tick it needs for
+   --  timeouts, global interrupts on. The one shared main.adb (src/
+   --  main.adb) calls this and the SPI variant's counterpart identically.
+   procedure Setup
+     with Global => (In_Out => ATmega328P_PAC.TWI.TWCR,
+                     Output => (ATmega328P_PAC.TWI.TWBR,
+                                ATmega328P_PAC.TWI.TWSR,
+                                ATmega328P_PAC.Timer0.TCCR0A,
+                                ATmega328P_PAC.Timer0.TCCR0B,
+                                ATmega328P_PAC.Timer0.TIMSK0,
+                                ATmega328P.I2C.State,
+                                ATmega328P.Clock.State));
 end AVR_Board;

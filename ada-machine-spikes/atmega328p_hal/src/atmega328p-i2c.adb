@@ -82,6 +82,12 @@ is
    begin
       Target        := Unsigned_8 (Address);
       Addressed_Dir := None;
+      --  Reset, not just Addressed_Dir: a caller starting a new
+      --  transaction without popping a previous transaction's last read
+      --  result would otherwise leave Read_Pending stuck True, wrongly
+      --  blocking Can_Push for the new transaction forever.
+      Read_Pending  := False;
+      Stop_Pending  := False;
    end Set_Target;
 
    function Can_Push return Boolean is

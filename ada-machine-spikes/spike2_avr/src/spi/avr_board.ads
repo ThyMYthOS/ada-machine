@@ -1,10 +1,11 @@
---  avr_board.ads -- spike 2's wiring (Appendix B): pure declarations plus
---  the one exported vector symbol.
+--  avr_board.ads -- spike 2's wiring (Appendix B): declarations, the one
+--  exported vector symbol, and the bus-specific setup main.adb (shared
+--  with the I2C variant) calls before using Env_Sensor.
 with Machine.SPI.Generic_Master, Machine.Generic_Digital_Out,
      Machine.Blocking.Generic_Delays, Machine.Async.SPI,
      Machine.Regmap.Generic_SPI_Binding;
-with ATmega328P.SPI, ATmega328P.Delays;
-with ATmega328P_PAC.Port_B;
+with ATmega328P.SPI, ATmega328P.Delays, ATmega328P.GPIO;
+with ATmega328P_PAC.Port_B, ATmega328P_PAC.SPI;
 with BME280;
 package AVR_Board
   with SPARK_Mode
@@ -52,4 +53,13 @@ is
    package Env_Sensor is new BME280
      (Regs => Regs.As_Device,
       Wait => Delays_Sig);
+
+   --  Bus-specific bring-up (D8): CS idle-high, SPI enabled + its
+   --  interrupt, global interrupts on. The one shared main.adb (src/
+   --  main.adb) calls this and its I2C-variant counterpart identically.
+   procedure Setup
+     with Global => (In_Out => (ATmega328P_PAC.Port_B.DDRB,
+                                 ATmega328P_PAC.Port_B.PORTB,
+                                 ATmega328P_PAC.SPI.SPCR),
+                     Output => (ATmega328P_PAC.SPI.SPSR, ATmega328P.SPI.State));
 end AVR_Board;

@@ -21,18 +21,20 @@ project Spike2_AVR is
    type Bus_Kind is ("SPI", "I2C");
    Bus : Bus_Kind := external ("BME280_BUS", "SPI");
 
-   --  Object_Dir/Exec_Dir vary per Bus too, not just Source_Dirs: both
-   --  variants declare same-named units ("Avr_Board", "Main") with
-   --  different bodies, and sharing one Object_Dir let a stale
+   --  "src" (shared) has the one bus-agnostic main.adb, calling
+   --  AVR_Board.Setup for whichever variant's own "src/spi"/"src/i2c"
+   --  supplies it. Object_Dir/Exec_Dir still vary per Bus, not just
+   --  Source_Dirs: both variants declare a same-named "Avr_Board" unit
+   --  with a different body, and sharing one Object_Dir let a stale
    --  gnatprove/gprbuild cache from one variant corrupt analysis of the
    --  other after a bare `-X` switch with no `rm -rf obj` in between.
    case Bus is
       when "SPI" =>
-         for Source_Dirs use ("src/spi");
+         for Source_Dirs use ("src", "src/spi");
          for Object_Dir use "obj/spi";
          for Exec_Dir use "bin/spi";
       when "I2C" =>
-         for Source_Dirs use ("src/i2c");
+         for Source_Dirs use ("src", "src/i2c");
          for Object_Dir use "obj/i2c";
          for Exec_Dir use "bin/i2c";
    end case;
