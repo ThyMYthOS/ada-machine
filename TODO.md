@@ -15,22 +15,37 @@ the evidence base over re-designing.
 
 ## P0 — Contract validation (blocks 1.0 freeze)
 
-### 1. Validate the I²C contract against a non-FIFO controller
-`Machine.I2C.Generic_Master` is modelled on RP2040's DW_apb_i2c command FIFO and
-RP2040 is the *only* I²C controller in the spikes. STM32 I²C / AVR TWI are
-register-event state machines, not command FIFOs — the current shape may not fit.
+### 1. Validate the I²C contract against a non-FIFO controller — DONE
+`Machine.I2C.Generic_Master` was modelled on RP2040's DW_apb_i2c command FIFO and
+RP2040 was the *only* I²C controller in the spikes. STM32 I²C / AVR TWI are
+register-event state machines, not command FIFOs — the shape's fit was unverified.
 (README §6.3, B.4, C.4, open question 3)
 
-- [ ] Add an AVR TWI I²C L2 spike (`atmega328p_hal`): implement `Set_Target`,
-      `Can_Push`, `Push_Write`, `Push_Read_Request`, `Can_Pop`, `Pop` over TWCR/TWDR/TWSR.
-      This also closes the missing **8-bit I²C** data point.
-- [ ] Wire the *unchanged* `bme280` driver over TWI (repeat the spike-1 wiring on AVR)
-      to confirm the portability claim survives a second I²C controller.
-- [ ] If TWI only fits with contortion, open a design note proposing a revised
-      `I2C.Generic_Master` shape (e.g. transaction-descriptor instead of per-byte
-      push) and decide before freeze.
+- [x] Add an AVR TWI I²C L2 spike (`atmega328p_hal`): implemented `Set_Target`,
+      `Can_Push`, `Push_Write`, `Push_Read_Request`, `Can_Pop`, `Pop` over TWCR/TWDR/TWSR
+      (`atmega328p-i2c.ads/.adb`). Closes the missing **8-bit I²C** data point.
+- [x] Wired the *unchanged* `bme280` driver over TWI (`spike2_avr/src/i2c/`,
+      selectable via the new `BME280_BUS` Alire config switch alongside the
+      existing SPI wiring) — confirms the portability claim survives a second,
+      structurally different I²C controller.
+- [x] TWI *does* fit, but not without contortion — documented, not hidden:
+      TWI has no FIFO and no auto-start-on-write, so a full byte transfer needs
+      up to three chained hardware actions (START, address+R/W, data) the first
+      time in a transaction, gated one at a time by the single TWINT flag.
+      `Push_Write`/`Push_Read_Request` hide the START/address sub-steps behind a
+      **bounded busy-spin** (§6.2 permits "completes in bounded short time", not
+      only "returns immediately") — each sub-step is one hardware action, same
+      order of magnitude as the register setup `Enable` already does
+      synchronously elsewhere in this HAL. Only the actual data byte — the
+      repeated, hot-path operation — stays fully async, gated by `Can_Push`/
+      `Can_Pop` reading `TWINT` directly, the same depth-1 shape as
+      `ATmega328P.SPI`'s `Busy`. No signature revision was needed.
 - **Done when:** two structurally different I²C controllers instantiate the same
-      signature and drive the same driver, OR the signature is revised and re-validated.
+      signature and drive the same driver, OR the signature is revised and
+      re-validated. → RP2040's command FIFO and AVR TWI's register-event state
+      machine both drive `Machine.Blocking.I2C` + unmodified `bme280`; `alr build`/
+      `alr gnatprove` pass clean (flow, same residual-tolerance level as the rest
+      of the repo) for both `spike2_avr`'s SPI and I2C variants.
 
 ### 2. Fix the `machine_async` ISR race (critical-section signature, §14.4)
 `Machine.Async.SPI` shares `Active`/`Sent`/`Got` with the ISR pump using only

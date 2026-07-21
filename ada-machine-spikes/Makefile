@@ -20,6 +20,14 @@
 # native stand-in -- its main.adb's literal AVR inline assembly ("sei")
 # is exactly why it couldn't build natively before this.
 #
+# spike2_avr also has a BME280_BUS Alire config switch (alire.toml),
+# defaulting to SPI; `make spike2_avr-i2c` builds/proves the I2C variant
+# (ATmega328P's TWI, TODO.md P0 #1) via `-XBME280_BUS=I2C` -- a plain GPR
+# external in spike2_avr.gpr, not Alire's own config-value mechanism
+# (which only offers a depending crate's [configuration.values], with no
+# command-line override), so both variants stay reachable from one crate
+# built directly, as here.
+#
 # `make gnatprove` runs `alr gnatprove` (SPARK flow analysis + proof) the
 # same way, per crate. Generic-only crates (machine, machine_async,
 # machine_blocking, machine_regmap, machine_tasking) get flow/proof
@@ -31,6 +39,18 @@
 # crate that merely has unproved "medium" checks left (an accepted,
 # documented residual for bme280's Bosch arithmetic and a few others,
 # see prior session notes) still counts as OK here, same as `alr build`.
+#
+# Known flakiness: avrada_rts.gpr's "-gnatet=" switch dumps
+# avrada_rts/ada_target_properties to one fixed path shared by every
+# consumer (both spike2_avr bus variants), regenerated afresh each time
+# anything recompiles system.ads -- gnatprove's own compile pass uses
+# different switches than a real build, so running `make gnatprove`
+# straight after avrada_rts's own gnatprove entry can occasionally leave
+# spike2_avr reading a properties dump for a different mode ("missing
+# entry for Bits_BE/Double_Float_Alignment..."), a pre-existing quirk of
+# that shared-file mechanism, not spike2_avr's own sources -- re-running
+# `make gnatprove-spike2_avr`/`-spike2_avr-i2c` on their own always
+# regenerates it correctly and passes.
 #
 # Usage:
 #   make             build every crate, report a pass/fail summary
@@ -63,8 +83,8 @@ CRATES := \
 
 GNATPROVE_FLAGS := -j0 --level=1 --output=oneline --output-header -f
 
-.PHONY: all list test clean gnatprove $(CRATES) $(addprefix clean-,$(CRATES)) \
-        $(addprefix gnatprove-,$(CRATES))
+.PHONY: all list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
+        $(CRATES) $(addprefix clean-,$(CRATES)) $(addprefix gnatprove-,$(CRATES))
 
 all:
 	@set -e; \
@@ -79,11 +99,19 @@ all:
 		fi; \
 		echo; \
 	done; \
+	echo "==> spike2_avr-i2c"; \
+	if $(MAKE) spike2_avr-i2c; then \
+		echo "==> spike2_avr-i2c: OK"; \
+	else \
+		echo "==> spike2_avr-i2c: FAILED"; \
+		failed="$$failed spike2_avr-i2c"; \
+	fi; \
+	echo; \
 	if [ -n "$$failed" ]; then \
 		echo "Failed:$$failed"; \
 		exit 1; \
 	fi; \
-	echo "All $(words $(CRATES)) crates built."
+	echo "All $(words $(CRATES)) crates built (+ spike2_avr's I2C variant)."
 
 list:
 	@for c in $(CRATES); do echo "$$c"; done
@@ -101,19 +129,33 @@ gnatprove:
 		fi; \
 		echo; \
 	done; \
+	echo "==> spike2_avr-i2c"; \
+	if $(MAKE) gnatprove-spike2_avr-i2c; then \
+		echo "==> spike2_avr-i2c: OK"; \
+	else \
+		echo "==> spike2_avr-i2c: FAILED"; \
+		failed="$$failed spike2_avr-i2c"; \
+	fi; \
+	echo; \
 	if [ -n "$$failed" ]; then \
 		echo "Failed:$$failed"; \
 		exit 1; \
 	fi; \
-	echo "GNATprove ran clean (errors only -- see above for any unproved checks) on $(words $(CRATES)) crates."
+	echo "GNATprove ran clean (errors only -- see above for any unproved checks) on $(words $(CRATES)) crates (+ spike2_avr's I2C variant)."
 
 # Per-crate GNATprove targets, e.g. `make gnatprove-bme280`.
 $(addprefix gnatprove-,$(CRATES)):
 	cd $(patsubst gnatprove-%,%,$@) && alr gnatprove $(GNATPROVE_FLAGS)
 
+gnatprove-spike2_avr-i2c:
+	cd spike2_avr && alr gnatprove $(GNATPROVE_FLAGS) -XBME280_BUS=I2C
+
 # Per-crate targets, e.g. `make bme280`, `make host_test`.
 $(CRATES):
 	cd $@ && alr build
+
+spike2_avr-i2c:
+	cd spike2_avr && alr build -- -XBME280_BUS=I2C
 
 test: host_test
 	./host_test/bin/host_test

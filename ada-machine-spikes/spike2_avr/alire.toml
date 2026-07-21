@@ -10,6 +10,9 @@ tags = ["embedded", "machine", "spike", "atmega328p", "avr", "bme280"]
 
 executables = ["spike2_avr"]
 
+[configuration.variables]
+BME280_BUS = { type = "Enum", values = ["SPI", "I2C"], default = "SPI" }
+
 [[depends-on]]
 machine          = "*"
 machine_async    = "*"
