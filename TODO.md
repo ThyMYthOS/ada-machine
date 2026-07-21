@@ -69,14 +69,17 @@ GPIO `Is_High` in every HAL still conforms to nothing because there is no `Digit
 
 - [ ] Add `machine/src/machine-generic_digital_in.ads` and instantiate it in each
       HAL's conformance unit against `Is_High`.
-- [x] Decided UART: added it for real rather than scoping it out —
-      `Machine.UART.Generic_Port` (`machine/src/machine-uart-generic_port.ads`)
-      plus `RP2040.UART0` as its first (and so far only) L2 instantiation, driving
-      spike 1's status line and the UART-backed log sink (item 10). Not yet
-      implemented for `atmega328p_hal` or `esp32c3_hal`.
+- [x] Decide UART: either add a minimal `Machine.UART` + `Generic_Port` spike
+      (README's showcase example), or explicitly mark UART out-of-scope for the
+      spikes in the README so the v1 claim isn't overstated. Done via
+      `Machine.UART`/`Machine.UART.Generic_Port`/`Machine.Blocking.Generic_UART`,
+      instantiated against a real L2 UART in all three HALs (`RP2040.UART0`,
+      `ATmega328P.USART0`, `ESP32C3.UART0`) and each HAL's own conformance unit —
+      driven end-to-end by TODO #10's UART-backed logging facility, not just a
+      standalone conformance check.
 - **Done when:** every convention subprogram a HAL exposes has a signature it is
-      checked against, or the README scopes the exception. → UART is resolved;
-      `Digital_In` is the one remaining gap.
+      checked against, or the README scopes the exception. UART is now covered;
+      `Digital_In`/`Is_High` is the one signature still outstanding.
 
 ---
 
