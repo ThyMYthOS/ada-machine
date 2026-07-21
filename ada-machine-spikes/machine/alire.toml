@@ -7,3 +7,10 @@ maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
 licenses = "Apache-2.0 WITH LLVM-exception"
 tags = ["embedded", "hal", "machine"]
+
+#  Machine.Log's static enabled threshold (§14.2): levels above this
+#  fold away at compile time.
+[configuration.variables]
+Log_Level.type = "Enum"
+Log_Level.values = ["Error", "Warning", "Info", "Debug", "Trace"]
+Log_Level.default = "Info"

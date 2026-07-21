@@ -17,6 +17,13 @@ machine_regmap = "*"
 bme280 = "*"
 rp2040_hal = "*"
 
+#  Demonstrates the user-settable log level (§14.2): a dependent crate
+#  overrides machine's "Log_Level" config variable from its own
+#  alire.toml, which is how Machine.Log.Enabled_Level is meant to be
+#  set in a real product build (default: Info).
+[configuration.values]
+machine.Log_Level = "Debug"
+
 [[pins]]
 machine          = { path = "../machine" }
 machine_blocking = { path = "../machine_blocking" }
