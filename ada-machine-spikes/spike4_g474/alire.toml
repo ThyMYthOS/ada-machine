@@ -1,0 +1,30 @@
+name = "spike4_g474"
+version = "0.1.0-dev"
+description = "Ada Machine spike 4: I2C target exposing time + RNG on STM32G474"
+long-description = "Ada Machine spike 4: I2C target (client) on STM32G474 (Nucleo-G474RE) exposing a settable epoch and hardware RNG words (Appendix D)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine", "spike", "stm32g474", "i2c", "rng"]
+
+executables = ["spike4_g474"]
+
+[[depends-on]]
+machine        = "*"
+time_rng_target = "*"
+stm32g474_hal  = "*"
+
+[[pins]]
+machine         = { path = "../machine" }
+time_rng_target = { path = "../time_rng_target" }
+stm32g474_hal   = { path = "../stm32g474_hal" }
+
+# Not cross-built in this environment by default (no gnat_arm_elf/
+# embedded_stm32g4xx toolchain pinned here, §10) -- this crate is the
+# wiring/documentation artifact for Appendix D; host_test is what is
+# actually compiled and run to check the shared Time_RNG_Target logic.
+# Unlike spike1_pico/spike3_esp, a real Alire-published runtime crate
+# for this target *does* exist (damaki's embedded_stm32g4xx) -- pinning
+# it and a matching gnat_arm_elf toolchain is a plausible follow-up if
+# this session's `alr build` can fetch them; see the spike 4 plan notes.

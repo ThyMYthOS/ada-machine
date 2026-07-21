@@ -1,0 +1,25 @@
+name = "stm32g474_pac"
+version = "0.1.0-dev"
+description = "STM32G474 peripheral access crate (curated register bindings)"
+long-description = "STM32G474 peripheral access crate (curated register bindings, spike 4 subset)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine", "stm32g474", "pac"]
+
+# Real PACs are generated from a curated SVD (patch overlay over the vendor
+# SVD, §9 rule 1) and never hand-edited. This spike hand-authors the same
+# shape directly -- the register subset the L2 crate (stm32g474_hal) needs
+# for spike 4 (Appendix D): RCC enable bits, GPIOA/GPIOB, I2C1 (target
+# mode), RNG, TIM2 (as a free-running seconds counter for Clock). NOT
+# STM32G474's full register file.
+#
+# Base addresses (RCC/GPIOA/GPIOB/I2C1/TIM2/RNG) are cross-checked against
+# the STM32G474xx CMSIS device header (stm32duino/Arduino_Core_STM32,
+# itself derived from ST's CMSIS-Device pack). RCC enable-bit *positions*
+# (AHB2ENR.GPIOAEN/GPIOBEN/RNGEN, APB1ENR1.TIM2EN/I2C1EN) are transcribed
+# from memory of the L4/G4-family RCC layout, not yet cross-checked
+# against a fetched primary source -- verify against RM0440's RCC chapter
+# before any real hardware bring-up (this spike's own validation is
+# logic-only, no real bus, so this gap is documented rather than blocking).

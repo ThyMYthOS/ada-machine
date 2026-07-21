@@ -204,6 +204,49 @@ after #3.
       UART-backed sink using the deferred-formatting + static-threshold facility, and
       `host_test` verifies emitted events via a recording sink.
 
+### 11. Close spike 4's open items (I²C target + RNG, Appendix D)
+Spike 4 (`spike4_g474`, STM32G474) introduced two new `machine` signatures --
+`Machine.I2C.Generic_Target` and `Machine.RNG.Generic_Source` -- plus a
+spike-local responder (`time_rng_target`), proven against one real HAL
+(`stm32g474_hal`, GNATprove-clean) and a scripted `host_test` mock (latch
+consistency, repeated-START register-pointer persistence, settable-epoch
+write, all passing). Several things were deliberately deferred rather than
+silently glossed over (README §18 D19, Appendix D):
+
+- [ ] Verify `stm32g474_pac`'s RCC enable-bit positions (`AHB2ENR.RNGEN`,
+      `APB1ENR1.I2C1EN`) against RM0440's actual register tables -- currently
+      transcribed from memory/CMSIS convention and flagged as such in
+      `stm32g474_pac-rcc.ads`, the one unverified fact in an otherwise
+      CMSIS-header-cross-checked PAC.
+- [ ] Recompute `STM32G474.I2C1`'s `TIMINGR` placeholder against the real
+      core clock (STM32CubeMX's I2C timing tool, or RM0440's worked
+      examples) before any real hardware bring-up.
+- [ ] Add bus-fault detection (`BERR`/`ARLO`) to `STM32G474.I2C1.Pop`/`.Push`
+      -- deferred in this first cut; `Status` currently never leaves `Ok` in
+      either, which is why GNATprove flags both `Status` parameters as
+      "not modified, could be IN" (an honest reflection of the gap, not a
+      separate bug).
+- [ ] Decide whether `Machine.I2C.Generic_Target` / `Machine.RNG.Generic_Source`
+      promote to the README §6.3 v1 list, or need revision, once a second
+      *structurally different* target-mode I2C controller exists (e.g. AVR
+      TWI in target mode, or a legacy-IP STM32 for contrast) -- the same
+      one-data-point bar `Machine.I2C.Generic_Master` was itself held to
+      until item 1 (above) closed it by adding AVR TWI as a second,
+      structurally different controller.
+- [ ] Decide whether `Time_RNG_Target`'s register-file responder deserves a
+      generic `Machine.I2C.Generic_Target_Regfile` (the mirror of
+      `Machine.Regmap.Generic_Device`) once a second target-mode
+      application exists -- kept spike-local for now (§6.3).
+- [ ] Attempt a real cross-build once a `gnat_arm_elf` toolchain +
+      `embedded_stm32g4xx` (damaki) resolve in a given environment --
+      unlike RP2040/ESP32-C3, a published Alire runtime crate already
+      exists for this family, so this may be closer than the other three
+      spikes' cross-build gaps.
+- **Done when:** the RCC/TIMINGR facts are checked against RM0440, `Pop`/
+      `Push` either detect bus faults or the deferral is reflected in a
+      signature-level comment (not just a HAL-body one), and the
+      v1-promotion/generalization questions have an explicit answer either way.
+
 ---
 
 ## Not in scope here

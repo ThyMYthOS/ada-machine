@@ -1,0 +1,15 @@
+name = "time_rng_target"
+version = "0.1.0-dev"
+description = "I2C target exposing a settable time epoch and RNG words"
+long-description = "Ada Machine spike 4's device-side responder (Appendix D): generic over Machine.I2C.Generic_Target, Machine.RNG.Generic_Source and Machine.Generic_Clock, no MCU HAL/PAC dependency -- same L4 shape as bme280 (machine only), which is what lets host_test exercise it over mocks."
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine", "i2c", "rng"]
+
+[[depends-on]]
+machine = "*"
+
+[[pins]]
+machine = { path = "../machine" }

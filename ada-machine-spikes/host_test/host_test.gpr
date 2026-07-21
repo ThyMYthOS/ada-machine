@@ -1,5 +1,6 @@
 with "../machine/machine.gpr";
 with "../bme280/bme280.gpr";
+with "../time_rng_target/time_rng_target.gpr";
 
 project Host_Test is
    for Source_Dirs use ("src");

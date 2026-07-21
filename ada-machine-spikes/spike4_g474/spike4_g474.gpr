@@ -1,0 +1,21 @@
+with "../machine/machine.gpr";
+with "../time_rng_target/time_rng_target.gpr";
+with "../stm32g474_hal/stm32g474_hal.gpr";
+
+project Spike4_G474 is
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj";
+   for Main use ("main.adb");
+   for Exec_Dir use "bin";
+
+   package Builder is
+      --  gprbuild otherwise names the binary "main" (after the source
+      --  file); alire.toml's executables/"alr run" expect "spike4_g474".
+      for Executable ("main.adb") use "spike4_g474";
+   end Builder;
+
+   --  A real build inherits Runtime ("Ada") from embedded_stm32g4xx
+   --  (damaki, §10/§16) and a linker script from that crate's board
+   --  layer; both are out of scope for this environment by default (no
+   --  cross toolchain pinned -- see alire.toml's note).
+end Spike4_G474;

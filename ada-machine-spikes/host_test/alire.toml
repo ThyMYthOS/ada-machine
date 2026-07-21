@@ -1,22 +1,24 @@
 name = "host_test"
 version = "0.1.0-dev"
-description = "Native host-side check of the portable BME280 driver"
-long-description = "Native host-side check of the portable BME280 driver"
+description = "Native host-side check of the portable BME280 + Time_RNG_Target"
+long-description = "Native host-side check of the portable BME280 driver and spike 4's Time_RNG_Target responder"
 authors = ["Manuel Stahl"]
 maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
 licenses = "Apache-2.0 WITH LLVM-exception"
-tags = ["embedded", "machine", "test", "bme280"]
+tags = ["embedded", "machine", "test", "bme280", "i2c", "rng"]
 
 executables = ["host_test"]
 
 [[depends-on]]
-machine        = "*"
-bme280 = "*"
+machine         = "*"
+bme280          = "*"
+time_rng_target = "*"
 
 [[pins]]
-machine        = { path = "../machine" }
-bme280 = { path = "../bme280" }
+machine         = { path = "../machine" }
+bme280          = { path = "../bme280" }
+time_rng_target = { path = "../time_rng_target" }
 
 # The only crate in this spike meant to be built with the *host* GNAT
 # (no MCU HAL/PAC, no cross runtime) -- it exercises exactly the part

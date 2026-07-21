@@ -1,0 +1,23 @@
+name = "stm32g474_hal"
+version = "0.1.0-dev"
+description = "Ada Machine L2 for STM32G474 (Clock, GPIO, I2C1 target, RNG)"
+long-description = "Ada Machine L2 for STM32G474: never-blocking package-spec convention (spike 4 subset: Clock, GPIOA, I2C1 in target/slave mode, RNG)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "hal", "machine", "stm32g474"]
+
+[[depends-on]]
+machine = "*"
+stm32g474_pac = "*"
+
+[[pins]]
+machine = { path = "../machine" }
+stm32g474_pac = { path = "../stm32g474_pac" }
+
+# A real stm32g474_hal also depends on a Ravenscar/light runtime crate
+# providing Runtime ("Ada") for the target (damaki's embedded_stm32g4xx,
+# §10/README's spike-4 plan) -- omitted here since this spike does not
+# perform an actual cross build by default (see spike4_g474/alire.toml
+# for the stretch-goal attempt); host_test is what IS built and run.
