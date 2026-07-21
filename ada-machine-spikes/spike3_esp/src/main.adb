@@ -9,12 +9,14 @@
 --  (in Board, say) is the option if probe visibility is wanted later.
 with ESP32C3.SPI2;
 with ESP32C3.GPIO;
+with ESP32C3.UART0;
+with Machine.Log;
 with Board;
 
 procedure Main
   with SPARK_Mode
 is
-   use type Board.Env_Sensor.Device_Status;
+   use type Board.Env_Sensor.Device_Status, Board.Env_Sensor.Celsius;
 
    Status : Board.Env_Sensor.Device_Status := Board.Env_Sensor.Ok;
    M      : Board.Env_Sensor.Measurement;
@@ -24,6 +26,7 @@ begin
    ESP32C3.GPIO.Set_High (10);
 
    ESP32C3.SPI2.Enable ((Divisor => 4, Mode => 0));
+   ESP32C3.UART0.Enable ((Baud_Hz => 115_200));
    --  Global interrupt enable and the DMA-done interrupt's actual
    --  attachment are runtime-owned on a light-tasking profile (unlike
    --  spike 2's ZFP floor, which needed inline "sei" here) -- no inline
@@ -39,6 +42,16 @@ begin
    loop
       if Status = Board.Env_Sensor.Ok then
          Board.Env_Sensor.Measure (M, Status);
+         if Status = Board.Env_Sensor.Ok then
+            --  Per-measurement Info trace (§14.2): a decision/state
+            --  transition, not a per-byte data phase, so it belongs
+            --  here and not inside the driver's L2/L3 primitives.
+            if Machine.Log.Enabled (Machine.Log.Info) then
+               Board.Sink.Emit
+                 (Machine.Log.Info, Board.Ev_Measured,
+                  Machine.Log.Arg (Integer (M.Temperature * 100)));
+            end if;
+         end if;
       else
          Status := Board.Env_Sensor.Ok;  --  §7.1 rule 3: owner resets and retries
       end if;

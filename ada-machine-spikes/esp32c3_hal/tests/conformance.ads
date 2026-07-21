@@ -9,8 +9,9 @@
 --  machine_tasking's own handoff notes), so there is nothing here that
 --  needs one.
 with Machine.SPI.Generic_Master;
+with Machine.UART.Generic_Port;
 with Machine.Generic_Digital_Out;
-with ESP32C3.SPI2, ESP32C3.GPIO;
+with ESP32C3.SPI2, ESP32C3.GPIO, ESP32C3.UART0;
 
 package Conformance
   with SPARK_Mode
@@ -21,6 +22,13 @@ is
       Push     => ESP32C3.SPI2.Push,
       Can_Pop  => ESP32C3.SPI2.Can_Pop,
       Pop      => ESP32C3.SPI2.Pop);
+
+   package UART0_Check is new Machine.UART.Generic_Port
+     (Frame       => ESP32C3.UART0.Frame,
+      Is_Tx_Ready => ESP32C3.UART0.Is_Tx_Ready,
+      Put_Frame   => ESP32C3.UART0.Put_Frame,
+      Is_Rx_Ready => ESP32C3.UART0.Is_Rx_Ready,
+      Get_Frame   => ESP32C3.UART0.Get_Frame);
 
    --  Machine.Generic_Digital_Out needs one formal procedure bound to a
    --  fixed pin (§6.4): a real conformance unit wraps ESP32C3.GPIO the
