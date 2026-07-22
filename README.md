@@ -64,7 +64,18 @@ Ada Machine is a layered hardware abstraction architecture for embedded Ada, des
 
 This resolves the tension identified in the forum threads ([4364](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364), [4296](https://forum.ada-lang.io/t/an-embedded-ecosystem-for-beginners/4296)): the [ADL](#g-adl)'s tagged-interface [`hal` crate](#g-halcrate) works well on Cortex-M with the [light runtime](#g-light) but is not SPARK-provable, effectively unusable on AVR, and forces one synchronous API onto runtimes with different capabilities. Ada Machine instead follows the path Rust's [embedded-hal](#g-eh) 1.0 validated — a tiny, stable, dependency-light contract with per-MCU implementations and execution-model variants in separate crates — translated into Ada's compile-time idioms.
 
-**The layers, in one line** (detailed in §4): **L0** runtime · **L1** register bindings ([PAC](#g-pac)) · **L2** the never-blocking per-MCU HAL *contract* (`<mcu>_hal`) · **L3** execution adapters (blocking / async / tasking) · **L4** portable device drivers · **L5** the `maker` beginner layer · **L6** an optional compile-time board description — all resting on the `machine` spec crate (shared types, error kinds, [signatures](#g-signature)).
+**The stack** (dependency rules in §4, execution detail in §5):
+
+| Layer | Role | Ships as |
+|---|---|---|
+| L6 | board description — compile-time wiring generator (optional) | `boardgen` |
+| L5 | `maker` — Arduino-like beginner API | `maker_<board>` |
+| L4 | portable device drivers | one crate per device |
+| L3 | execution adapters — blocking / async / tasking | `machine_blocking` · `_async` · `_tasking` |
+| L2 | **the contract** — never-blocking per-MCU HAL | `<mcu>_hal` |
+| L1 | register bindings | `<mcu>_pac` |
+| L0 | runtime — startup, traps, timekeeping (not peripherals) | `light_*` · `avrada_rts` |
+| — | shared types, error kinds, [signatures](#g-signature) | `machine` |
 
 ## 2. Goals and non-goals
 
@@ -103,18 +114,7 @@ This resolves the tension identified in the forum threads ([4364](https://forum.
 
 ## 4. Architecture overview
 
-| Layer | Name | Description |
-|-------|------|-------------|
-| L6 | board description (opt.) | Compile-time devicetree → generated Ada (§13) |
-| L5 | maker / maker_<board> | Arduino-like beginner framework (one pkg, pins are ints) |
-| L4 | device driver crates (bme280, st7789, neopixel …) | Portable drivers: generic packages over L2/L3 signatures. MCU-agnostic, SPARK-friendly. |
-| L3 | execution adapters | `machine_blocking` (busy-wait) · `machine_async` (IRQ/DMA, completion procedures) · `machine_tasking` (Ravenscar/Jorvik) |
-| L2 | <mcu>_hal crates (e.g. rp2040_hal, avr_atmega328_hal) | **THE CONTRACT:** never-blocking package-spec convention (MCU.GPIO, MCU.UART0 …) + native full-feature surface. Grows toward SPARK-proven vendor-lib replacement. |
-| L1 | <mcu>_pac crates | Register bindings: svd2ada-generated, curated |
-| L0 | runtime crates (damaki-style, avrada_rts, bare_runtime) | Owns: startup, traps, timekeeping interrupt, tasking. **NOT** peripherals. light / light_tasking / embedded_<soc> |
-| — | machine (spec crate) | Types, error kinds, signature packages — depended on by L2, L3, L4, L5. Pure/Preelaborate. |
-
-Dependency rules (enforced by crate manifests):
+The layers (§1) relate by these dependency rules, enforced by crate manifests:
 
 - `machine` depends on nothing. All specs `Pure` or `Preelaborate`.
 - L2 depends on `machine` + its own L1 [PAC](#g-pac). It must build against the **[light](#g-light)** runtime — that is the floor.
@@ -126,14 +126,14 @@ Dependency rules (enforced by crate manifests):
 
 ## 5. The layer model, refined from thread 4364
 
-§4 maps the full stack; what refines [thread 4364](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364)'s original four layers is the execution axis (L2–L3), where blocking and interrupt behavior actually differ:
+§1 lists the full stack; what refines [thread 4364](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364)'s original four layers is the execution axis (L2–L3), where blocking and interrupt behavior actually differ:
 
-| Layer | Blocking? | Interrupts? | Ships as |
-|---|---|---|---|
-| L2 — HW access | **never** | none installed; IRQ-status readable | `<mcu>_hal` |
-| L3a — Blocking | busy-wait/[WFI](#g-wfi) | optional | `machine_blocking` |
-| L3b — Async buffered | never | yes (user-attached) | `machine_async` |
-| L3c — Tasking | suspends task | yes | `machine_tasking` |
+| Layer | Blocking? | Interrupts? |
+|---|---|---|
+| L2 — HW access | **never** | none installed; IRQ-status readable |
+| L3a — Blocking | busy-wait/[WFI](#g-wfi) | optional |
+| L3b — Async buffered | never | yes (user-attached) |
+| L3c — Tasking | suspends task | yes |
 
 Two refinements relative to that original four-layer proposal:
 
