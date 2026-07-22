@@ -56,7 +56,7 @@
 Ada Machine is a layered hardware abstraction architecture for embedded Ada, designed as a set of small [Alire](#g-alire) [crates](#g-crate) rather than a monolithic library. Its central commitments:
 
 1. **The portable contract is compile-time, not runtime.** On-chip peripherals are exposed through a *package-spec convention* (same spec shape, different body per MCU — the [TinyGo](https://tinygo.org/docs/reference/machine/)/[modm](https://modm.io) model). Portable device drivers are *[generic packages](#g-generic)* with narrow formal parameters, checked against *[signature packages](#g-signature)*. No [tagged types](#g-tagged), no access-to-class-wide, no dispatching in the core.
-2. **The core API never blocks.** Every layer-2 operation either completes in bounded short time or returns immediately with status. Blocking, interrupt/[DMA](#g-dma)-driven, and tasking behavior are *adapters* layered on top, each compiled only when the runtime profile supports it.
+2. **The core API never blocks.** Every hardware-access operation either completes in bounded short time or returns immediately with status. Blocking, interrupt/[DMA](#g-dma)-driven, and tasking behavior are *adapters* layered on top, each compiled only when the runtime profile supports it.
 3. **Register access lives in per-MCU [PAC](#g-pac) crates** — generated from [SVD](#g-svd), then hand-curated — separate from both the runtime and the HAL implementation.
 4. **[SPARK](#g-spark) is mandatory, 8-bit viability is mandatory.** Every core crate carries `SPARK_Mode` specs and must pass [GNATprove](#g-gnatprove) flow analysis; any construct GNATprove rejects, or that costs RAM on an ATtiny (512 B), is excluded from the core contract. Non-provable conveniences are quarantined in one clearly marked optional crate.
 5. **Initialization stays MCU-specific.** The contract abstracts only the data phase; configuration is native. On 32-bit-class targets, an optional *compile-time board description* (devicetree-like, resolved entirely at build time into ordinary Ada — §13) generates the wiring; it is a generator, never a runtime mechanism, and not offered for AVR.
@@ -101,30 +101,16 @@ This resolves the tension identified in the forum threads ([4364](https://forum.
 
 ## 4. Architecture overview
 
-```
- L6  board description (opt.)       compile-time devicetree → generated Ada (§13)
- ─────────────────────────────────────────────────────────────────────────────
- L5  maker / maker_<board>          Arduino-like beginner framework (one pkg, pins are ints)
- ─────────────────────────────────────────────────────────────────────────────
- L4  device driver crates           Portable drivers: generic packages over L2/L3
-     (bme280, st7789, neopixel …)   signatures. MCU-agnostic, SPARK-friendly.
- ─────────────────────────────────────────────────────────────────────────────
- L3  execution adapters             machine_blocking (busy-wait) · machine_async (IRQ/DMA,
-                                    completion procedures) · machine_tasking (Ravenscar/Jorvik)
- ─────────────────────────────────────────────────────────────────────────────
- L2  <mcu>_hal crates               THE CONTRACT: never-blocking package-spec
-     e.g. rp2040_hal, avr_atmega328_hal   convention (MCU.GPIO, MCU.UART0 …)
-     + native full-feature surface  (grows toward SPARK-proven vendor-lib replacement)
- ─────────────────────────────────────────────────────────────────────────────
- L1  <mcu>_pac crates               Register bindings: svd2ada-generated, curated
- ─────────────────────────────────────────────────────────────────────────────
- L0  runtime crates                 light / light_tasking / embedded_<soc>
-     (damaki-style, avrada_rts,     owns: startup, traps, timekeeping interrupt,
-      bare_runtime)                 tasking. NOT peripherals.
- ─────────────────────────────────────────────────────────────────────────────
-     machine (spec crate)              types, error kinds, signature packages —
-                                    depended on by L2, L3, L4, L5. Pure/Preelaborate.
-```
+| Layer | Name | Description |
+|-------|------|-------------|
+| L6 | board description (opt.) | Compile-time devicetree → generated Ada (§13) |
+| L5 | maker / maker_<board> | Arduino-like beginner framework (one pkg, pins are ints) |
+| L4 | device driver crates (bme280, st7789, neopixel …) | Portable drivers: generic packages over L2/L3 signatures. MCU-agnostic, SPARK-friendly. |
+| L3 | execution adapters | `machine_blocking` (busy-wait) · `machine_async` (IRQ/DMA, completion procedures) · `machine_tasking` (Ravenscar/Jorvik) |
+| L2 | <mcu>_hal crates (e.g. rp2040_hal, avr_atmega328_hal) | **THE CONTRACT:** never-blocking package-spec convention (MCU.GPIO, MCU.UART0 …) + native full-feature surface. Grows toward SPARK-proven vendor-lib replacement. |
+| L1 | <mcu>_pac crates | Register bindings: svd2ada-generated, curated |
+| L0 | runtime crates (damaki-style, avrada_rts, bare_runtime) | Owns: startup, traps, timekeeping interrupt, tasking. **NOT** peripherals. light / light_tasking / embedded_<soc> |
+| — | machine (spec crate) | Types, error kinds, signature packages — depended on by L2, L3, L4, L5. Pure/Preelaborate. |
 
 Dependency rules (enforced by crate manifests):
 
@@ -138,19 +124,16 @@ Dependency rules (enforced by crate manifests):
 
 ## 5. The layer model, refined from thread 4364
 
-| # | Name | Blocking? | Interrupts? | Mechanism | Ships as |
-|---|------|-----------|-------------|-----------|----------|
-| L0 | Runtime | n/a | owns timekeeping + tasking traps | GNAT runtime crate | `light_*`, `embedded_*`, [`avrada_rts`](https://github.com/RREE/AVRAda_RTS) |
-| L1 | Registers | never | none | records/arrays at addresses | `<mcu>_pac` |
-| L2 | HW access | **never** | none installed; IRQ-status readable | package convention | `<mcu>_hal` |
-| L3a | Blocking | busy-wait/[WFI](#g-wfi) | optional | generic adapter over L2 | `machine_blocking` |
-| L3b | Async buffered | never | yes (user-attached) | generic adapter + completion procs | `machine_async` |
-| L3c | Tasking | suspends task | yes | protected objects, [Ravenscar](#g-ravenscar) | `machine_tasking` |
-| L4 | Device drivers | inherits from formals | never directly | generics over signatures | one crate per device |
-| L5 | Beginner | blocking only | hidden | plain package | `maker_<board>` |
-| L6 | Board description | n/a (generator) | n/a | build-time codegen | `boardgen` tool |
+§4 maps the full stack; what refines [thread 4364](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364)'s original four layers is the execution axis (L2–L3), where blocking and interrupt behavior actually differ:
 
-Two refinements relative to the original four-layer proposal in [thread 4364](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364):
+| Layer | Blocking? | Interrupts? | Ships as |
+|---|---|---|---|
+| L2 — HW access | **never** | none installed; IRQ-status readable | `<mcu>_hal` |
+| L3a — Blocking | busy-wait/[WFI](#g-wfi) | optional | `machine_blocking` |
+| L3b — Async buffered | never | yes (user-attached) | `machine_async` |
+| L3c — Tasking | suspends task | yes | `machine_tasking` |
+
+Two refinements relative to that original four-layer proposal:
 
 1. **L2 is strictly non-blocking.** The original layer 2 ("HW access") already gestured at this (`Is_Transmit_Ready`/`Transmit_Frame`); Ada Machine makes it a hard rule: every L2 subprogram completes in statically bounded time with no waiting loops. This is what makes one L2 serve *all three* execution models above it, and what keeps it callable from interrupt handlers.
 2. **Layers 3 and 4 of the original proposal are execution *adapters*, not separate HAL levels.** They contain no hardware knowledge; they are generic units instantiated with L2 subprograms. Whether they compile is determined by the runtime profile, answering the original question "how to ensure higher layers compile only if the runtime supports them": `machine_tasking` references `Ada.Synchronous_Task_Control` and protected types — on a [light](#g-light) runtime the dependency is simply not resolvable/compilable, and the Alire manifest states it up front.
