@@ -64,6 +64,8 @@ Ada Machine is a layered hardware abstraction architecture for embedded Ada, des
 
 This resolves the tension identified in the forum threads ([4364](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364), [4296](https://forum.ada-lang.io/t/an-embedded-ecosystem-for-beginners/4296)): the [ADL](#g-adl)'s tagged-interface [`hal` crate](#g-halcrate) works well on Cortex-M with the [light runtime](#g-light) but is not SPARK-provable, effectively unusable on AVR, and forces one synchronous API onto runtimes with different capabilities. Ada Machine instead follows the path Rust's [embedded-hal](#g-eh) 1.0 validated — a tiny, stable, dependency-light contract with per-MCU implementations and execution-model variants in separate crates — translated into Ada's compile-time idioms.
 
+**The layers, in one line** (detailed in §4): **L0** runtime · **L1** register bindings ([PAC](#g-pac)) · **L2** the never-blocking per-MCU HAL *contract* (`<mcu>_hal`) · **L3** execution adapters (blocking / async / tasking) · **L4** portable device drivers · **L5** the `maker` beginner layer · **L6** an optional compile-time board description — all resting on the `machine` spec crate (shared types, error kinds, [signatures](#g-signature)).
+
 ## 2. Goals and non-goals
 
 **Goals**
