@@ -1,5 +1,7 @@
 # Ada Machine — An Opinionated Platform Architecture for Embedded Ada
 
+<img src="assets/ada-machine.jpg" alt="Ada Machine" style="width: 100%; max-width: 1408px;">
+
 - **Status:** Draft 0.5 — 2026-07-21 (Appendix D added to document spike 4: an I²C *target*, the first non-master peripheral role in this repo, plus the first RNG signature — see D19; draft 0.4 rewrote the appendices to document the first three implemented spikes now under `ada-machine-spikes/`; draft 0.3 renamed the platform from *EHAL* to *Ada Machine*; draft 0.2 archived as `ada-embedded-hal-architecture-concept-draft-0.2.md`)
 - **Author:** Manuel Stahl (with research assistance)
 - **In scope:** 8-bit (ATtiny/ATmega AVR) through 32-bit (RP2040-class Cortex-M) to 64-bit (PolarFire SoC-class RISC-V); [MPU](#g-mpu)-based memory protection; [SMP](#g-smp) and [AMP](#g-amp) multicore; two privilege levels (RISC-V M-/U-Mode, ARM privileged/unprivileged) — always on embedded runtime profiles (bare metal / [Ravenscar](#g-ravenscar)-class tasking).
