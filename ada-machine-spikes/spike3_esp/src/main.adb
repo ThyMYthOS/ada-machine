@@ -11,6 +11,7 @@ with ESP32C3.SPI2;
 with ESP32C3.GPIO;
 with ESP32C3.UART0;
 with Machine.Log;
+with Machine.Tasking.Delays;
 with Board;
 
 procedure Main
@@ -40,6 +41,20 @@ begin
    end if;
 
    loop
+      --  Guard against spinning Measure on a device that never came up:
+      --  a prior failure (Initialize itself, or a since-failed Measure)
+      --  is retried through Initialize/Configure again before the next
+      --  Measure is attempted, never straight into Measure on a device
+      --  whose state we don't actually know (§7.1 rule 3: owner resets
+      --  and retries, applied at the point where the retry actually
+      --  re-establishes a known-good state).
+      if Status /= Board.Env_Sensor.Ok then
+         Board.Env_Sensor.Initialize (Status);
+         if Status = Board.Env_Sensor.Ok then
+            Board.Env_Sensor.Configure (Status => Status);
+         end if;
+      end if;
+
       if Status = Board.Env_Sensor.Ok then
          Board.Env_Sensor.Measure (M, Status);
          if Status = Board.Env_Sensor.Ok then
@@ -52,8 +67,13 @@ begin
                   Machine.Log.Arg (Integer (M.Temperature * 100)));
             end if;
          end if;
-      else
-         Status := Board.Env_Sensor.Ok;  --  §7.1 rule 3: owner resets and retries
       end if;
+
+      --  Pace the loop: the tasking runtime's own delay facility
+      --  (Machine.Tasking.Delays, already wired into Env_Sensor's own
+      --  Wait formal above) rather than a tight unpaced retry -- 500 ms
+      --  between measurements whether the last one succeeded or not,
+      --  matching spike1_pico's measurement cadence.
+      Machine.Tasking.Delays.Delay_Ms (500);
    end loop;
 end Main;

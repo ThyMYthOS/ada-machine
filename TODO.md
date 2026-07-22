@@ -384,22 +384,49 @@ one seam.
       any.
 
 ### 9. Smaller cleanups
-- [ ] **Naming rule:** decide whether a single-instance peripheral is `SPI` or `SPI0`
+- [x] **Naming rule:** decide whether a single-instance peripheral is `SPI` or `SPI0`
       and state it in §6.1. `ATmega328P.SPI` currently diverges from `RP2040.I2C0` /
       `ESP32C3.SPI2`; copy-paste-portable app code depends on the answer.
-- [ ] **Regmap auto-increment assumption:** `Regmap.Generic_Device.Read_Regs` bakes
+      (Documented, not renamed: §6.1 now states the rule — name after the MCU's own
+      datasheet designation, bare where the silicon has one unnumbered instance
+      [`ATmega328P.SPI`], numbered where the silicon numbers them [`RP2040.I2C0`,
+      `ESP32C3.SPI2` — SPI0/1 are flash-reserved]. `ATmega328P.SPI` was already
+      correct; no code changed.)
+- [x] **Regmap auto-increment assumption:** `Regmap.Generic_Device.Read_Regs` bakes
       "auto-incrementing burst read" into the *bus-neutral* seam. Document the
       assumption and plan how a non-auto-increment device is expressed before the
       next non-BME280 driver lands.
-- [ ] **esp32c3_pac GDMA over-curation:** a whole interrupt/config/peri-sel block is
+      (README §15.4 now states the assumption plus the plan for a non-auto-increment
+      device: prefer a binding that issues one addressed single-register read per
+      byte behind the same `Read_Regs` profile; fall back to a non-burst
+      `Generic_Device` variant with a `Read_Reg` single-register formal only if that
+      framing doesn't fit. One-line caveat comment added at the `Read_Regs` formal in
+      `machine/src/machine-regmap-generic_device.ads`. Plan only, no new code.)
+- [x] **esp32c3_pac GDMA over-curation:** a whole interrupt/config/peri-sel block is
       0-referenced and self-labelled "for completeness" — tensions with §9 rule 1.
       Trim, or confirm the DMA path isn't silently relying on reset defaults.
+      (Trimmed the genuinely dead registers/constants: `GDMA_INT_RAW/ENA/CLR_CH0` +
+      their done/EOF bit constants [driver polls SPI2's own `SPI_DMA_INT_RAW`
+      instead], and the unused AUTO_RET/RESTART/AUTO_WRBACK/EOF_MODE bit-position
+      constants on registers that are otherwise kept. Kept, with an explicit
+      reset-default-dependency comment: `GDMA_IN/OUT_CONF0_CH0` and
+      `GDMA_IN/OUT_PERI_SEL_CH0` — these route/configure the DMA channel and are
+      left unwritten by this spike, so correctness genuinely depends on their POR
+      default; real hardware bring-up must audit them [same "compiles, doesn't run
+      yet" caveat as README Appendix C finding 4]. `esp32c3_pac`/`esp32c3_hal`/
+      `spike3_esp` still build; gnatprove shows no new residuals, GDMA's own proved-
+      check count dropped 9→6 from the trim.)
 - [x] **Alire tag hygiene:** dropped the `"hal"` tag from the four PACs (`rp2040_pac`,
       `atmega328p_pac`, `esp32c3_pac`, `stm32g474_pac`) and the `machine` spec crate; the
       four `*_hal` crates keep it. (Done in the 2026-07-22 config sweep.)
-- [ ] **Demo main:** `spike3_esp/src/main.adb` is a tight unpaced retry loop that
+- [x] **Demo main:** `spike3_esp/src/main.adb` is a tight unpaced retry loop that
       re-measures a never-initialized device on Initialize failure. Add pacing/guard —
       it's the example people copy.
+      (Added a 500 ms `Machine.Tasking.Delays.Delay_Ms` pace at the end of the loop,
+      and a guard: on any non-`Ok` `Status` the loop now re-attempts
+      `Initialize`/`Configure` before the next `Measure`, instead of resetting
+      `Status` straight to `Ok` and re-measuring a possibly-never-initialized
+      device.)
 
 ### 10. Wire a UART-backed logging facility into every spike
 Originally: every spike instantiated `bme280` with the default **null** `Log_Event`,

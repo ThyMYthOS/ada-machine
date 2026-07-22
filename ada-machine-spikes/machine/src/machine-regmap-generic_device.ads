@@ -7,7 +7,9 @@ generic
    with procedure Read_Regs (Start : Reg_Address;
                              Data  : out Byte_Array;
                              Status : in out Access_Status);
-                                    --  auto-incrementing burst read
+                                    --  auto-incrementing burst read: assumes
+                                    --  the device advances its own register
+                                    --  pointer across the burst (README §15.4)
 package Machine.Regmap.Generic_Device
   with Pure, SPARK_Mode
 is end Machine.Regmap.Generic_Device;

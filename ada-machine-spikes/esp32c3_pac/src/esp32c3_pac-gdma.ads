@@ -72,21 +72,21 @@ is
       Next   at 8 range 0 .. 31;
    end record;
 
-   --  Interrupt status, channel 0 (mirrored raw/enable/clear).
-   GDMA_INT_RAW_CH0 : Unsigned_32
-     with Volatile, Async_Writers, Effective_Writes => False,
-          Address => Base + 16#00#;
-   GDMA_INT_ENA_CH0 : Unsigned_32
-     with Volatile, Async_Readers, Async_Writers, Address => Base + 16#08#;
-   GDMA_INT_CLR_CH0 : Unsigned_32
-     with Volatile, Async_Readers, Effective_Writes => True,
-          Address => Base + 16#0C#;
-   GDMA_IN_DONE_CH0    : constant := 2#1# * 2**0;
-   GDMA_IN_SUC_EOF_CH0 : constant := 2#1# * 2**1;
-   GDMA_OUT_DONE_CH0   : constant := 2#1# * 2**3;
-   GDMA_OUT_EOF_CH0    : constant := 2#1# * 2**4;
+   --  GDMA's own channel-0 interrupt status (mirrored raw/enable/clear) is
+   --  NOT declared here: esp32c3_hal's DMA-done wait polls SPI2's own
+   --  SPI_DMA_INT_RAW instead (ESP32C3_PAC.SPI2, §9 rule 1 -- one status
+   --  path per direction is enough, no need to curate the GDMA-side mirror
+   --  of the same event too).
 
    --  RX (inlink) channel 0.
+   --  GDMA_IN_CONF0_CH0 -- channel-mode config (burst-transfer enable,
+   --  owner-check, EOF-on-descriptor-boundary, etc.). This spike's one-shot
+   --  single-descriptor transfer leaves it at its POR (power-on-reset)
+   --  default and never writes it -- kept (address only, no field layout)
+   --  rather than trimmed because the DMA path's correctness *does* depend
+   --  on that default being sane; unwritten, not unused. Real hardware
+   --  bring-up must audit it (this spike has no attached DMA-done interrupt
+   --  yet either, README Appendix C finding 4 -- it compiles, not runs).
    GDMA_IN_CONF0_CH0 : Unsigned_32
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#70#;
 
@@ -100,23 +100,31 @@ is
    GDMA_IN_LINK_CH0 : Unsigned_32
      with Volatile, Async_Readers, Async_Writers,
           Effective_Writes => True, Address => Base + 16#80#;
+   --  Only the address mask and the START/STOP bits this spike's one-shot
+   --  single-descriptor transfer actually toggles are declared; the
+   --  hardware's AUTO_RET/RESTART re-arm modes are unused by a one-shot
+   --  transfer and trimmed (§9 rule 1 -- widen by regenerating if a
+   --  future driver needs continuous/ring-buffer DMA).
    GDMA_INLINK_ADDR_MASK    : constant := 16#000F_FFFF#;  --  bits [19:0]
-   GDMA_INLINK_AUTO_RET_CH0 : constant := 2#1# * 2**20;
    GDMA_INLINK_STOP_CH0     : constant := 2#1# * 2**21;
    GDMA_INLINK_START_CH0    : constant := 2#1# * 2**22;
-   GDMA_INLINK_RESTART_CH0  : constant := 2#1# * 2**23;
 
    --  GDMA_IN_PERI_SEL_CH0 -- which peripheral feeds this RX channel;
-   --  0 selects SPI2 (Espressif's peripheral index table).
+   --  0 selects SPI2 (Espressif's peripheral index table). Kept rather
+   --  than trimmed: unwritten by this spike (left at POR default), and the
+   --  DMA path's routing to SPI2 depends on that default matching
+   --  GDMA_PERI_SEL_SPI2 below -- real hardware bring-up must confirm it
+   --  (README Appendix C finding 4: no DMA-done interrupt is attached
+   --  either, so this spike compiles but does not run yet).
    GDMA_IN_PERI_SEL_CH0 : Unsigned_32
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#A0#;
    GDMA_PERI_SEL_SPI2 : constant := 0;
 
-   --  TX (outlink) channel 0 -- same shape as RX, mirrored offsets.
+   --  TX (outlink) channel 0 -- same shape as RX, mirrored offsets; same
+   --  "unwritten, reset-default-dependent" reasoning as GDMA_IN_CONF0_CH0
+   --  above.
    GDMA_OUT_CONF0_CH0 : Unsigned_32
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#D0#;
-   GDMA_OUT_AUTO_WRBACK_CH0 : constant := 2#1# * 2**2;
-   GDMA_OUT_EOF_MODE_CH0    : constant := 2#1# * 2**3;
 
    GDMA_OUT_LINK_CH0 : Unsigned_32
      with Volatile, Async_Readers, Async_Writers,
@@ -124,8 +132,9 @@ is
    GDMA_OUTLINK_ADDR_MASK   : constant := 16#000F_FFFF#;  --  bits [19:0]
    GDMA_OUTLINK_STOP_CH0    : constant := 2#1# * 2**20;
    GDMA_OUTLINK_START_CH0   : constant := 2#1# * 2**21;
-   GDMA_OUTLINK_RESTART_CH0 : constant := 2#1# * 2**22;
 
+   --  GDMA_OUT_PERI_SEL_CH0 -- TX-side routing register, same reset-default
+   --  dependency as GDMA_IN_PERI_SEL_CH0 above.
    GDMA_OUT_PERI_SEL_CH0 : Unsigned_32
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#100#;
 
