@@ -23,6 +23,16 @@ is
       Can_Pop  => ESP32C3.SPI2.Can_Pop,
       Pop      => ESP32C3.SPI2.Pop);
 
+   --  Only the polled SPI data phase is conformance-checked here. The
+   --  block-DMA path (ESP32C3.SPI2.Start_Transfer/Cancel_Transfer/
+   --  Read_Response) conforms to Machine.Tasking.Generic_DMA_SPI -- an
+   --  L3c *adapter* contract. Instantiating it here would force this L2
+   --  HAL to depend on machine_tasking (L3), inverting the layering, so
+   --  that conformance is checked at board level instead, where both are
+   --  visible: spike3_esp/src/board.ads instantiates Generic_DMA_SPI with
+   --  exactly these three ESP32C3.SPI2 procedures (TODO #6: block-transfer
+   --  conformance is intentionally board-level, not a hole).
+
    package UART0_Check is new Machine.UART.Generic_Port
      (Frame       => ESP32C3.UART0.Frame,
       Is_Tx_Ready => ESP32C3.UART0.Is_Tx_Ready,

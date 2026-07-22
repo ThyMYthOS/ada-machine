@@ -239,18 +239,26 @@ Files: `README.md` §7.1, `esp32c3_hal/src/esp32c3-spi2.adb`
 
 ## P2 — Conformance, config, and consistency
 
-### 6. Fill the conformance-unit holes
-- [ ] Instantiate the DMA-SPI profiles (`Start_Transfer`/`Cancel_Transfer`/
-      `Read_Response`) in `esp32c3_hal/tests/conformance.ads` — today they're only
-      checked downstream in `spike3_esp/src/board.ads`, so the crate's own CI
-      conformance claim has a hole exactly where it's most novel. (Or document that
-      block-transfer conformance is intentionally board-level.)
-- [ ] Define a standardized `HAL_Info` record shape in `machine` (it's referenced by
-      the console/drain-ownership and boardgen designs, §10.3/§13 — it deserves a
-      contract, not per-HAL `Has_X : Boolean` stubs).
-- [ ] Add the missing `ESP32C3.HAL_Info` package once the shape exists.
-- **Done when:** each HAL has a `HAL_Info` of the standard shape and every signature
-      it implements is instantiated in its own conformance unit.
+### 6. Fill the conformance-unit holes — DONE
+- [x] DMA-SPI profiles: documented as **intentionally board-level**, not instantiated in
+      `esp32c3_hal/tests/conformance.ads`. Instantiating `Machine.Tasking.Generic_DMA_SPI`
+      (an L3c *adapter*) there would force this L2 HAL to depend on machine_tasking (L3),
+      inverting the layering; the conformance is checked where both are visible —
+      `spike3_esp/src/board.ads` instantiates it with exactly ESP32C3.SPI2's three
+      procedures. Added a comment explaining this (a documented, architecturally-forced
+      deferral, not a hole).
+- [x] Defined `machine/src/machine-hal_info.ads` (`Machine.HAL_Info.Descriptor`): one
+      presence flag per v1 class (GPIO/UART/SPI/I2C/Clock/Delays), fields defaulted so the
+      console/boardgen descriptor (§10.3/§13) grows additively. Replaces the per-HAL ad-hoc
+      `Has_X` constants — which were also **stale** (RP2040 said no UART though it has one;
+      ATmega said no I2C though #1 added TWI).
+- [x] Rewrote `RP2040.HAL_Info`/`ATmega328P.HAL_Info` to the standard shape and added the
+      previously-missing `ESP32C3.HAL_Info`. Each mirrors its own `tests/conformance.ads`
+      (every `True` has a matching conformance instantiation).
+- **Done when:** each HAL has a `HAL_Info` of the standard shape and every signature it
+      implements is instantiated in its own conformance unit. **Met**: `make machine`/
+      `rp2040_hal`/`atmega328p_hal`/`esp32c3_hal` + `make test` pass, and the esp32c3_hal
+      conformance unit compiles; DMA-SPI conformance is documented board-level.
 
 ### 7. Plumb the compile-time configuration mechanism end-to-end
 "Everything the binary does is what the manifest says" (§14.5) is unproven: the
