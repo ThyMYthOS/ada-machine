@@ -274,8 +274,7 @@ PAC/HAL `.gpr` files never include `config/` or `with` the generated
       every migrated crate's `<crate>_config.ali` records `RR NO_ELABORATION_CODE`, and
       the AVR cross-build's own compile log shows `atmega328p_hal_config.ads` (the
       generated one) being compiled for the real ATmega328P target, not just the host
-      stand-in. **Still un-migrated, left for a follow-on** (out of this round's scope,
-      not blocked by any violation): `rp2040_hal`, `esp32c3_hal`, `stm32g474_pac`,
+      stand-in. **Were left for a follow-on, now completed** (2026-07-22, see the bullet below): `rp2040_hal`, `esp32c3_hal`, `stm32g474_pac`,
       `stm32g474_hal`, `bme280`, `machine_async`, `machine_blocking`, `machine_regmap`,
       `machine_tasking`, `time_rng_target`, `host_test`, `avrada_rts`, and all four
       spikes -- each already has a generated `config/` dir waiting to be wired the same
@@ -295,13 +294,23 @@ PAC/HAL `.gpr` files never include `config/` or `with` the generated
       `ATmega328P_HAL_Config.F_CPU` references still resolve post-deletion (Ada's
       case-insensitivity makes this the same unit as the generated
       `Atmega328p_Hal_Config`).
+- [x] **Follow-up rollout (2026-07-22): remaining crates migrated + Alire compiler
+      switches now actually applied.** Wired `config/<crate>_config.gpr` into `rp2040_hal`,
+      `esp32c3_hal`, `stm32g474_pac`, `stm32g474_hal`, `bme280`, `machine_async`,
+      `machine_blocking`, `machine_regmap`, `machine_tasking`, `time_rng_target`,
+      `host_test`, and the four spikes -- each `.gpr` now `with`s its config project, lists
+      `config` in `Source_Dirs`, AND applies `<Crate>_Config.Ada_Compiler_Switches` in
+      `package Compiler`. That last part fixes **Alire's compiler switches previously being
+      ignored** (the hand-simplified gprs bypassed them); every crate now builds under its
+      Alire build-profile switches. Also disabled Alire's C-header generation repo-wide
+      (`[configuration] generate_c = false` in all 21 `alire.toml`s; no `*_config.h` was
+      tracked, nothing to `git rm`).
 - **Done when:** the generated config restrictions actually take effect and no crate
-      carries a duplicate config unit. **Partially met**: true now for `machine`,
-      `atmega328p_hal`, `rp2040_pac`, `atmega328p_pac`, `esp32c3_pac`. `make all` (all 21
-      crates, including the real AVR cross-build) and `make test` (host_test, all checks
-      passed) both pass clean -- no restriction was loosened to get there. The remaining
-      crates listed above are still on the old hand-simplified layout; none of them hit a
-      violation blocking migration, they were simply out of this round's scope.
+      carries a duplicate config unit. **Met**: the config layout + Alire compiler switches
+      are live across every crate, and C-header generation is off repo-wide. `make all`
+      (21 crates incl. the AVR cross-build) + `make test` pass clean, and a
+      `gnatprove-rp2040_hal` spot-check shows only pre-existing read-to-clear flow warnings
+      -- no restriction loosened, no proof regression.
 
 ### 8. Canonicalize PAC volatility encoding — DONE
 Representation is meant to be svd2ada *policy* (§9), so decide once and apply
@@ -385,8 +394,9 @@ one seam.
 - [ ] **esp32c3_pac GDMA over-curation:** a whole interrupt/config/peri-sel block is
       0-referenced and self-labelled "for completeness" — tensions with §9 rule 1.
       Trim, or confirm the DMA path isn't silently relying on reset defaults.
-- [ ] **Alire tag hygiene:** drop the `"hal"` tag from the three PACs and the `machine`
-      spec crate — only the `*_hal` crates should carry it.
+- [x] **Alire tag hygiene:** dropped the `"hal"` tag from the four PACs (`rp2040_pac`,
+      `atmega328p_pac`, `esp32c3_pac`, `stm32g474_pac`) and the `machine` spec crate; the
+      four `*_hal` crates keep it. (Done in the 2026-07-22 config sweep.)
 - [ ] **Demo main:** `spike3_esp/src/main.adb` is a tight unpaced retry loop that
       re-measures a never-initialized device on Initialize failure. Add pacing/guard —
       it's the example people copy.

@@ -3,9 +3,10 @@ with "../machine_blocking/machine_blocking.gpr";
 with "../machine_regmap/machine_regmap.gpr";
 with "../bme280/bme280.gpr";
 with "../rp2040_hal/rp2040_hal.gpr";
+with "config/spike1_pico_config.gpr";
 
 project Spike1_Pico is
-   for Source_Dirs use ("src");
+   for Source_Dirs use ("src", "config");
    for Object_Dir use "obj";
    for Main use ("main.adb");
    for Exec_Dir use "bin";
@@ -15,6 +16,11 @@ project Spike1_Pico is
       --  file); alire.toml's executables/"alr run" expect "spike1_pico".
       for Executable ("main.adb") use "spike1_pico";
    end Builder;
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        Spike1_Pico_Config.Ada_Compiler_Switches;
+   end Compiler;
 
    --  A real build inherits Runtime ("Ada") from a light_rp2040-style
    --  runtime crate (§10, §16) and a linker script from that crate's

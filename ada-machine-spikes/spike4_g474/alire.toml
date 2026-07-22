@@ -10,6 +10,10 @@ tags = ["embedded", "machine", "spike", "stm32g474", "i2c", "rng"]
 
 executables = ["spike4_g474"]
 
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
 [[depends-on]]
 machine        = "*"
 time_rng_target = "*"

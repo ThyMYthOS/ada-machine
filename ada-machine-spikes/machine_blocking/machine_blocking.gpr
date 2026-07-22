@@ -1,5 +1,11 @@
 with "../machine/machine.gpr";
+with "config/machine_blocking_config.gpr";
 project Machine_Blocking is
-   for Source_Dirs use ("src");
+   for Source_Dirs use ("src", "config");
    for Object_Dir use "obj";
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        Machine_Blocking_Config.Ada_Compiler_Switches;
+   end Compiler;
 end Machine_Blocking;

@@ -10,6 +10,10 @@ tags = ["embedded", "machine", "spike", "esp32c3", "riscv", "bme280", "dma", "ta
 
 executables = ["spike3_esp"]
 
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
 [[depends-on]]
 machine          = "*"
 machine_tasking  = "*"

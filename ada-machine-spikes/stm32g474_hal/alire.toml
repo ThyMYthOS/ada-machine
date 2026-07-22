@@ -8,6 +8,10 @@ maintainers-logins = ["thymythos"]
 licenses = "Apache-2.0 WITH LLVM-exception"
 tags = ["embedded", "hal", "machine", "stm32g474"]
 
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
 [[depends-on]]
 machine = "*"
 stm32g474_pac = "*"

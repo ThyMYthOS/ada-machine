@@ -6,7 +6,12 @@ authors = ["Manuel Stahl"]
 maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
 licenses = "Apache-2.0 WITH LLVM-exception"
-tags = ["embedded", "hal", "machine"]
+tags = ["embedded", "machine"]
+
+#  This is an Ada-only project; skip Alire's C-header generation for
+#  the config unit (there is no C consumer for any crate in this repo).
+[configuration]
+generate_c = false
 
 #  Machine.Log's static enabled threshold (§14.2): levels above this
 #  fold away at compile time.

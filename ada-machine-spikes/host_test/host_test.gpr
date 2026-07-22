@@ -1,9 +1,10 @@
 with "../machine/machine.gpr";
 with "../bme280/bme280.gpr";
 with "../time_rng_target/time_rng_target.gpr";
+with "config/host_test_config.gpr";
 
 project Host_Test is
-   for Source_Dirs use ("src");
+   for Source_Dirs use ("src", "config");
    for Object_Dir use "obj";
    for Main use ("main.adb");
    for Exec_Dir use "bin";
@@ -16,4 +17,8 @@ project Host_Test is
       --  crate name ("host_test").
       for Executable ("main.adb") use "host_test";
    end Builder;
+
+   package Compiler is
+      for Default_Switches ("Ada") use Host_Test_Config.Ada_Compiler_Switches;
+   end Compiler;
 end Host_Test;

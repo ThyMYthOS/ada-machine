@@ -6,7 +6,11 @@ authors = ["Manuel Stahl"]
 maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
 licenses = "Apache-2.0 WITH LLVM-exception"
-tags = ["embedded", "hal", "machine", "atmega328p", "avr", "pac"]
+tags = ["embedded", "machine", "atmega328p", "avr", "pac"]
+
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
 
 # AVR has no SVD culture (§9 AVR note): a real atmega328p_pac would be
 # generated via ATDF->SVD conversion or a hand-authored SVD seeded from

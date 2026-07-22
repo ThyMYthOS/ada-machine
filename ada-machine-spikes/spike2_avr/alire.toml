@@ -10,6 +10,10 @@ tags = ["embedded", "machine", "spike", "atmega328p", "avr", "bme280"]
 
 executables = ["spike2_avr"]
 
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
 [configuration.variables]
 BME280_BUS = { type = "Enum", values = ["SPI", "I2C"], default = "SPI" }
 

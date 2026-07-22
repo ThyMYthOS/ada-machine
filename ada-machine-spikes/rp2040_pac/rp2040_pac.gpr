@@ -2,4 +2,9 @@ with "config/rp2040_pac_config.gpr";
 project RP2040_PAC is
    for Source_Dirs use ("src", "config");
    for Object_Dir use "obj";
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        Rp2040_Pac_Config.Ada_Compiler_Switches;
+   end Compiler;
 end RP2040_PAC;

@@ -6,7 +6,11 @@ authors = ["Manuel Stahl"]
 maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
 licenses = "Apache-2.0 WITH LLVM-exception"
-tags = ["embedded", "hal", "machine", "stm32g474", "pac"]
+tags = ["embedded", "machine", "stm32g474", "pac"]
+
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
 
 # Real PACs are generated from a curated SVD (patch overlay over the vendor
 # SVD, §9 rule 1) and never hand-edited. This spike hand-authors the same

@@ -10,6 +10,10 @@ tags = ["embedded", "machine", "test", "bme280", "i2c", "rng"]
 
 executables = ["host_test"]
 
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
 [[depends-on]]
 machine         = "*"
 bme280          = "*"

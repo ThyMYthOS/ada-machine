@@ -16,6 +16,10 @@ atmega328p_pac = "*"
 machine = { path = "../machine" }
 atmega328p_pac = { path = "../atmega328p_pac" }
 
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
 [configuration.variables]
 F_CPU = { type = "Integer", default = 16_000_000 }
 

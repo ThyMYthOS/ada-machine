@@ -10,6 +10,10 @@ tags = ["embedded", "machine", "spike", "rp2040", "bme280"]
 
 executables = ["spike1_pico"]
 
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
 [[depends-on]]
 machine = "*"
 machine_blocking = "*"
