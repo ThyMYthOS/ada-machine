@@ -18,7 +18,15 @@ is
    PAD_IE      : constant := 2#1# * 2**6;  --  bit 6: input enable
    PAD_OD      : constant := 2#1# * 2**7;  --  bit 7: output disable
 
-   type Pad_Array is array (Pin_Index) of Unsigned_32 with Volatile;
+   --  §9 rule 2 / §6.6: precise flavors, not blanket Volatile. Ordinary
+   --  MMIO read/write (no register here is read-to-clear or a
+   --  write-1-pulse) -- Async_Readers/Async_Writers matches
+   --  ESP32C3_PAC.GPIO's plain registers; no Volatile_Full_Access, each
+   --  element is a whole 32-bit word with no sub-word bit-field
+   --  decomposition (RP2040.GPIO/.I2C0/.UART0 always write the full
+   --  pad word in one store), so VFA would add nothing here.
+   type Pad_Array is array (Pin_Index) of Unsigned_32
+     with Volatile, Async_Readers, Async_Writers;
 
    Pads : Pad_Array
      with Import, Address => Base + 16#04#;

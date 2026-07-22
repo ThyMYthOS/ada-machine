@@ -20,15 +20,18 @@ is
       --  ... pull-ups, slew, RP2040 pad controls
    end record;
 
+   --  Pins/Pads: In_Out, not Output (TODO #8) -- they are whole-array
+   --  Globals but Enable only writes the two elements at SDA_Pin/SCL_Pin,
+   --  so Output's "the whole array is (re)written" claim would overclaim.
    procedure Enable  (Cfg : Config := (others => <>))
-     with Global => (In_Out => RP2040_PAC.Resets.RESET,
+     with Global => (In_Out => (RP2040_PAC.Resets.RESET,
+                                RP2040_PAC.IO_Bank0.Pins,
+                                RP2040_PAC.Pads_Bank0.Pads),
                      Input  => RP2040_PAC.Resets.RESET_DONE,
                      Output => (RP2040_PAC.I2C0.IC_ENABLE,
                                 RP2040_PAC.I2C0.IC_CON,
                                 RP2040_PAC.I2C0.IC_FS_SCL_HCNT,
-                                RP2040_PAC.I2C0.IC_FS_SCL_LCNT,
-                                RP2040_PAC.IO_Bank0.Pins,
-                                RP2040_PAC.Pads_Bank0.Pads));
+                                RP2040_PAC.I2C0.IC_FS_SCL_LCNT));
    procedure Disable
      with Global => (Output => RP2040_PAC.I2C0.IC_ENABLE);
    procedure Set_Target (Address : Machine.I2C.Address_7_Bit)

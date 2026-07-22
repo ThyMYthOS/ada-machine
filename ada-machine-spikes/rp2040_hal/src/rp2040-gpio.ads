@@ -10,15 +10,17 @@ is
    type Direction is (Input, Output);
    type Pull is (Floating, Pull_Up, Pull_Down);
 
-   --  GPIO_OE_SET/GPIO_OE_CLR: In_Out, not Output -- any one call only
-   --  ever writes one of the two (Dir picks which), so Output's "both
-   --  fully rewritten" claim would overclaim (same lesson as
-   --  ESP32C3.SPI2/GPIO's own Global aspects).
+   --  All four In_Out, not Output: GPIO_OE_SET/GPIO_OE_CLR because any
+   --  one call only ever writes one of the two (Dir picks which), and
+   --  Pads/Pins (TODO #8) because they are whole-array Globals but this
+   --  call only writes the one element at index Pin -- either way,
+   --  Output's "the whole object is (re)written" claim would overclaim
+   --  (same lesson as ESP32C3.SPI2/GPIO's own Global aspects).
    procedure Configure (Pin : Pin_Id; Dir : Direction; P : Pull := Floating)
-     with Global => (Output => (RP2040_PAC.Pads_Bank0.Pads,
-                                RP2040_PAC.IO_Bank0.Pins),
-                    In_Out => (RP2040_PAC.SIO.GPIO_OE_SET,
-                               RP2040_PAC.SIO.GPIO_OE_CLR));
+     with Global => (In_Out => (RP2040_PAC.Pads_Bank0.Pads,
+                                RP2040_PAC.IO_Bank0.Pins,
+                                RP2040_PAC.SIO.GPIO_OE_SET,
+                                RP2040_PAC.SIO.GPIO_OE_CLR));
 
    procedure Set_High (Pin : Pin_Id)
      with Inline_Always, Global => (Output => RP2040_PAC.SIO.GPIO_OUT_SET);

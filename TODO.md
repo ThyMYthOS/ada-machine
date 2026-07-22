@@ -303,18 +303,76 @@ PAC/HAL `.gpr` files never include `config/` or `with` the generated
       crates listed above are still on the old hand-simplified layout; none of them hit a
       violation blocking migration, they were simply out of this round's scope.
 
-### 8. Canonicalize PAC volatility encoding
+### 8. Canonicalize PAC volatility encoding — DONE
 Representation is meant to be svd2ada *policy* (§9), so decide once and apply
-uniformly. Converge on the ESP32-C3 encoding (the review's model).
+uniformly. Converge on the ESP32-C3 encoding (the review's model). Coupled with
+the proof pass the "Not in scope here" section deferred (two of three HALs
+using volatile-function/expression patterns flow analysis rejects) — both
+closed together since the PAC encoding and the HAL flow contracts over it are
+one seam.
 
-- [ ] Replace the blanket `Volatile` on `rp2040_pac` `IO_Bank0.Pins` / `Pads_Bank0.Pads`
-      with precise flavors — §6.6/§9 explicitly call blanket Volatile a conformance defect.
-- [ ] Pick one encoding for write-1/pulse (SET/CLR/XOR) registers: use ESP's
-      `Async_Readers, Effective_Writes => True`, not RP2040's `Effective_Reads => False`.
-- [ ] Add `Volatile_Full_Access` + explicit `Object_Size` where word-access APB/RISC-V
-      buses require it (§9 rule 2) — currently on no register in any PAC.
-- **Done when:** one documented volatility encoding per register-kind, applied across
-      all three PACs.
+- [x] Replaced the blanket `Volatile` on `rp2040_pac` `IO_Bank0.Pin_Regs`/
+      `Pin_Regs_Array` and `Pads_Bank0.Pad_Array` with explicit
+      `Async_Readers, Async_Writers` (ordinary MMIO read/write, matching
+      ESP32C3_PAC.GPIO's plain registers) — §6.6/§9's conformance defect.
+      No `Volatile_Full_Access` on these: every field/element is a whole
+      32-bit word at its own offset (no sub-word bit-field decomposition),
+      so a component store already compiles to one full-width write; said
+      so explicitly in a comment rather than leaving it implicit.
+- [x] `rp2040_pac-sio.ads`'s SET/CLR/XOR/OE_SET/OE_CLR: `Effective_Reads =>
+      False` (a narrower claim — only that reading these back has no side
+      effect) → ESP's `Async_Readers, Effective_Writes => True` (each write
+      is individually significant, matching what the hardware actually
+      does with these write-1/pulse aliases).
+- [x] Added `Volatile_Full_Access` + explicit `Size => 32` to every register
+      in `rp2040_pac-sio.ads` (RP2040's single-cycle IO block: the
+      datasheet defines only full 32-bit access on this bus) and, for
+      uniformity across all three PACs per this item's own "Done when,"
+      to `esp32c3_pac-gpio.ads`'s GPIO matrix registers (RISC-V-bus
+      analogue of the same requirement). `atmega328p_pac` gets a header
+      comment instead of any VFA: AVR's 8-bit I/O bus has only one access
+      width to begin with, so VFA has nothing to rule out there — a
+      genuine "does not apply," not an oversight, and said so explicitly
+      rather than silently adding nothing. No register anywhere needed the
+      "leave and note why" carve-out for bit-manipulated fields: every
+      register in all three PACs is either an opaque scalar (masks/shifts
+      combined in software) or, for `ESP32C3_PAC.GDMA.Descriptor`, only
+      ever assigned as a whole aggregate — so VFA was never at risk of
+      breaking anything, it was simply absent everywhere until now.
+- [x] Proof-coupling (the deferred item from "Not in scope here"): audited
+      `rp2040_hal`'s `rp2040-{gpio,i2c0,clock}.ads/.adb` and
+      `atmega328p_hal`'s `atmega328p-{spi,gpio}.ads/.adb` against
+      `esp32c3_hal`'s clean model. Found `Volatile_Function` on every
+      hardware-reading function, the read-alone-into-a-local pattern (RM
+      7.1.3(9)), and the no-`Pre`-on-a-volatile-function-call pattern
+      already in place on both HALs (evidently from earlier sessions'
+      work, not newly added here) — the one real gap left was `Global`
+      classifying `RP2040_PAC.IO_Bank0.Pins`/`Pads_Bank0.Pads` as `Output`
+      in `RP2040.GPIO.Configure`, `RP2040.I2C0.Enable` and
+      `RP2040.UART0.Enable` when each call only ever writes the one
+      array element at its target pin — a real "partial update claimed as
+      Output" defect (this item's own point 3), reclassified to `In_Out`
+      in all three. `atmega328p_hal`'s `spi.ads`/`gpio.ads` needed no
+      change at all — already conformant.
+- **Done when:** one documented volatility encoding per register-kind,
+      applied across all three PACs, **and** `rp2040_hal`/`atmega328p_hal`
+      are flow-clean like `esp32c3_hal`. **Met**: `make all` (21 crates) and
+      `make test` (host_test, all checks passed) pass; `make
+      gnatprove-rp2040_hal`/`-atmega328p_hal`/`-esp32c3_hal`/
+      `-spike1_pico`/`-spike2_avr`/`-spike2_avr-i2c`/`-spike3_esp` all exit
+      0. Checked byte-for-byte against a clean-`HEAD` baseline via `git
+      stash`: `rp2040_hal`/`spike1_pico` each lost exactly the 6 "might not
+      be set" low-severity flow findings the `Output`→`In_Out` fix
+      addresses and gained nothing new (two PAC address-spec warnings
+      picked up a "correct volatile properties" clause, same warning
+      class, not a new one); `atmega328p_hal`/`esp32c3_hal`/`spike2_avr`
+      identical; `spike2_avr-i2c`/`spike3_esp` each showed one bme280
+      Bosch-arithmetic residual swap for a different one in the same
+      accepted category (confirmed prover-timing noise by rerunning
+      `gnatprove-spike3_esp` a second time, not a regression) — no new
+      residual class anywhere, and the two array-Global fixes actually
+      *removed* real (if low-severity) flow findings rather than adding
+      any.
 
 ### 9. Smaller cleanups
 - [ ] **Naming rule:** decide whether a single-instance peripheral is `SPI` or `SPI0`
@@ -476,5 +534,14 @@ latent break.
   SPARK-mandatory pillar (§6.6/D10) is unevenly realized — two of three HALs use
   volatile-function/expression patterns that flow analysis rejects while ESP32-C3
   is clean — but the specifics belong to the proof pass, not this plan.
+  **Closed under #8:** by the time the proof pass actually ran this, `rp2040_hal`/
+  `atmega328p_hal` already carried `Volatile_Function`, the read-alone-into-a-local
+  pattern, and no illegal `Pre` on a volatile-function call (apparently landed
+  incidentally in earlier sessions' work, e.g. #1's AVR TWI spike and #2's critical-
+  section proof) — the one real remaining gap was a `Global` `Output`/`In_Out`
+  misclassification on `RP2040_PAC.IO_Bank0.Pins`/`Pads_Bank0.Pads` in three
+  `rp2040_hal` units, fixed under #8. Both HALs are flow-clean like `esp32c3_hal`
+  now (`gnatprove-rp2040_hal`/`-atmega328p_hal`/`-esp32c3_hal` all exit 0, no new
+  residuals versus a `git stash` baseline).
 - `machine_classes`, `machine_streams`, `machine_typed_io`, `boardgen`, `maker` —
   not yet spiked; out of scope until the P0/P1 contract questions settle.

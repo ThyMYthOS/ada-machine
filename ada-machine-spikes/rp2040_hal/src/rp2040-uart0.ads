@@ -22,15 +22,18 @@ is
       RX_Pin  : Pin_Id := 1;
    end record;
 
+   --  Pins/Pads: In_Out, not Output (TODO #8) -- they are whole-array
+   --  Globals but Enable only writes the elements at TX_Pin/RX_Pin, so
+   --  Output's "the whole array is (re)written" claim would overclaim.
    procedure Enable  (Cfg : Config := (others => <>))
-     with Global => (In_Out => RP2040_PAC.Resets.RESET,
+     with Global => (In_Out => (RP2040_PAC.Resets.RESET,
+                                RP2040_PAC.IO_Bank0.Pins,
+                                RP2040_PAC.Pads_Bank0.Pads),
                      Input  => RP2040_PAC.Resets.RESET_DONE,
                      Output => (RP2040_PAC.UART0.UARTCR,
                                 RP2040_PAC.UART0.UARTLCR_H,
                                 RP2040_PAC.UART0.UARTIBRD,
-                                RP2040_PAC.UART0.UARTFBRD,
-                                RP2040_PAC.IO_Bank0.Pins,
-                                RP2040_PAC.Pads_Bank0.Pads));
+                                RP2040_PAC.UART0.UARTFBRD));
    procedure Disable
      with Global => (Output => RP2040_PAC.UART0.UARTCR);
 
