@@ -2,6 +2,7 @@
 --  exported vector symbol, and the bus-specific setup main.adb (shared
 --  with the I2C variant) calls before using Env_Sensor.
 with Machine.SPI.Generic_Master, Machine.GPIO.Generic_Digital_Out,
+     Machine.SPI.Generic_Chip_Select,
      Machine.Blocking.Generic_Delays, Machine.Async.SPI,
      Machine.Regmap.Generic_SPI_Binding, Machine.Generic_Critical_Section;
 with Machine.UART.Generic_Port, Machine.Blocking.Log_Sink, Machine.Log;
@@ -50,7 +51,12 @@ is
 
    procedure CS_Set (To : Machine.GPIO.Level)    --  (body: PB2; §6.4 pattern)
      with Global => (In_Out => ATmega328P_PAC.Port_B.PORTB);
-   package CS is new Machine.GPIO.Generic_Digital_Out (Set => CS_Set);
+   package CS_Pin is new Machine.GPIO.Generic_Digital_Out (Set => CS_Set);
+
+   --  BME280 CS is active-low: polarity lives here, in the wiring, not in
+   --  the bus-neutral Generic_SPI_Binding (§6.1).
+   package CS is new Machine.SPI.Generic_Chip_Select
+     (Pin => CS_Pin, Polarity => Machine.SPI.Active_Low);
 
    package Regs is new Machine.Regmap.Generic_SPI_Binding
      (Bus => Await.As_Blocking, CS => CS);

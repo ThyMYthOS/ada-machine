@@ -7,6 +7,7 @@
 --  through a protected entry (Machine.Tasking.Generic_DMA_SPI), under a
 --  tasking runtime rather than a busy-wait or byte-pumped ISR.
 with Machine.GPIO.Generic_Digital_Out;
+with Machine.SPI.Generic_Chip_Select;
 with Machine.Regmap.Generic_SPI_Binding;
 with Machine.Tasking.Delays, Machine.Tasking.Generic_DMA_SPI, BME280;
 with Machine.UART.Generic_Port, Machine.Blocking.Log_Sink, Machine.Log;
@@ -17,9 +18,14 @@ package Board
 is
 
    --  CS on GPIO10 (ESP32-C3's default IOMUX FSPICS0 pin) -- an ordinary
-   --  GPIO owned by the binding, never part of the SPI class (§6.1).
+   --  GPIO owned by the wiring, never part of the SPI class (§6.1).
    procedure CS_Set (To : Machine.GPIO.Level);
-   package CS is new Machine.GPIO.Generic_Digital_Out (Set => CS_Set);
+   package CS_Pin is new Machine.GPIO.Generic_Digital_Out (Set => CS_Set);
+
+   --  BME280 CS is active-low: polarity lives here, in the wiring, not in
+   --  the bus-neutral Generic_SPI_Binding.
+   package CS is new Machine.SPI.Generic_Chip_Select
+     (Pin => CS_Pin, Polarity => Machine.SPI.Active_Low);
 
    package DMA_SPI is new Machine.Tasking.Generic_DMA_SPI
      (Start_Transfer  => ESP32C3.SPI2.Start_Transfer,

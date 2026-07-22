@@ -537,22 +537,35 @@ belongs to whoever owns the topology). The wrapper moves polarity to the wiring 
 lets the binding speak in semantics, so an active-high-CS device stops being a silent
 latent break.
 
-- [ ] Add `Machine.SPI.Generic_Chip_Select` (child of the `Machine.SPI` class package
+- [x] Add `Machine.SPI.Generic_Chip_Select` (child of the `Machine.SPI` class package
       — SPI *space*, but deliberately NOT part of the `Generic_Master` data-phase
       signature, per §6.1): generic over `with package Pin is new
       Machine.GPIO.Generic_Digital_Out (<>)` plus a **static** polarity formal, exposing
       `procedure Assert` / `procedure Deassert`, both `Inline_Always`. Static formal +
-      inline ⇒ each folds to a single `Pin.Set` (one GPIO store) — zero-cost.
-- [ ] Polarity: either a small `type CS_Polarity is (Active_Low, Active_High)` in
-      `Machine.SPI` (reads best, matches the proposal) or reuse `Machine.GPIO.Level` as
-      `Active : Level` to add no new type — pick one. Keep it binary (no tri-state/
-      open-drain CS; same D8 discipline as `Level`).
-- [ ] Retype `Machine.Regmap.Generic_SPI_Binding`'s `CS` formal from
-      `Generic_Digital_Out` to the new wrapper (or to `Assert`/`Deassert` formal procs),
-      and replace the hardcoded `CS.Set (Low)`/`(High)` with `CS.Assert`/`CS.Deassert`.
-- [ ] Ripple the wiring: spike 2 (SPI variant) and spike 3 instantiate the CS wrapper
-      (BME280 = `Active_Low`) and pass it to the binding; add a conformance instantiation;
-      update README §6.1's CS note to mention the optional wrapper.
+      inline ⇒ each folds to a single `Pin.Set` (one GPIO store) — zero-cost. Landed as
+      `machine/src/machine-spi-generic_chip_select.ads/.adb`. Confirmed structurally:
+      `Assert`/`Deassert` carry `Inline_Always`; `Polarity : CS_Polarity` is a plain
+      (non-generic-package) static formal object, so the `if Polarity = Active_Low`
+      folds at instantiation. GNATprove on spike2_avr/spike3_esp even flags the
+      untaken branch ("statement has no effect, in instantiation at board.ads:...")
+      -- direct evidence the fold happens.
+- [x] Polarity: added `type CS_Polarity is (Active_Low, Active_High)` to `Machine.SPI`
+      (`machine/src/machine-spi.ads`) -- reads best, matches the proposal, keeps the
+      binary D8 discipline (no tri-state/open-drain CS).
+- [x] Retyped `Machine.Regmap.Generic_SPI_Binding`'s `CS` formal from
+      `Machine.GPIO.Generic_Digital_Out` to `Machine.SPI.Generic_Chip_Select`, and
+      replaced the hardcoded `CS.Set (Low)`/`(High)` with `CS.Assert`/`CS.Deassert`
+      (`machine_regmap/src/machine-regmap-generic_spi_binding.ads/.adb`). Fail-clean
+      preserved unchanged: CS is still deasserted right after `Bus.Exchange` on both
+      the write and read paths, error or not.
+- [x] Rippled the wiring: `spike2_avr/src/spi/avr_board.ads` and `spike3_esp/src/
+      board.ads` each instantiate the digital-out pin as `CS_Pin`, then wrap it as
+      `CS is new Machine.SPI.Generic_Chip_Select (Pin => CS_Pin, Polarity =>
+      Machine.SPI.Active_Low)` (BME280 CS is active-low on both spikes) and pass that
+      `CS` to `Generic_SPI_Binding`. These two instantiations are themselves the
+      conformance proof (§6.1's own pattern for this kind of wrapper); no separate
+      conformance unit added. Updated README §6.1's CS paragraph (the spike2_avr SPI
+      walkthrough) to describe the wrapper and the zero-cost fold.
 - Naming note: `Assert`/`Deassert` are the right verbs anyway — `Select`/`Deselect` is
       out because `select` is an Ada reserved word.
 - Scope note (YAGNI): keep it CS-specific in SPI space for now. A *general*
@@ -561,7 +574,13 @@ latent break.
       — generalize only when one appears (§3/§6.3, "standardize proven classes only").
 - **Done when:** SPI CS polarity lives in the wiring via `Machine.SPI.Generic_Chip_Select`,
       `Generic_SPI_Binding` no longer hardcodes active-low, and it still compiles to the
-      same single GPIO store as today (confirm `Inline_Always` + static fold).
+      same single GPIO store as today (confirm `Inline_Always` + static fold). **Done**:
+      `make all` (21 crates + spike2_avr's I2C variant) and `make test` both pass;
+      `gnatprove-spike2_avr`/`-spike3_esp` exit 0 with no new residual class versus a
+      `git stash` baseline (the one bme280 Bosch-arithmetic overflow check that seemed
+      to differ between runs was confirmed, by rerunning the unmodified baseline
+      itself, to be ordinary prover-timing flakiness inherent to that already-accepted
+      residual bucket, not something this change introduced).
 
 ---
 

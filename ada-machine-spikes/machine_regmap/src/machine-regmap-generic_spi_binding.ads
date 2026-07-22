@@ -1,12 +1,12 @@
 --  Register map over an SPI device, BME280-style convention: bit 7 of
 --  the register address is 1 for read, 0 for write.
 with Machine.SPI, Machine.Blocking.Generic_SPI_Master,
-     Machine.GPIO.Generic_Digital_Out, Machine.Regmap.Generic_Device;
+     Machine.SPI.Generic_Chip_Select, Machine.Regmap.Generic_Device;
 generic
    with package Bus is new Machine.Blocking.Generic_SPI_Master (<>);
                                     --  blocking full-duplex exchanges
-   with package CS  is new Machine.GPIO.Generic_Digital_Out (<>);
-                                    --  chip select, active low, per device
+   with package CS  is new Machine.SPI.Generic_Chip_Select (<>);
+                                    --  chip select, polarity set by the wiring
    Timeout_Ms : Natural := 100;     --  per register access
 package Machine.Regmap.Generic_SPI_Binding
   with SPARK_Mode
