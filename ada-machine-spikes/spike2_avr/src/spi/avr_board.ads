@@ -3,9 +3,10 @@
 --  with the I2C variant) calls before using Env_Sensor.
 with Machine.SPI.Generic_Master, Machine.Generic_Digital_Out,
      Machine.Blocking.Generic_Delays, Machine.Async.SPI,
-     Machine.Regmap.Generic_SPI_Binding;
+     Machine.Regmap.Generic_SPI_Binding, Machine.Generic_Critical_Section;
 with Machine.UART.Generic_Port, Machine.Blocking.Log_Sink, Machine.Log;
-with ATmega328P.SPI, ATmega328P.Delays, ATmega328P.GPIO, ATmega328P.USART0;
+with ATmega328P.SPI, ATmega328P.Delays, ATmega328P.GPIO, ATmega328P.USART0,
+     ATmega328P.Critical_Section;
 with ATmega328P_PAC.Port_B, ATmega328P_PAC.SPI, ATmega328P_PAC.USART0;
 with BME280;
 package AVR_Board
@@ -18,8 +19,16 @@ is
       Can_Pop  => ATmega328P.SPI.Can_Pop,
       Pop      => ATmega328P.SPI.Pop);
 
+   --  §14.4's critical section, for real: the I-bit in SREG (D8's own
+   --  ATmega-specific answer, same category as the fixed SPI pins).
+   package CS_Section is new Machine.Generic_Critical_Section
+     (Mask_State => ATmega328P.Critical_Section.Mask_State,
+      Enter      => ATmega328P.Critical_Section.Enter,
+      Leave      => ATmega328P.Critical_Section.Leave);
+
    package SPI_Async is new Machine.Async.SPI
-     (Port => SPI_Sig, Buffer_Size => 32);     --  27-byte calibration burst fits
+     (Port => SPI_Sig, Buffer_Size => 32,      --  27-byte calibration burst fits
+      Critical => CS_Section);
 
    --  Interrupt attachment is the application's decision (D5). ZFP-AVR has
    --  no Attach_Handler: export onto the vector symbol, with the AVR ISR

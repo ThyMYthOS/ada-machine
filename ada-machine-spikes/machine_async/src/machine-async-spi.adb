@@ -45,7 +45,15 @@ is
       B            : Bus_Status := Machine.SPI.Ok;
       Active_Now   : constant Boolean := Active;
       Can_Push_Now : Boolean;
+      Mask         : Critical.Mask_State;
    begin
+      --  Ghost §14.4 balance model: reset (not require) the entry state --
+      --  see .ads. Makes every return below (including the two
+      --  chained/rejection ones right here, before any Enter) provably
+      --  "not In_Critical" without needing a Pre that would otherwise
+      --  leak into every caller reached through a generic formal chain
+      --  (e.g. Machine.Regmap.Generic_SPI_Binding).
+      In_Critical := False;
       if Status /= Machine.SPI.Ok then
          return;                            --  chained: skip if pending
       end if;
@@ -59,6 +67,14 @@ is
       Sent   := 0;
       Got    := 0;
       Result := Machine.SPI.Ok;
+      --  From here on Active flips True and On_Interrupt may act on
+      --  Sent/Result/Active concurrently -- as soon as the Push below
+      --  completes, which can be arbitrarily soon on a fast bus.
+      --  Enter/Leave brackets the whole kick-off so On_Interrupt always
+      --  sees either "not yet started" or "fully kicked off", never a
+      --  partial state (§14.4).
+      Mask        := Critical.Enter;
+      In_Critical := True;      --  ghost: §14.4 balance model, see .ads
       Active := True;
       --  Kick the first byte; the rest moves in interrupt context.
       Can_Push_Now := Port.Can_Push;
@@ -71,10 +87,12 @@ is
          if B /= Machine.SPI.Ok then
             Active := False;
             Status := To_Transaction (B);
-            return;
+         else
+            Sent := 1;
          end if;
-         Sent := 1;
       end if;
+      In_Critical := False;     --  ghost: matches the Leave right below
+      Critical.Leave (Mask);
    end Start_Exchange;
 
    procedure On_Interrupt is
@@ -139,13 +157,33 @@ is
    end On_Interrupt;
 
    procedure Read_Response (Into : out Byte_Array; Last : out Natural) is
-      Got_Now : constant Natural := Got;
-      N       : constant Natural := Natural'Min (Into'Length, Got_Now);
+      Mask : Critical.Mask_State;
+      N    : Natural;
    begin
       Into := (others => 0);
-      for I in 1 .. N loop
-         Into (Into'First + I - 1) := RX_Buf (I);
-      end loop;
+      --  Ghost §14.4 balance model: reset, not require, the entry state
+      --  (see .ads and Start_Exchange's own copy of this comment). No
+      --  early return before the Enter below in this body, so this
+      --  reset isn't load-bearing here today, but keeping it uniform
+      --  across all three top-level ops means a future edit adding one
+      --  doesn't silently reintroduce the cross-call precondition leak.
+      In_Critical := False;
+      --  Got + RX_Buf are a pair On_Interrupt updates together
+      --  (§14.4): bracket the read so the two are always seen as the
+      --  same consistent snapshot, not a Got from one firing paired
+      --  with an RX_Buf from a partially-completed next one.
+      Mask        := Critical.Enter;
+      In_Critical := True;      --  ghost: §14.4 balance model, see .ads
+      declare
+         Got_Now : constant Natural := Got;
+      begin
+         N := Natural'Min (Into'Length, Got_Now);
+         for I in 1 .. N loop
+            Into (Into'First + I - 1) := RX_Buf (I);
+         end loop;
+      end;
+      In_Critical := False;     --  ghost: matches the Leave right below
+      Critical.Leave (Mask);
       Last := Into'First + N - 1;
    end Read_Response;
 
@@ -164,8 +202,13 @@ is
            Long_Long_Integer (Timeout_Ms) * Spins_Per_Ms;
          Last     : Natural;
          Busy_Now : Boolean;
+         Mask     : Critical.Mask_State;
       begin
          RX := (others => 0);
+         --  Ghost §14.4 balance model: reset, not require, the entry
+         --  state -- see .ads and Start_Exchange's own copy of this
+         --  comment.
+         In_Critical := False;
          if Status /= Machine.SPI.Ok then
             return;                          --  chained: skip if pending
          end if;
@@ -174,6 +217,12 @@ is
             return;
          end if;
          loop
+            --  Ghost loop invariant (§14.4 balance model): the lock is
+            --  never left held across a loop iteration -- the only
+            --  statement in this loop that touches In_Critical is the
+            --  Enter/Leave bracket below, which unconditionally returns
+            --  before the loop could come back around holding it.
+            pragma Loop_Invariant (not In_Critical);
             --  Busy read alone into a local first, then used bare as the
             --  exit condition via that local (SPARK RM 7.1.3(9): a
             --  volatile-reading call can't be the condition of a while
@@ -183,7 +232,15 @@ is
             Sleep_Until_Interrupt;
             Budget := Budget - 1;
             if Budget <= 0 then
-               Active := False;              --  abort the transfer
+               --  Abort the transfer: bracketed so this write can't
+               --  interleave with On_Interrupt's own read-modify-write
+               --  of Sent/Got/Active/Result/RX_Buf (§14.4 -- this is
+               --  the race the critical section exists to close).
+               Mask        := Critical.Enter;
+               In_Critical := True;   --  ghost: §14.4 balance model
+               Active := False;
+               In_Critical := False;  --  ghost: matches the Leave below
+               Critical.Leave (Mask);
                Status := Timed_Out;
                return;
             end if;

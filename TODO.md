@@ -47,20 +47,97 @@ register-event state machines, not command FIFOs — the shape's fit was unverif
       `alr gnatprove` pass clean (flow, same residual-tolerance level as the rest
       of the repo) for both `spike2_avr`'s SPI and I2C variants.
 
-### 2. Fix the `machine_async` ISR race (critical-section signature, §14.4)
+### 2. Fix the `machine_async` ISR race (critical-section signature, §14.4) — DONE
 `Machine.Async.SPI` shares `Active`/`Sent`/`Got` with the ISR pump using only
 `Volatile`, and `Generic_Await.Exchange` writes `Active := False` to abort on
 timeout — a real race with `On_Interrupt`. §14.4's critical-section signature
 exists precisely to close this and is not implemented anywhere.
 Files: `machine_async/src/machine-async-spi.adb`
 
-- [ ] Add `machine/src/machine-generic_critical_section.ads` (formals:
+- [x] Add `machine/src/machine-generic_critical_section.ads` (formals:
       `Mask_State`, `Enter`, `Leave`) per §14.4.
-- [ ] Instantiate/thread it through `Machine.Async.SPI` around the abort and the
-      shared-state updates the ISR also touches.
-- [ ] Provide the ATmega implementation (I-bit in SREG) so spike 2 exercises it.
+- [x] Instantiate/thread it through `Machine.Async.SPI` around the abort and the
+      shared-state updates the ISR also touches. Added a required generic formal
+      package `with package Critical is new Machine.Generic_Critical_Section (<>);`
+      (matching this codebase's existing "required formal package" idiom, e.g.
+      `Port`/`Time` elsewhere) and bracketed the three genuinely-racy mainline
+      regions in Enter/Leave: `Start_Exchange`'s kick-off (from `Active := True`
+      through the first `Push`/`Sent := 1`), `Read_Response`'s `Got`+`RX_Buf`
+      snapshot, and `Generic_Await.Exchange`'s timeout-abort (`Active := False`).
+      `On_Interrupt` itself stays untouched by design (hardware ISR-entry masking
+      already covers it; re-disabling inside it would only cost the hot path).
+      Both existing instantiation sites updated: `spike2_avr/src/spi/avr_board.ads`
+      now instantiates `Machine.Generic_Critical_Section` with the real ATmega
+      SREG implementation (below); `machine_tasking/src/machine-tasking-generic_spi.adb`
+      passes a documented no-op (`Mask_State => Boolean`, both ops trivial) --
+      justified in a comment there: on that path, whatever attaches
+      `Async_Core.On_Interrupt` to the real vector must, under Ravenscar/Jorvik,
+      be a protected procedure (the only legal `pragma Attach_Handler` target),
+      so a board routing its `Exchange` calls through that same protected
+      object's operations gets real atomicity for free -- the same "defer to
+      the runtime's own primitive" shape `Signal`/`Done`'s `Suspension_Object`
+      already uses for the completion signal.
+- [x] Provide the ATmega implementation (I-bit in SREG) so spike 2 exercises it.
+      Added `atmega328p_hal/src/atmega328p-critical_section.ads/.adb`
+      (`ATmega328P.Critical_Section`): `Mask_State` is the raw saved `SREG`
+      byte; `Enter` reads `SREG` then `cli`s in one inline-asm block, `Leave`
+      restores the saved byte with a single `out` -- nesting-safe (save/restore,
+      never blind set/clear), body `SPARK_Mode => Off` for the inline asm
+      (mirrors `ATmega328P.Delays.Sleep_Idle`), spec stays `SPARK_Mode`. Both
+      marked `Inline_Always` (like every other HAL leaf primitive) so the
+      native-host stand-in build (no AVR calls in sight) drops the never-called
+      body instead of assembling AVR-only mnemonics for the host backend --
+      the real AVR cross-build (spike2_avr) forces genuine inlining at its real
+      call sites. `spike2_avr/src/spi/avr_board.ads` instantiates
+      `Machine.Generic_Critical_Section` with it and threads it into `SPI_Async`.
+- [x] Added a ghost-balance proof on top of the Enter/Leave bracketing, and
+      **verified** it with GNATprove (not just built): a package-level
+      `In_Critical : Boolean := False with Ghost` in `Machine.Async.SPI`'s spec,
+      set True right after each `Critical.Enter` and False right before the
+      matching `Critical.Leave` in the body, with `Post => ... and then not
+      In_Critical` on `Start_Exchange`, `Read_Response`, and
+      `Generic_Await.Exchange`, plus `pragma Loop_Invariant (not In_Critical)`
+      in `Generic_Await.Exchange`'s poll loop -- turning "every Enter is
+      matched by a Leave on every control-flow path" into a GNATprove
+      obligation instead of a hand-checked claim. First attempt also added
+      `Pre => not In_Critical` and an `In_Critical = In_Critical'Old`
+      restatement to each Post; that version's *own* postconditions proved
+      fine, but instantiating it through `Machine.Regmap.Generic_SPI_Binding`
+      (spike2_avr's `avr_board.ads`, the `Regs` binding used by the BME280
+      driver) produced two brand-new "precondition might fail" residuals there
+      (confirmed absent on a baseline `gnatprove-spike2_avr` run of the
+      pre-ghost-balance tree) -- a real collateral regression, since Regmap's
+      `Write_Reg`/`Read_Regs` have no way to see or discharge a precondition
+      about a ghost global private to one specific `Bus` actual. Fixed by
+      resetting `In_Critical := False` as the first statement of each of the
+      three top-level operations (rather than requiring the caller to prove
+      it) and dropping the `Pre`/`'Old` restatement, keeping only the `Post =>
+      not In_Critical` that actually matters -- this still catches the exact
+      same bug (a future early return between an `Enter` and its `Leave`
+      leaves `In_Critical` True at that return, failing the same
+      postcondition), just without a caller-visible precondition to leak.
 - **Done when:** the timeout-abort path can no longer interleave with `On_Interrupt`
-      on the shared state, and spike 2 wires a real critical section.
+      on the shared state, and spike 2 wires a real critical section, AND the
+      ghost-balance postconditions added on top are proved with no new
+      residual. **Met**: `make machine`, `make machine_async`,
+      `make atmega328p_hal`, `make machine_tasking`, `make test` (host_test,
+      all checks passed), and a real AVR cross-build (`make spike2_avr`,
+      `make spike2_avr-i2c`) all pass; `make spike3_esp` (the tasking/DMA
+      path) still builds too. `make gnatprove-machine_async`/
+      `gnatprove-atmega328p_hal`/`gnatprove-spike2_avr` all exit clean (0),
+      with only pre-existing "medium" residuals unrelated to this change
+      (bme280's Bosch arithmetic, PAC address-specification warnings,
+      `ATmega328P.SPI`'s own long-standing residuals) -- no new proof
+      failures. The ghost-balance postconditions/loop invariant are only
+      exercised through a *full* instantiation of `Machine.Async.SPI`, and
+      spike2_avr's `avr_board.ads` is the only place in the tree that provides
+      one (spike3_esp's SPI path uses the unrelated `Generic_DMA_SPI`, never
+      `Machine.Async.SPI`; `machine_tasking`'s own instantiation is itself
+      inside another, never-concretely-instantiated generic, so GNATprove can
+      only do weaker contextual analysis on it, reported no failures either)
+      -- `gnatprove-spike2_avr` is therefore the load-bearing evidence for
+      this proof, and it now discharges clean, verified against a baseline
+      run of the pre-ghost-balance tree to confirm no residual is new.
 
 ### 3. Close the "v1 signature list" gap or re-scope the claim
 README §6.3 advertises v1 = `Digital_Out, Digital_In, UART, SPI_Master,
