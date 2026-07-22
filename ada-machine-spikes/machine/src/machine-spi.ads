@@ -1,5 +1,5 @@
 --  SPI class vocabulary. Chip select is NOT part of the class: it is a
---  Generic_Digital_Out wired by whoever owns the bus topology.
+--  Machine.GPIO.Generic_Digital_Out wired by whoever owns the bus topology.
 package Machine.SPI
   with Pure, SPARK_Mode
 is

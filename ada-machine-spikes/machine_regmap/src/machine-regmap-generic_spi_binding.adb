@@ -1,8 +1,11 @@
+with Machine.GPIO;
+
 package body Machine.Regmap.Generic_SPI_Binding
   with SPARK_Mode
 is
 
    use Machine.SPI;
+   use Machine.GPIO;
 
    Read_Flag : constant Byte := 16#80#;
 
@@ -21,10 +24,10 @@ is
       if Status /= Machine.Regmap.Ok then
          return;                            --  chained
       end if;
-      CS.Set (False);
+      CS.Set (Low);
       Bus.Exchange ((1 => Byte (Reg) and not Read_Flag, 2 => Value),
                     RX, Timeout_Ms, T);
-      CS.Set (True);                        --  fail clean: CS restored always
+      CS.Set (High);                        --  fail clean: CS restored always
       if T /= Machine.SPI.Ok then
          Status := To_Access (T);
       end if;
@@ -42,9 +45,9 @@ is
          return;                            --  chained
       end if;
       TX (1) := Byte (Start) or Read_Flag;
-      CS.Set (False);
+      CS.Set (Low);
       Bus.Exchange (TX, RX, Timeout_Ms, T);
-      CS.Set (True);
+      CS.Set (High);
       if T /= Machine.SPI.Ok then
          Status := To_Access (T);
          return;

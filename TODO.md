@@ -139,17 +139,20 @@ Files: `machine_async/src/machine-async-spi.adb`
       this proof, and it now discharges clean, verified against a baseline
       run of the pre-ghost-balance tree to confirm no residual is new.
 
-### 3. Close the "v1 signature list" gap or re-scope the claim
+### 3. Close the "v1 signature list" gap or re-scope the claim — DONE
 README §6.3 advertises v1 = `Digital_Out, Digital_In, UART, SPI_Master,
 I2C_Master, Clock, Delays`. Shipped: `Digital_Out, Clock, Delays, I2C, SPI, UART`.
 GPIO `Is_High` in every HAL still conforms to nothing because there is no `Digital_In`.
 
-- [ ] **Refine the GPIO shape first (review feedback, 2026-07-21), then add `Digital_In`
-      under it — one unit of work.** Introduce a `Machine.GPIO` class package with
-      `type Level is (Low, High)`; move `Machine.Generic_Digital_Out` →
-      `Machine.GPIO.Generic_Digital_Out` (its `Set (High : Boolean)` becomes
-      `Set (To : Machine.GPIO.Level)`); add `Machine.GPIO.Generic_Digital_In`
-      (`with function Get return Level`) and instantiate it against each HAL's `Is_High`.
+- [x] **Refine the GPIO shape first (review feedback, 2026-07-21), then add `Digital_In`
+      under it — one unit of work.** Introduced `machine/src/machine-gpio.ads`
+      (`Machine.GPIO`, `type Level is (Low, High)`); moved
+      `machine-generic_digital_out.ads` → `machine/src/machine-gpio-generic_digital_out.ads`
+      (now `Machine.GPIO.Generic_Digital_Out`, formal `Set (To : Level)`); added
+      `machine/src/machine-gpio-generic_digital_in.ads` (`Machine.GPIO.Generic_Digital_In`,
+      formal `Get return Level`) and instantiated it against each of `rp2040_hal`'s,
+      `atmega328p_hal`'s and `esp32c3_hal`'s own `Is_High` via a thin `Get` wrapper in
+      each HAL's `tests/conformance.ads/.adb`.
       *Honest feedback on the two suggestions that prompted this:*
       (1) the `(Low, High)` type is worth adopting — for **explicitness/type-safety** and to
       match embedded-hal's `PinState {Low, High}` (§3), **not** "more states in future": a
@@ -160,13 +163,21 @@ GPIO `Is_High` in every HAL still conforms to nothing because there is no `Digit
       **once a companion type exists** — it removes the "standalone because no companion
       type" exception §6.3 currently grants `Generic_Digital_Out`, and lets
       `Digital_In`/`Digital_Out` share one `Level` (mirroring `Machine.I2C`/`Machine.UART`).
-- [ ] Ripple the rename/type change through every consumer: each HAL `conformance.ads`,
-      every `CS_Set` wrapper (`(High : Boolean)` → `(To : Machine.GPIO.Level)`), the regmap
-      SPI binding's `CS` formal (`Machine.Generic_Digital_Out` →
-      `Machine.GPIO.Generic_Digital_Out`), and board/spike wiring; then update the README
-      (§6.3's "standalone direct children" example drops `Generic_Digital_Out`, leaving
-      `Generic_Clock`; optionally align §6.4's L2 `Set_High`/`Set_Low`/`Is_High` with
-      `Level`; D18).
+- [x] Rippled the rename/type change through every consumer found by
+      `grep -rn "Generic_Digital_Out"`: `machine_regmap`'s `Generic_SPI_Binding` (the `CS`
+      formal package and its `CS.Set (False/True)` calls → `CS.Set (Low/High)`); every
+      `CS_Set` wrapper (`spike2_avr/src/spi/avr_board.{ads,adb}`,
+      `spike3_esp/src/board.{ads,adb}`, and each HAL's `tests/conformance.{ads,adb}`
+      including `stm32g474_hal`'s, a fourth consumer the grep also turned up) —
+      `(High : Boolean)` → `(To : Machine.GPIO.Level)`, body compares `To = High`; plus
+      the two `esp32c3_pac` header comments that named the old unit. Confirmed via
+      `make all`/`make test` (every crate builds, host_test passes) and
+      `make gnatprove-rp2040_hal`/`-atmega328p_hal`/`-esp32c3_hal`/`-spike2_avr`/
+      `-spike3_esp` (all exit 0, checked byte-for-byte against a clean-`HEAD` baseline
+      via `git stash`: identical residual sets on four crates, one *fewer* medium residual
+      on `spike3_esp` — an unrelated bme280 Bosch-arithmetic check that proved this time,
+      most likely prover-timing noise, not a regression). README updated too (§6.3's code
+      block and "standalone direct children" sentence, §6.4's `CS_Set` example, D18).
 - [x] Decide UART: either add a minimal `Machine.UART` + `Generic_Port` spike
       (README's showcase example), or explicitly mark UART out-of-scope for the
       spikes in the README so the v1 claim isn't overstated. Done via
@@ -176,8 +187,10 @@ GPIO `Is_High` in every HAL still conforms to nothing because there is no `Digit
       driven end-to-end by TODO #10's UART-backed logging facility, not just a
       standalone conformance check.
 - **Done when:** every convention subprogram a HAL exposes has a signature it is
-      checked against, or the README scopes the exception. UART is now covered;
-      `Digital_In`/`Is_High` is the one signature still outstanding.
+      checked against, or the README scopes the exception. **Met**: UART, SPI, I2C,
+      Clock, Delays and now `Digital_Out`/`Digital_In` (via `Machine.GPIO`) all have a
+      signature every claiming HAL is instantiated/conformance-checked against;
+      `Is_High` no longer conforms to nothing.
 
 ---
 

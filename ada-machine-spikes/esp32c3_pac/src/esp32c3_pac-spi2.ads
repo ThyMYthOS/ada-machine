@@ -61,7 +61,8 @@ is
    --  phase, matching the regmap binding's own CS.Set bracketing (the
    --  hardware and the software convention agree here, redundantly but
    --  harmlessly -- BME280's regmap binding still owns CS via a plain
-   --  Generic_Digital_Out, per §6.1's "CS is not part of the SPI class").
+   --  Machine.GPIO.Generic_Digital_Out, per §6.1's "CS is not part of the
+   --  SPI class").
    SPI_USER : Unsigned_32
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#10#;
    SPI_USER_DOUTDIN    : constant := 2#1# * 2**0;

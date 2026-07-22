@@ -4,7 +4,7 @@ with Machine.SPI.Generic_Master;
 with Machine.I2C.Generic_Master;
 with Machine.UART.Generic_Port;
 with Machine.Generic_Clock;
-with Machine.Generic_Digital_Out;
+with Machine.GPIO.Generic_Digital_Out, Machine.GPIO.Generic_Digital_In;
 with ATmega328P.SPI, ATmega328P.GPIO, ATmega328P.I2C, ATmega328P.Clock,
      ATmega328P.USART0;
 with ATmega328P_PAC.Port_B;
@@ -39,7 +39,13 @@ is
       Is_Rx_Ready => ATmega328P.USART0.Is_Rx_Ready,
       Get_Frame   => ATmega328P.USART0.Get_Frame);
 
-   procedure CS2_Set (High : Boolean)
+   procedure CS2_Set (To : Machine.GPIO.Level)
      with Global => (In_Out => ATmega328P_PAC.Port_B.PORTB);
+
+   --  Machine.GPIO.Generic_Digital_In needs one formal function bound to
+   --  a fixed pin, checked against ATmega328P.GPIO.Is_High -- the gap
+   --  TODO.md P0 #3 closes: Is_High conformed to nothing before this.
+   function CS3_Get return Machine.GPIO.Level
+     with Volatile_Function, Global => (Input => ATmega328P_PAC.Port_B.PINB);
 
 end Conformance;

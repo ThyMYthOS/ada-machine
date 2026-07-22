@@ -7,7 +7,7 @@ with Interfaces;
 with Machine.Generic_Clock;
 with Machine.I2C.Generic_Target;
 with Machine.RNG.Generic_Source;
-with Machine.Generic_Digital_Out;
+with Machine.GPIO.Generic_Digital_Out;
 with STM32G474.Clock, STM32G474.I2C1, STM32G474.RNG, STM32G474.GPIO;
 with STM32G474_PAC.GPIOA;
 
@@ -36,10 +36,10 @@ is
       Is_Ready => STM32G474.RNG.Is_Ready,
       Get_Word => STM32G474.RNG.Get_Word);
 
-   --  Machine.Generic_Digital_Out needs one formal procedure bound to a
-   --  fixed pin (§6.4): the status LED, PA5 -- same CS_Set-style wrapper
+   --  Machine.GPIO.Generic_Digital_Out needs one formal procedure bound to
+   --  a fixed pin (§6.4): the status LED, PA5 -- same CS_Set-style wrapper
    --  RP2040_HAL's own conformance unit uses.
-   procedure LED_Set (High : Boolean)
+   procedure LED_Set (To : Machine.GPIO.Level)
      with Global => (Output => STM32G474_PAC.GPIOA.BSRR);
 
 end Conformance;

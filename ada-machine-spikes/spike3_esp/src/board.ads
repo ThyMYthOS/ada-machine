@@ -6,7 +6,7 @@
 --  (ESP32C3.SPI2's Start_Transfer/Cancel_Transfer/Read_Response) awaited
 --  through a protected entry (Machine.Tasking.Generic_DMA_SPI), under a
 --  tasking runtime rather than a busy-wait or byte-pumped ISR.
-with Machine.Generic_Digital_Out;
+with Machine.GPIO.Generic_Digital_Out;
 with Machine.Regmap.Generic_SPI_Binding;
 with Machine.Tasking.Delays, Machine.Tasking.Generic_DMA_SPI, BME280;
 with Machine.UART.Generic_Port, Machine.Blocking.Log_Sink, Machine.Log;
@@ -18,8 +18,8 @@ is
 
    --  CS on GPIO10 (ESP32-C3's default IOMUX FSPICS0 pin) -- an ordinary
    --  GPIO owned by the binding, never part of the SPI class (§6.1).
-   procedure CS_Set (High : Boolean);
-   package CS is new Machine.Generic_Digital_Out (Set => CS_Set);
+   procedure CS_Set (To : Machine.GPIO.Level);
+   package CS is new Machine.GPIO.Generic_Digital_Out (Set => CS_Set);
 
    package DMA_SPI is new Machine.Tasking.Generic_DMA_SPI
      (Start_Transfer  => ESP32C3.SPI2.Start_Transfer,

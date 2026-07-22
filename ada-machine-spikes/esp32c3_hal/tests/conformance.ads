@@ -10,7 +10,7 @@
 --  needs one.
 with Machine.SPI.Generic_Master;
 with Machine.UART.Generic_Port;
-with Machine.Generic_Digital_Out;
+with Machine.GPIO.Generic_Digital_Out, Machine.GPIO.Generic_Digital_In;
 with ESP32C3.SPI2, ESP32C3.GPIO, ESP32C3.UART0;
 
 package Conformance
@@ -30,11 +30,21 @@ is
       Is_Rx_Ready => ESP32C3.UART0.Is_Rx_Ready,
       Get_Frame   => ESP32C3.UART0.Get_Frame);
 
-   --  Machine.Generic_Digital_Out needs one formal procedure bound to a
-   --  fixed pin (§6.4): a real conformance unit wraps ESP32C3.GPIO the
+   --  Machine.GPIO.Generic_Digital_Out needs one formal procedure bound to
+   --  a fixed pin (§6.4): a real conformance unit wraps ESP32C3.GPIO the
    --  same way board wiring does (spike3_esp's CS_Set pattern).
-   procedure GPIO10_Set (High : Boolean);
+   procedure GPIO10_Set (To : Machine.GPIO.Level);
 
-   package CS_Check is new Machine.Generic_Digital_Out (Set => GPIO10_Set);
+   package CS_Check is new Machine.GPIO.Generic_Digital_Out
+     (Set => GPIO10_Set);
+
+   --  Machine.GPIO.Generic_Digital_In needs one formal function bound to
+   --  a fixed pin, checked against ESP32C3.GPIO.Is_High -- the gap
+   --  TODO.md P0 #3 closes: Is_High conformed to nothing before this.
+   function GPIO11_Get return Machine.GPIO.Level
+     with Volatile_Function;
+
+   package CS_In_Check is new Machine.GPIO.Generic_Digital_In
+     (Get => GPIO11_Get);
 
 end Conformance;

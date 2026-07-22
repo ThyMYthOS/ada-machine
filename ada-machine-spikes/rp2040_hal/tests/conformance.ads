@@ -4,7 +4,7 @@
 with Machine.Generic_Clock;
 with Machine.I2C.Generic_Master;
 with Machine.UART.Generic_Port;
-with Machine.Generic_Digital_Out;
+with Machine.GPIO.Generic_Digital_Out, Machine.GPIO.Generic_Digital_In;
 with RP2040.Clock, RP2040.I2C0, RP2040.UART0, RP2040.GPIO;
 with RP2040_PAC.SIO;
 
@@ -32,11 +32,17 @@ is
       Is_Rx_Ready => RP2040.UART0.Is_Rx_Ready,
       Get_Frame   => RP2040.UART0.Get_Frame);
 
-   --  Machine.Generic_Digital_Out needs one formal procedure bound to a
-   --  fixed pin (§6.4): a real conformance unit wraps RP2040.GPIO the
+   --  Machine.GPIO.Generic_Digital_Out needs one formal procedure bound to
+   --  a fixed pin (§6.4): a real conformance unit wraps RP2040.GPIO the
    --  same way board wiring does (the §6.4 CS_Set pattern).
-   procedure GPIO5_Set (High : Boolean)
+   procedure GPIO5_Set (To : Machine.GPIO.Level)
      with Global => (Output => (RP2040_PAC.SIO.GPIO_OUT_SET,
                                 RP2040_PAC.SIO.GPIO_OUT_CLR));
+
+   --  Machine.GPIO.Generic_Digital_In needs one formal function bound to
+   --  a fixed pin, checked against RP2040.GPIO.Is_High -- the gap TODO.md
+   --  P0 #3 closes: Is_High conformed to nothing before this.
+   function GPIO6_Get return Machine.GPIO.Level
+     with Volatile_Function, Global => (Input => RP2040_PAC.SIO.GPIO_IN);
 
 end Conformance;

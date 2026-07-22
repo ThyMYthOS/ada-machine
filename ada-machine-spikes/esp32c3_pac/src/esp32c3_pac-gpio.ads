@@ -2,9 +2,10 @@
 --  RP2040's SIO (one register per operation kind already split by the
 --  hardware) this block mixes level and output-enable in the same
 --  W1TS/W1TC idiom RP2040 uses for level alone -- curated to exactly the
---  four registers a Generic_Digital_Out CS pin needs: enable it as an
---  output once, then flip its level. GPIO_IN is exposed too (not needed
---  for CS, but any future MISO-as-plain-input use would want it).
+--  four registers a Machine.GPIO.Generic_Digital_Out CS pin needs:
+--  enable it as an output once, then flip its level. GPIO_IN is exposed
+--  too (not needed for CS, but any future MISO-as-plain-input use would
+--  want it).
 with System;
 with System.Storage_Elements; use System.Storage_Elements;
 with Interfaces; use Interfaces;

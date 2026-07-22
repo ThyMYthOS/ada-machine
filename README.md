@@ -234,10 +234,16 @@ package Machine.UART.Generic_Port is end;
 ```
 
 ```ada
---  machine:  machine-generic_digital_out.ads
+--  machine:  machine-gpio.ads — class vocabulary (the pin-level type);
+--  machine-gpio-generic_digital_out.ads — generic child of Machine.GPIO,
+--  Level directly visible from the parent
+package Machine.GPIO is
+   type Level is (Low, High);
+end Machine.GPIO;
+
 generic
-   with procedure Set (High : Boolean);   --  drive the pin level; never blocks
-package Machine.Generic_Digital_Out is end;
+   with procedure Set (To : Level);       --  drive the pin level; never blocks
+package Machine.GPIO.Generic_Digital_Out is end;
 ```
 
 Portable code (L3 adapters, L4 drivers) is generic over these:
@@ -264,7 +270,7 @@ package Bus is new Modbus_RTU (UART => My_UART, Time => My_Clock);
 
 Design rules for signatures, learned from [embedded-hal 1.0](#g-eh) and SweetAda's objection in [thread 4364](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364):
 
-- **Per-class child packages, RM-style.** The `machine` root holds only shared vocabulary (`Byte`, `Byte_Array`); each peripheral class is a child package (`Machine.I2C`, `Machine.UART`, …) holding the class types with its signatures as generic children (`Machine.I2C.Generic_Master`) — namespacing by structure instead of `I2C_*` name prefixes, one child per future AMRM clause (§19 roadmap). Standalone signatures without companion types (`Machine.Generic_Clock`, `Machine.Generic_Digital_Out`) remain direct children. Status types carry *domain* names, not a generic suffix: `Bus_Status` for shared buses (I2C, SPI), `Line_Status` for UART (after the 16550's Line Status Register), `Transaction_Status` for the bounded transaction outcome (bus kinds + `Timed_Out`). Execution models form the second axis of the grid: `Machine.<Exec>` roots (`Machine.Blocking`, `Machine.Async`, `Machine.Tasking`) are declared by the spec crate and host the *contracts* that name an execution model (`Machine.Blocking.Generic_I2C_Master`, `Generic_Delays` — delaying is inherently blocking), while the adapter crates contribute the *implementation* children (`Machine.Blocking.I2C` implements `Machine.Blocking.Generic_I2C_Master` over `Machine.I2C.Generic_Master`). Rule of thumb: class packages hold hardware vocabulary and data-phase signatures; exec packages hold execution-semantics signatures and their default implementations (cross-crate children of one root are established practice — the GNATCOLL family).
+- **Per-class child packages, RM-style.** The `machine` root holds only shared vocabulary (`Byte`, `Byte_Array`); each peripheral class is a child package (`Machine.I2C`, `Machine.UART`, `Machine.GPIO`, …) holding the class types with its signatures as generic children (`Machine.I2C.Generic_Master`, `Machine.GPIO.Generic_Digital_Out`/`Generic_Digital_In` sharing `Machine.GPIO.Level`) — namespacing by structure instead of `I2C_*` name prefixes, one child per future AMRM clause (§19 roadmap). Standalone signatures without companion types (`Machine.Generic_Clock`) remain direct children. Status types carry *domain* names, not a generic suffix: `Bus_Status` for shared buses (I2C, SPI), `Line_Status` for UART (after the 16550's Line Status Register), `Transaction_Status` for the bounded transaction outcome (bus kinds + `Timed_Out`). Execution models form the second axis of the grid: `Machine.<Exec>` roots (`Machine.Blocking`, `Machine.Async`, `Machine.Tasking`) are declared by the spec crate and host the *contracts* that name an execution model (`Machine.Blocking.Generic_I2C_Master`, `Generic_Delays` — delaying is inherently blocking), while the adapter crates contribute the *implementation* children (`Machine.Blocking.I2C` implements `Machine.Blocking.Generic_I2C_Master` over `Machine.I2C.Generic_Master`). Rule of thumb: class packages hold hardware vocabulary and data-phase signatures; exec packages hold execution-semantics signatures and their default implementations (cross-crate children of one root are established practice — the GNATCOLL family).
 - **Narrow formals.** A signature captures the *data phase* only. Configuration, clocks, pin muxing stay out — they are done natively via L2 before instantiation. This is what defuses the Z8530 argument: weird devices get weird L2 packages; the signature only ever demands what a portable driver can genuinely use.
 - **Standardize proven classes only.** v1 signatures: `Digital_Out`, `Digital_In`, `UART`, `SPI_Master`, `I2C_Master`, `Clock`, `Delays`. Explicitly *deferred*: ADC, PWM, timers-as-counters, watchdog, DAC — L2 convention names exist for them (portable *applications* can use `MCU.ADC`), but no signature/driver contract until designs are proven. [embedded-hal shipped 1.0 by deleting exactly these](https://blog.rust-embedded.org/embedded-hal-v1/). Two more are *candidates*, not yet promoted: `I2C_Target` (target/slave-mode data phase — `Machine.I2C.Generic_Target`, the mirror image of `I2C_Master`: event-driven around address-match/direction/STOP rather than caller-initiated FIFO push/pop, since a target never decides when a transaction starts) and `RNG` (`Machine.RNG.Generic_Source`, health-checked on real seed/clock-error flags rather than an invented status enum). Both were introduced to close spike 4's gap (Appendix D) — the first target-mode L2 and the first hardware-RNG L2 in this repo — with one real HAL instantiation (STM32G474) plus a thoroughly-scripted mock each; that is the same one-data-point bar `I2C_Master` itself only just cleared — RP2040's command FIFO plus AVR TWI's register-event state machine, closing `TODO.md` P0 item 1 — so promotion to v1 for these two awaits an equivalent second, structurally different target-mode/RNG data point before either shape is called proven.
 - **Code-bloat discipline** (jere's pattern, [thread 4364](https://forum.ada-lang.io/t/towards-a-hal-for-multiple-runtimes/4364)): driver crates put shared logic in a non-generic backend package (byte-level protocol state machines, buffers) and keep the [generic](#g-generic) layer thin. The style guide in the `machine` docs makes this normative for drivers expecting multiple instantiations per program.
@@ -289,9 +295,9 @@ end RP2040.GPIO;
 For drivers, a pin is delivered as one or two formal procedures (`Set`, or `Set`+`Get`), typically instantiation-wrapped:
 
 ```ada
-procedure CS_Set (High : Boolean) is
+procedure CS_Set (To : Machine.GPIO.Level) is
 begin
-   if High then RP2040.GPIO.Set_High (5); else RP2040.GPIO.Set_Low (5); end if;
+   if To = Machine.GPIO.High then RP2040.GPIO.Set_High (5); else RP2040.GPIO.Set_Low (5); end if;
 end CS_Set;
 ```
 
@@ -1048,7 +1054,7 @@ pragma Machine_Attribute (SPI_Interrupt, "signal");                   --  ISR pr
 --  body: SPI_Async.On_Interrupt;
 ```
 
-Chip select is an ordinary GPIO owned by the binding — `CS_Set` drives PB2 (the hardware /SS repurposed as a plain output in master mode), wrapped as a `Generic_Digital_Out` and handed to `Generic_SPI_Binding` (§6.1: CS is never part of the SPI class). `AVR_Board.Setup` (also `avr_board.adb`) does the bus-specific bring-up — CS idle-high, SPI enabled + its interrupt, global interrupts on — so `main.adb` (below) doesn't have to.
+Chip select is an ordinary GPIO owned by the binding — `CS_Set` drives PB2 (the hardware /SS repurposed as a plain output in master mode), wrapped as a `Machine.GPIO.Generic_Digital_Out` and handed to `Generic_SPI_Binding` (§6.1: CS is never part of the SPI class). `AVR_Board.Setup` (also `avr_board.adb`) does the bus-specific bring-up — CS idle-high, SPI enabled + its interrupt, global interrupts on — so `main.adb` (below) doesn't have to.
 
 **L2 exercised, I²C.** `ATmega328P.I2C` (`atmega328p-i2c.ads/.adb`) is the TWI data phase — the harder validation target of the two, and the actual point of `TODO.md` P0 #1: TWI has no FIFO and no auto-start-on-write, so a full byte transfer needs up to *three* chained hardware actions the first time in a transaction (START, address+R/W, data), each gated one at a time by the single `TWINT` flag, but only *one* (data) after that. `Push_Write`/`Push_Read_Request` are called once per logical byte, so the START/address sub-steps have to be hidden inside a single call rather than surfaced as extra poll cycles the L3 caller doesn't know about (a `Can_Push`-style function can't itself drive hardware forward — SPARK forbids output globals on functions). Resolution: a **bounded busy-spin** through those sub-steps only, on the first byte of a transaction or a direction change — §6.2 permits "completes in bounded short time" as an alternative to "returns immediately", and each sub-step is one hardware action, the same order of magnitude as the register writes `Enable` already does synchronously elsewhere in this HAL. The data byte itself — the repeated, hot-path operation — stays fully async, gated by `Can_Push`/`Can_Pop` reading `TWINT` directly: the same depth-1 shape as `ATmega328P.SPI`'s `Busy`, just reached differently. `ATmega328P.Clock` (`atmega328p-clock.ads/.adb`) is new too: `Machine.Blocking.I2C`, unlike SPI's `Generic_Delays`, takes a `Clock` formal for its timeouts, and this floor had no tick source (§10.1: "AVR ZFP owns no tick — a tick would confiscate one of the application's few timers", why `Delays` stays a pure busy-loop). I²C's blocking adapter has no such shortcut, so this spends Timer0: an overflow interrupt increments a 32-bit counter (README §6.5's own stated AVR requirement), read through a brief `cli`/`sei`-guarded multi-byte load (four separate byte reads on this 8-bit CPU would otherwise risk a torn read against the ISR).
 
@@ -1103,7 +1109,7 @@ New in this draft; the top-of-scope counterpart to spike 2's floor. Same sensor,
 
 **Adapter.** `Machine.Tasking.Generic_DMA_SPI` (L3c) awaits block completion through a body-private protected object, polled in a `delay until` loop under a real `Ada.Real_Time` deadline. It is deliberately **not** a protected entry / timed entry call: [Ravenscar](#g-ravenscar)'s `No_Select_Statements` bans those (an earlier version that used a timed entry call failed to compile under the profile). The trade — up to one poll period of latency after the completion signal, in exchange for a genuine deadline — is the explicit distinction from the sibling `Machine.Tasking.Generic_SPI`, which uses a `Suspension_Object` (zero latency, but no deadline at all). `Machine.Tasking.Delays` uses `delay until` over `Ada.Real_Time.Clock`.
 
-**Wiring** ([`…/src/board.ads`](ada-machine-spikes/spike3_esp/src/board.ads), [`…/src/board.adb`](ada-machine-spikes/spike3_esp/src/board.adb)): the DMA-done bridge is a protected object whose procedure calls `ESP32C3.SPI2.Handle_DMA_Interrupt` and forwards the outcome to `DMA_SPI.Signal_Complete` — the tasking, block-transfer counterpart of spike 2's `SPI_Interrupt`. CS is GPIO10 (the default IOMUX FSPICS0 pin), again an ordinary `Generic_Digital_Out`:
+**Wiring** ([`…/src/board.ads`](ada-machine-spikes/spike3_esp/src/board.ads), [`…/src/board.adb`](ada-machine-spikes/spike3_esp/src/board.adb)): the DMA-done bridge is a protected object whose procedure calls `ESP32C3.SPI2.Handle_DMA_Interrupt` and forwards the outcome to `DMA_SPI.Signal_Complete` — the tasking, block-transfer counterpart of spike 2's `SPI_Interrupt`. CS is GPIO10 (the default IOMUX FSPICS0 pin), again an ordinary `Machine.GPIO.Generic_Digital_Out`:
 
 ```ada
 package DMA_SPI is new Machine.Tasking.Generic_DMA_SPI

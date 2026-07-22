@@ -1,7 +1,7 @@
 --  avr_board.ads -- spike 2's wiring (Appendix B): declarations, the one
 --  exported vector symbol, and the bus-specific setup main.adb (shared
 --  with the I2C variant) calls before using Env_Sensor.
-with Machine.SPI.Generic_Master, Machine.Generic_Digital_Out,
+with Machine.SPI.Generic_Master, Machine.GPIO.Generic_Digital_Out,
      Machine.Blocking.Generic_Delays, Machine.Async.SPI,
      Machine.Regmap.Generic_SPI_Binding, Machine.Generic_Critical_Section;
 with Machine.UART.Generic_Port, Machine.Blocking.Log_Sink, Machine.Log;
@@ -48,9 +48,9 @@ is
    package Await is new SPI_Async.Generic_Await
      (Sleep_Until_Interrupt => ATmega328P.Delays.Sleep_Idle);
 
-   procedure CS_Set (High : Boolean)            --  (body: drive PB2; §6.4 pattern)
+   procedure CS_Set (To : Machine.GPIO.Level)    --  (body: PB2; §6.4 pattern)
      with Global => (In_Out => ATmega328P_PAC.Port_B.PORTB);
-   package CS is new Machine.Generic_Digital_Out (Set => CS_Set);
+   package CS is new Machine.GPIO.Generic_Digital_Out (Set => CS_Set);
 
    package Regs is new Machine.Regmap.Generic_SPI_Binding
      (Bus => Await.As_Blocking, CS => CS);

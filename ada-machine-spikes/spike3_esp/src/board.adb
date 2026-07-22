@@ -1,12 +1,13 @@
 with Machine.SPI;
+with Machine.GPIO; use Machine.GPIO;
 
 package body Board
   with SPARK_Mode
 is
 
-   procedure CS_Set (High : Boolean) is
+   procedure CS_Set (To : Machine.GPIO.Level) is
    begin
-      if High then
+      if To = High then
          ESP32C3.GPIO.Set_High (10);
       else
          ESP32C3.GPIO.Set_Low (10);
