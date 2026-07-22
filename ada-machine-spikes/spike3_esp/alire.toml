@@ -1,7 +1,7 @@
 name = "spike3_esp"
 version = "0.1.0-dev"
 description = "Ada Machine spike 3: BME280 on ESP32-C3 over SPI, DMA-driven"
-long-description = "Ada Machine spike 3: BME280 on ESP32-C3 over SPI, real GDMA block transfers awaited through a protected entry under a tasking runtime (machine_tasking, L3c)"
+long-description = "Ada Machine spike 3: BME280 on ESP32-C3 over SPI, real GDMA block transfers awaited by polling a plain protected function under an Ada.Real_Time deadline (not a protected entry -- Ravenscar's No_Select_Statements bans timed entry calls) under a tasking runtime (machine_tasking, L3c)"
 authors = ["Manuel Stahl"]
 maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]

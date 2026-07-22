@@ -130,7 +130,7 @@ Dependency rules (enforced by crate manifests):
 
 - `machine` depends on nothing. All specs `Pure` or `Preelaborate`.
 - L2 depends on `machine` + its own L1 [PAC](#g-pac). It must build against the **[light](#g-light)** runtime — that is the floor.
-- L3 adapters depend on `machine` only (they are generic over L2 [signatures](#g-signature)). `machine_tasking` additionally requires a tasking runtime; this is expressed in its manifest so Alire resolution fails early on a light-runtime project.
+- L3 adapters depend on `machine`, and may **compose other adapter crates**: `machine_blocking` and `machine_async` depend on `machine` alone, but `machine_tasking` wraps `Machine.Async.SPI` (§8.3) and so also depends on `machine_async` (and `machine_blocking`). Either way an adapter stays generic over L2 [signatures](#g-signature). `machine_tasking` additionally requires a tasking runtime — expressed in its manifest so Alire resolution fails early on a light-runtime project; where no such runtime exists yet (the spike targets), the manifest states that explicitly rather than silently omitting it.
 - L4 drivers depend on `machine` **only**. Never on a PAC, an MCU HAL, or an adapter. That is the whole point.
 - L5 depends on one board's L2 + `machine_blocking`.
 - L6 is a *tool*, not a library: its output depends on L2–L4; nothing depends on it.
@@ -419,6 +419,7 @@ Rules:
 4. **Cross-class boundaries don't chain implicitly:** `Machine.I2C.Bus_Status` and `Machine.UART.Line_Status` are distinct types by design. An L4 driver exposes its *own* chained status enum and maps bus kinds into it at its boundary; the convention (last parameter, `in out`, skip-if-pending) is identical at every level.
 5. **Async variant:** in `machine_async`, initiation calls (`Start_Write`, `Start_Read`) chain the same way — a pending error skips starting the transfer — and the completion procedure receives the final merged status.
 6. **SPARK synergy:** `in out` requires a defined value on entry — flow analysis rejects transactions that forget `Status := Ok`; a status whose final value is never read is flagged as an ineffective computation. The pattern that is ergonomic is also the pattern that is provable.
+7. **Abort/cleanup exception:** teardown operations — those invoked *to establish* the fail-clean state of rule 2 (e.g. `Cancel_Transfer` after a DMA timeout, a bus reset after a lockup) — are the single exception to skip-if-pending. They are called precisely *because* an error is already pending, so they must run regardless. They therefore do **not** take a chained `in out Status` (which would make them a no-op exactly when they are needed): they take no status, or — if they must report their own result — an `out`-only status, never `in out`. Their contract is best-effort and idempotent (safe to call whether or not a transfer is in flight), and the transaction owner keeps its own pending status unchanged across the call.
 
 Known cost, accepted: during debugging, skipped calls can surprise ("why did `Read_Reg` not execute?"). Mitigations: the transaction has exactly one status object to watch, statuses are plain values (breakpoint/trace-friendly, unlike unwinding), and rule 3 keeps transaction extent lexically visible.
 
@@ -866,7 +867,7 @@ Vendors do not ship SVD for external chips, so these descriptions will be commun
 | Crate | Layer | Contents | Depends on |
 |---|---|---|---|
 | `machine` | spec | types, error kinds, signature packages | — |
-| `machine_blocking` / `machine_async` / `machine_tasking` | L3 | execution adapters: `Machine.Blocking.*` / `Machine.Async.*` / `Machine.Tasking.*` | `machine` (+tasking RT for `_tasking`) |
+| `machine_blocking` / `machine_async` / `machine_tasking` | L3 | execution adapters: `Machine.Blocking.*` / `Machine.Async.*` / `Machine.Tasking.*` | `machine`; `machine_tasking` also `machine_async`/`machine_blocking` (+ tasking RT) |
 | `machine_classes` | opt | tagged wrappers | `machine` |
 | `<mcu>_pac` | L1 | curated register bindings | — |
 | `<mcu>_hal` | L2 | convention packages + native full-feature surface + CI conformance unit | `machine`, `<mcu>_pac` |

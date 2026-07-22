@@ -210,9 +210,7 @@ is
       DMA_Busy := True;
    end Start_Transfer;
 
-   procedure Cancel_Transfer (Status : in out Machine.SPI.Transaction_Status)
-   is
-      pragma Unreferenced (Status);   --  never fails in this curated subset
+   procedure Cancel_Transfer is
       Conf : constant Unsigned_32 := SPI_DMA_CONF;
    begin
       GDMA_OUT_LINK_CH0 := GDMA_OUTLINK_STOP_CH0;

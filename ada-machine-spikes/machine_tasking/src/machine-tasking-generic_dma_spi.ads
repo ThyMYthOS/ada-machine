@@ -34,7 +34,8 @@ generic
    with procedure Start_Transfer (TX     : Byte_Array;
                                   Length : Positive;
                                   Status : in out Machine.SPI.Transaction_Status);
-   with procedure Cancel_Transfer (Status : in out Machine.SPI.Transaction_Status);
+   with procedure Cancel_Transfer;   --  best-effort teardown: no chained
+                                     --  Status (§7.1's abort/cleanup exception)
    with procedure Read_Response (Into : out Byte_Array; Last : out Natural);
 package Machine.Tasking.Generic_DMA_SPI
   with SPARK_Mode

@@ -103,12 +103,12 @@ is
          end;
          Now := Ada.Real_Time.Clock;
          if Now >= Deadline then
-            Cancel_Transfer (Status);      --  synchronous: no late signal
+            Cancel_Transfer;               --  synchronous teardown; no late
+                                           --  signal can arrive after it
             Completion.Disarm;
-            Status := Machine.SPI.Timed_Out;  --  reported regardless of
-                                            --  Cancel_Transfer's own outcome:
-                                            --  "it never finished" dominates
-                                            --  a secondary cancel failure
+            Status := Machine.SPI.Timed_Out;  --  "it never finished" is the
+                                            --  outcome; teardown is
+                                            --  best-effort/statusless (§7.1)
             return;
          end if;
          declare

@@ -17,3 +17,13 @@ machine_blocking = "*"
 machine          = { path = "../machine" }
 machine_async    = { path = "../machine_async" }
 machine_blocking = { path = "../machine_blocking" }
+
+# A tasking-profile GNAT runtime (light-tasking/embedded) is a genuine
+# dependency of this adapter: it uses protected objects, Suspension_Object
+# and delay-until (the Ravenscar/Jorvik SPARK subset). It is intentionally
+# NOT pinned here -- no light-tasking runtime exists for the spike targets in
+# this repo (see spike3_esp/alire.toml's note). A real project depending on
+# machine_tasking pins its board's tasking runtime, so Alire resolution then
+# fails early on a light (non-tasking) runtime -- the gating mechanism
+# README §5 describes. (machine_async / machine_blocking above are the
+# sibling adapters this one composes, per README §4.)

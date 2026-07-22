@@ -111,11 +111,13 @@ is
           Post   => (if Status'Old /= Machine.SPI.Ok
                      then Status = Status'Old);           --  §7.1 rule 1
 
-   procedure Cancel_Transfer (Status : in out Machine.SPI.Transaction_Status)
+   --  Abort/cleanup op (§7.1's teardown exception): statusless and
+   --  idempotent -- called precisely because a transfer must be torn down,
+   --  so it runs unconditionally and reports nothing.
+   procedure Cancel_Transfer
      with Global => (In_Out => (State, ESP32C3_PAC.GDMA.GDMA_OUT_LINK_CH0,
                                 ESP32C3_PAC.GDMA.GDMA_IN_LINK_CH0,
                                 ESP32C3_PAC.SPI2.SPI_DMA_CONF));
-                    --  idempotent: safe to call even if nothing is in flight
 
    procedure Read_Response (Into : out Byte_Array; Last : out Natural)
      with Global => (Input => State);

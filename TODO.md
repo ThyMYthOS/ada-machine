@@ -196,36 +196,44 @@ GPIO `Is_High` in every HAL still conforms to nothing because there is no `Digit
 
 ## P1 — Spec ↔ implementation reconciliation (cheap, do alongside P0)
 
-### 4. Amend the adapter dependency rule for `machine_tasking`
+### 4. Amend the adapter dependency rule for `machine_tasking` — DONE
 README §4 says "L3 adapters depend on `machine` only," but `machine_tasking`
 legitimately wraps `machine_async` + `machine_blocking` (§8.3). The rule is what's
 wrong, not the code.
 Files: `README.md` §4/§16, `machine_tasking/alire.toml`, `spike3_esp/alire.toml`
 
-- [ ] Reword §4/§16: "adapters depend on `machine`, and may compose other adapter
-      crates," citing `machine_tasking → machine_async` as the canonical example.
-- [ ] Add the tasking-runtime dependency to `machine_tasking/alire.toml`, OR add an
-      explicit "runtime omitted — no cross toolchain in this repo" note matching the
-      HAL manifests, so the runtime-gating mechanism (§5) is at least documented.
-- [ ] Fix the stale `spike3_esp/alire.toml` wording: it says `Generic_DMA_SPI` is
-      "awaited through a protected entry" — the code polls a plain protected
-      function under a delay-until loop (`machine-tasking-generic_dma_spi.adb`).
+- [x] Reworded §4 (adapters depend on `machine` and may compose other adapter crates
+      — `machine_tasking → machine_async`, §8.3) and the §16 crate-map "Depends on" row.
+- [x] Added a "tasking runtime is a genuine dependency, intentionally not pinned — none
+      exists for the spike targets" note to `machine_tasking/alire.toml`, documenting the
+      §5 gating mechanism (rather than leaving it silently absent).
+- [x] Fixed `spike3_esp/alire.toml`'s stale "awaited through a protected entry" wording →
+      "polling a plain protected function under an Ada.Real_Time deadline (not a protected
+      entry — Ravenscar's No_Select_Statements bans timed entry calls)".
 - **Done when:** the rule as written matches the shipped dependency graph and no
-      manifest describes a mechanism the code doesn't use.
+      manifest describes a mechanism the code doesn't use. **Met.**
 
-### 5. Give abort/cleanup operations a defined status convention (§7.1)
+### 5. Give abort/cleanup operations a defined status convention (§7.1) — DONE
 `ESP32C3.SPI2.Cancel_Transfer` takes `Status : in out` but `pragma Unreferenced`s
 it and always runs — a silent break of skip-if-pending. This is arguably correct
 for teardown (it's called *because* an error is pending) but currently masquerades
 as an ordinary chained op.
 Files: `README.md` §7.1, `esp32c3_hal/src/esp32c3-spi2.adb`
 
-- [ ] Add a §7.1 carve-out: abort/cleanup/teardown ops run regardless of pending
-      error and get a distinct signature convention (not `in out Status` skip-if-pending).
-- [ ] Re-type `Cancel_Transfer` (and any sibling teardown ops) to match the new
-      convention so the parameter isn't inert.
-- **Done when:** the spec names the exception explicitly and no op declares a
-      `Status` parameter it ignores.
+- [x] Added §7.1 **rule 7 (abort/cleanup exception)**: teardown ops run regardless of a
+      pending error and do NOT take a chained `in out Status` (they take no status, or an
+      `out`-only status; the owner keeps its pending status across the call).
+- [x] Re-typed `Cancel_Transfer` statusless across the board: `Machine.Tasking.
+      Generic_DMA_SPI`'s formal, `ESP32C3.SPI2.Cancel_Transfer` (dropped the inert
+      `in out Status` + its `pragma Unreferenced`), and the adapter's call site. No change
+      needed at `spike3_esp/src/board.ads` (name-based association, both parameterless).
+      Only teardown op in the tree; the STM32 `Pop`/`Push` `Status`-IN warnings are a
+      *different* gap (data-phase bus-fault detection), tracked in #11.
+- **Done when:** the spec names the exception explicitly and no op declares a `Status`
+      parameter it ignores. **Met**: `make machine_tasking`/`esp32c3_hal`/`spike3_esp` +
+      `make test` pass; `gnatprove-esp32c3_hal`/`-spike3_esp` exit 0 with only pre-existing
+      residuals — the change *removed* `Cancel_Transfer`'s old "Status could be IN" smell
+      rather than adding one.
 
 ---
 
