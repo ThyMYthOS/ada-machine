@@ -384,6 +384,44 @@ silently glossed over (README §18 D19, Appendix D):
       signature-level comment (not just a HAL-body one), and the
       v1-promotion/generalization questions have an explicit answer either way.
 
+### 12. Chip-select semantics over Digital_Out (`Machine.SPI.Generic_Chip_Select`)
+Proposal (review feedback, 2026-07-22): a zero-cost wrapper over
+`Machine.GPIO.Generic_Digital_Out` that captures CS polarity
+(`Active_Low`/`Active_High`) and exposes `Assert`/`Deassert`, living in SPI space
+(SPI is the only CS user today). **Valid — and it corrects a real misplacement, not
+just ergonomics.** `Machine.Regmap.Generic_SPI_Binding` currently **hardcodes
+active-low** CS (`CS.Set (Low)` to assert, `CS.Set (High)` to deassert), baking
+device/board polarity into the *bus-neutral* binding — the wrong layer (§6.1: CS
+belongs to whoever owns the topology). The wrapper moves polarity to the wiring and
+lets the binding speak in semantics, so an active-high-CS device stops being a silent
+latent break.
+
+- [ ] Add `Machine.SPI.Generic_Chip_Select` (child of the `Machine.SPI` class package
+      — SPI *space*, but deliberately NOT part of the `Generic_Master` data-phase
+      signature, per §6.1): generic over `with package Pin is new
+      Machine.GPIO.Generic_Digital_Out (<>)` plus a **static** polarity formal, exposing
+      `procedure Assert` / `procedure Deassert`, both `Inline_Always`. Static formal +
+      inline ⇒ each folds to a single `Pin.Set` (one GPIO store) — zero-cost.
+- [ ] Polarity: either a small `type CS_Polarity is (Active_Low, Active_High)` in
+      `Machine.SPI` (reads best, matches the proposal) or reuse `Machine.GPIO.Level` as
+      `Active : Level` to add no new type — pick one. Keep it binary (no tri-state/
+      open-drain CS; same D8 discipline as `Level`).
+- [ ] Retype `Machine.Regmap.Generic_SPI_Binding`'s `CS` formal from
+      `Generic_Digital_Out` to the new wrapper (or to `Assert`/`Deassert` formal procs),
+      and replace the hardcoded `CS.Set (Low)`/`(High)` with `CS.Assert`/`CS.Deassert`.
+- [ ] Ripple the wiring: spike 2 (SPI variant) and spike 3 instantiate the CS wrapper
+      (BME280 = `Active_Low`) and pass it to the binding; add a conformance instantiation;
+      update README §6.1's CS note to mention the optional wrapper.
+- Naming note: `Assert`/`Deassert` are the right verbs anyway — `Select`/`Deselect` is
+      out because `select` is an Ada reserved word.
+- Scope note (YAGNI): keep it CS-specific in SPI space for now. A *general*
+      `Machine.GPIO`-level active-polarity output (reusable for enable/reset/active-low-LED
+      lines) is the tempting generalization, but there is no second consumer in the spikes
+      — generalize only when one appears (§3/§6.3, "standardize proven classes only").
+- **Done when:** SPI CS polarity lives in the wiring via `Machine.SPI.Generic_Chip_Select`,
+      `Generic_SPI_Binding` no longer hardcodes active-low, and it still compiles to the
+      same single GPIO store as today (confirm `Inline_Always` + static fold).
+
 ---
 
 ## Not in scope here
