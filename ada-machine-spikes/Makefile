@@ -95,7 +95,11 @@ CRATES := \
 	spike3_esp \
 	spike4_g474
 
-GNATPROVE_FLAGS := -j0 --level=1 --output=oneline --output-header -f
+# No -f: GNATprove reuses its why3 proof session under each crate's obj/ dir,
+# re-proving only changed units. Establishing that cache cold is expensive
+# (notably on Apple silicon), so we keep it incremental and never `make clean`
+# between proof runs. Pass -f manually if you ever need a from-scratch re-proof.
+GNATPROVE_FLAGS := -j0 --level=1 --output=oneline --output-header
 
 .PHONY: all list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
         $(CRATES) $(addprefix clean-,$(CRATES)) $(addprefix gnatprove-,$(CRATES))
