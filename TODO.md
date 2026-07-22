@@ -265,13 +265,43 @@ Files: `README.md` §7.1, `esp32c3_hal/src/esp32c3-spi2.adb`
 PAC/HAL `.gpr` files never include `config/` or `with` the generated
 `*_config.gpr`, so `No_Elaboration_Code`, `Pure`, and `-O3 -gnatn` are dead.
 
-- [ ] Adopt the standard Alire gpr layout on one crate end-to-end as the reference
-      (`with "config/<crate>_config.gpr"`, config dir in `Source_Dirs`); then roll
-      out to the rest.
-- [ ] Delete the hand-authored duplicate `atmega328p_hal/src/atmega328p_hal_config.ads`
-      (conflicts with the generated `config/` copy; its "no toolchain" comment is stale).
+- [x] Adopted the standard Alire gpr layout on `machine` as the reference (done under
+      #10: `with "config/machine_config.gpr";`, `config` added to `Source_Dirs`).
+      Rolled out to `atmega328p_hal` and all three PACs (`rp2040_pac`, `atmega328p_pac`,
+      `esp32c3_pac`) -- each `.gpr` now `with`s its generated `config/<crate>_config.gpr`
+      and lists `config` in `Source_Dirs`, mirroring `machine`'s pattern exactly (no
+      layout invented). Verified the restrictions are actually live, not just present:
+      every migrated crate's `<crate>_config.ali` records `RR NO_ELABORATION_CODE`, and
+      the AVR cross-build's own compile log shows `atmega328p_hal_config.ads` (the
+      generated one) being compiled for the real ATmega328P target, not just the host
+      stand-in. **Still un-migrated, left for a follow-on** (out of this round's scope,
+      not blocked by any violation): `rp2040_hal`, `esp32c3_hal`, `stm32g474_pac`,
+      `stm32g474_hal`, `bme280`, `machine_async`, `machine_blocking`, `machine_regmap`,
+      `machine_tasking`, `time_rng_target`, `host_test`, `avrada_rts`, and all four
+      spikes -- each already has a generated `config/` dir waiting to be wired the same
+      way.
+- [x] Deleted the hand-authored duplicate `atmega328p_hal/src/atmega328p_hal_config.ads`.
+      Confirmed *why* deleting it is load-bearing, not just hygiene: with both it and the
+      newly-wired-in `config/atmega328p_hal_config.ads` (Alire-generated) present in
+      `Source_Dirs` at once, `alr build` silently compiled the **stale hand-authored
+      copy** and ignored the generated one -- no duplicate-source error or warning from
+      gprbuild -- confirmed by comparing the compiled unit's recorded source timestamp
+      (via the `.ali`) against both candidate files' mtimes. So wiring `config/` into
+      `Source_Dirs` without removing the duplicate would have left `No_Elaboration_Code`
+      still dead for this crate while *looking* wired. F_CPU unaffected: the deleted
+      file's hardcoded `16_000_000` matches `alire.toml`'s `[configuration.variables]`
+      default (`F_CPU = 16_000_000`) and the generated `config/atmega328p_hal_config.ads`
+      carries the same value; `ATmega328P.Delays`/`.Clock`/`.I2C`/`.USART0`'s
+      `ATmega328P_HAL_Config.F_CPU` references still resolve post-deletion (Ada's
+      case-insensitivity makes this the same unit as the generated
+      `Atmega328p_Hal_Config`).
 - **Done when:** the generated config restrictions actually take effect and no crate
-      carries a duplicate config unit.
+      carries a duplicate config unit. **Partially met**: true now for `machine`,
+      `atmega328p_hal`, `rp2040_pac`, `atmega328p_pac`, `esp32c3_pac`. `make all` (all 21
+      crates, including the real AVR cross-build) and `make test` (host_test, all checks
+      passed) both pass clean -- no restriction was loosened to get there. The remaining
+      crates listed above are still on the old hand-simplified layout; none of them hit a
+      violation blocking migration, they were simply out of this round's scope.
 
 ### 8. Canonicalize PAC volatility encoding
 Representation is meant to be svd2ada *policy* (§9), so decide once and apply
