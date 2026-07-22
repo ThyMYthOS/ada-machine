@@ -74,7 +74,7 @@ This resolves the tension identified in the forum threads ([4364](https://forum.
 | L3 | execution adapters — blocking / async / tasking | `machine_blocking` · `_async` · `_tasking` |
 | L2 | **the contract** — never-blocking per-MCU HAL | `<mcu>_hal` |
 | L1 | register bindings | `<mcu>_pac` |
-| L0 | runtime — startup, traps, timekeeping (not peripherals) | `light_*` · `avrada_rts` |
+| L0 | runtime — startup, traps, timekeeping (not peripherals) | `light_<mcu>` · `light_tasking_<mcu>` · `embedded_<mcu>` · `avrada_rts` |
 | — | shared types, error kinds, [signatures](#g-signature) | `machine` |
 
 ## 2. Goals and non-goals
@@ -114,7 +114,37 @@ This resolves the tension identified in the forum threads ([4364](https://forum.
 
 ## 4. Architecture overview
 
-The layers (§1) relate by these dependency rules, enforced by crate manifests:
+An arrow **A → B** reads *A depends on B* — solid for an [Alire](#g-alire) crate dependency; the two dashed edges are deliberately *not* crate dependencies (the L0 seam, §10.1, and the `boardgen` tool, §13):
+
+```mermaid
+flowchart TD
+    L5["L5 · maker_board"]
+    L4["L4 · device drivers (bme280 …)"]
+    MT["L3 · machine_tasking"]
+    MA["L3 · machine_async"]
+    MB["L3 · machine_blocking"]
+    HAL["L2 · &lt;mcu&gt;_hal"]
+    PAC["L1 · &lt;mcu&gt;_pac"]
+    SPEC["machine (spec crate)"]
+    RT["L0 · runtime (light_* / avrada_rts)"]
+    BG["L6 · boardgen (tool)"]
+
+    HAL --> SPEC
+    HAL --> PAC
+    MB --> SPEC
+    MA --> SPEC
+    MT --> SPEC
+    MT --> MA
+    MT --> MB
+    L4 --> SPEC
+    L5 --> MB
+    L5 --> HAL
+
+    HAL -. "Ada.* / System.* only" .-> RT
+    BG -. "generates wiring over" .-> HAL
+```
+
+The rules the graph encodes, enforced by crate manifests:
 
 - `machine` depends on nothing. All specs `Pure` or `Preelaborate`.
 - L2 depends on `machine` + its own L1 [PAC](#g-pac). It must build against the **[light](#g-light)** runtime — that is the floor.
@@ -311,11 +341,11 @@ On tasking runtimes the body reads the same hardware as `Ada.Real_Time.Clock` (o
 [SPARK](#g-spark) compatibility is a conformance requirement, not a bonus:
 
 - **`machine` (spec crate):** 100 % SPARK. Signature packages, error kinds and types contain nothing [GNATprove](#g-gnatprove) rejects — no access types at all.
-- **`<mcu>_pac`:** specs `SPARK_Mode On`, registers annotated with precise volatility aspects (`Async_Readers`/`Async_Writers`/`Effective_Reads`/`Effective_Writes`) so user code over them is provable; blanket `Volatile` is a conformance defect.
+- **`<mcu>_pac` (L1):** specs `SPARK_Mode On`, registers annotated with precise volatility aspects (`Async_Readers`/`Async_Writers`/`Effective_Reads`/`Effective_Writes`) so user code over them is provable; blanket `Volatile` is a conformance defect.
 - **`<mcu>_hal` (L2):** specs `SPARK_Mode On` always; bodies SPARK wherever feasible (register access is exactly what SPARK handles well). Non-SPARK bodies are allowed but must not leak into the spec. This applies to the native full-feature surface too — it is the substance of the "SPARK-proven vendor-lib replacement" goal (§2).
-- **`machine_blocking`, `machine_async`:** SPARK specs; completion plumbing in `machine_async` uses statically allocated, access-free mechanisms (generic formal completion procedures rather than access-to-subprogram) precisely so client code stays in SPARK.
-- **`machine_tasking`:** SPARK specs targeting the [Ravenscar](#g-ravenscar)/[Jorvik](#g-jorvik) SPARK subset (protected objects and suspension objects are SPARK-supported).
-- **L4 drivers:** must have SPARK specs to carry the `machine-` tag; full proof of bodies is encouraged and advertised in the crate description (a provable BME280 driver is an ecosystem selling point).
+- **`machine_blocking`, `machine_async` (L3):** SPARK specs; completion plumbing in `machine_async` uses statically allocated, access-free mechanisms (generic formal completion procedures rather than access-to-subprogram) precisely so client code stays in SPARK.
+- **`machine_tasking` (L3):** SPARK specs targeting the [Ravenscar](#g-ravenscar)/[Jorvik](#g-jorvik) SPARK subset (protected objects and suspension objects are SPARK-supported).
+- **drivers (L4):** must have SPARK specs to carry the `machine-` tag; full proof of bodies is encouraged and advertised in the crate description (a provable BME280 driver is an ecosystem selling point).
 - **`machine_classes`** is the single designated non-SPARK crate (`SPARK_Mode Off`), and the only place `'Class` and access types may appear. Depending on it moves that unit — and only that unit — outside the proof boundary.
 - **CI:** conformance units (§6.1) run `gnatprove --mode=flow` in addition to compilation; proof-level checks are per-crate policy.
 
