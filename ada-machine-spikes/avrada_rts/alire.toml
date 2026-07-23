@@ -17,6 +17,12 @@ generate_c = false
 AVR_MCU          = { type = "String", default = "atmega328p" }
 Sec_Stack_Size   = { type = "Integer", first = 0, last = 1024, default = 63 }
 Clock_Frequency  = { type = "Integer", first = 0, default = 0 }
+#  README §10.3 diagnostic-console RAM FIFO (Console_FIFO). 0 (the
+#  default) folds the whole FIFO -- buffer *and* bookkeeping -- to zero
+#  RAM, which is why AVR needs no separate "none" backend (§10.3). Must
+#  be 0 or a power of two (checked at compile time in Console_FIFO's
+#  body); 1024 is a generous ceiling for an 8-bit target's tiny RAM.
+Console_FIFO_Size = { type = "Integer", first = 0, last = 1024, default = 0 }
 
 [[depends-on]]
 gnat_avr_elf = "^11 | ^12.2 | ^15.1"
