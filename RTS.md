@@ -106,6 +106,7 @@ The hazard is the same sentence: *no error is reported*. Silent shadowing inside
 Two limits shape everything downstream:
 
 - **A configuration variable cannot select a dependency.** Alire resolves the graph before configuration is applied, so there is no "one runtime crate whose `Architecture` variable pulls in a different compiler." Anything a *dependent* must be able to select on has to be expressed as a crate name or a `provides` alias.
+- **A multi-binary system has no common configuration root.** Configuration flows downward from *a* root, so two programs that must agree on something — a shared memory allocation, ownership of a peripheral, which CPU runs which image — have no crate that can carry the agreement. This bites on any AMP or multi-partition target, and the only answer is to move the agreement out of configuration and into *generated data* that every root depends on. §10.4 is the worked case.
 - **Configuration values have no command-line override.** Only a depending crate's `[configuration.values]` sets them. For runtimes this is benign — the application is exactly who should declare the clock tree — but it means no `alr build -XClock=48000000`. Where a knob genuinely needs command-line reach, it has to be a plain GPR `external()` alongside (or instead of) a configuration variable.
 
 ---
@@ -387,6 +388,20 @@ for Excluded_Source_Files use Excluded_Sources;
 
 GPR is doing the derivation `Board → Flash_Chip → Flash_Size → linker path + excluded sources` here, mirroring in GPR what §5.2 does in Ada. Both are needed: Ada for anything the runtime *code* reads, GPR for anything the *build* reads.
 
+**Selection covers placement, not sizes.** The pattern above works because "which flash chip" is a small enumeration. It fails as soon as a region's *size* is continuous — a configurable memory split, a board-dependent DRAM size — because the cross product of sizes cannot be enumerated as committed files. For those, `ld` accepts a **symbol** where a constant is expected, and `-Wl,--defsym=` supplies it:
+
+```
+MEMORY
+{
+  ram        (wxa) : ORIGIN = 0x80000000,       LENGTH = RAM_LENGTH
+  local_sram (rwx) : ORIGIN = LOCAL_SRAM_ORIGIN, LENGTH = LOCAL_SRAM_LENGTH
+}
+```
+
+Both `LENGTH` and `ORIGIN` work this way, verified (A.20), and derived symbols follow: `__heap_end` came out at exactly `ORIGIN + LENGTH`. So the division is **selection for placement, `--defsym` for sizes** — and a region set to `LENGTH = 0` is legal, which makes zero a natural encoding for "absent" and turns any placement into that region into a link-time error.
+
+**But `ld` checks overflow, never overlap.** A section too large for its region is reported precisely (`region 'ram' overflowed by 2096944 bytes`); two regions *declared* overlapping by 32 KB produce no diagnostic at all (A.20). Linker-side arrangement therefore buys "I placed something where I declared nothing" and never "my declarations collide" — anything needing the latter has to check it in Ada, per §5.2.
+
 ---
 
 ### 5.4 Can `runtime.xml` be eliminated in favour of pure GPR?
@@ -595,6 +610,14 @@ Cortex-M is where the scheme's tiers pay, and where the eleven chip-agnostic `li
 
 Twelve chip-agnostic runtimes to one crate (§4.3), with no source obstacle at all — the asm carries no ISA directives to remove. The prerequisite is instead an honest `Enum`: enumerate the `-march`/`-mabi` pairs that *resolve* to a libgcc multilib (query `-print-multi-directory`; reject any that answer `.`), which is a superset of the seven installed directories — see §4.3.
 
+### 10.4 PolarFire SoC — the hard case, planned separately
+
+MPFS breaks every simplifying assumption at once: two core classes with different ABIs in one chip (E51 soft-float, U54 hard-float), SMP and AMP simultaneously, and a genuinely configurable memory system. It is the target that tests whether §4.1–§4.3 hold under pressure, and the answer required one structure this document does not otherwise need — a generated system-description crate, because AMP means several Alire *root* crates with no common root to carry configuration.
+
+The plan, with the SoC's verified memory map, the gap analysis against the three runtimes GNAT ships today, and a phased implementation, is in [RTS-POLARFIRE.md](RTS-POLARFIRE.md).
+
+Two of its conclusions generalise beyond that SoC and are worth stating here. **Where a vendor ships a machine-readable hardware description, derive the crate's configuration from it rather than restating it.** An early draft of the plan invented a hand-written system-description file; Microchip already ships an MSS Configurator XML (memory instances, per-hart PMP, peripheral-to-bus mapping, clocks) and the bootloader already reads a payload YAML naming which image runs on which CPU. Deriving `[configuration.values]` from those makes divergence between the hardware design and the software *structurally impossible* rather than merely checked — the same argument as generating a runtime's private register subset from the curated SVD instead of hand-writing it. And **where the vendor also ships the decoder, fork it rather than reimplement it**: theirs was a single 677-line Python file emitting C headers, and retargeting it to Ada touched about six emission functions while leaving all the XML knowledge alone. One result from it belongs here: a single family source tree built both an E51 (`rv64imac_zicsr`/`lp64`, no FPU in the ELF attributes) and a U54 (`rv64imafdc`/`lp64d`) runtime, which is §4.2's ISA-as-configuration claim holding in the least forgiving place available.
+
 ---
 
 ## Appendix A — Experiments
@@ -723,3 +746,22 @@ Also measured: `light-polarfiresoc` differs from chip-agnostic `light-rv64imafdc
 *Application wider than the runtime*: runtime rebuilt from source at `-march=rv32im` (no `a`), application units compiled at `-march=rv32imac` via its own `Compiler'Default_Switches` (later `-march` wins over `runtime.xml`'s `Leading_Required_Switches`), using `System.Atomic_Counters.Increment`/`Decrement`. Result: clean link; `objdump` shows two real `amoadd.w.aqrl` instructions; `ld` merged the attribute to `Tag_RISCV_arch: "rv32i2p1_m2p0_a2p1_c2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0"`.
 
 → §4.3: the ISA `Enum` should list `-march`/`-mabi` pairs that *resolve* to a multilib, not the installed directories; and widening `-march` in the application is safe within one ABI, while narrowing the runtime's is not.
+
+**A.20 — Can a linker script take region sizes from configuration?** Yes, and it is enforced. The runtime's `memory-map.ld` was changed from constants to symbols and the values supplied from the application's `package Linker` via `-Wl,--defsym=`, reading the result back from `-Wl,-Map`:
+
+```
+Name             Origin             Length             Attributes
+ram              0x0000000080000000 0x0000000004000000 axw
+local_itim       0x0000000001810000 0x0000000000007000 xrw   <- ORIGIN also from --defsym
+foreign_itim     0x0000000001810000 0x0000000000000000 xrw   <- zero-length, accepted
+```
+
+| Check | Result |
+|---|---|
+| symbolic `LENGTH` | works; `__heap_end` = `ORIGIN + LENGTH` exactly |
+| symbolic `ORIGIN` | works |
+| `LENGTH = 0` | accepted; region still listed in the map |
+| section too big for region | `section '.bss' will not fit in region 'ram'`, `region 'ram' overflowed by 2096944 bytes` |
+| two regions overlapping by 32 KB | **no diagnostic whatsoever** — only Alire's own warnings appeared |
+
+→ §5.3: use selection for placement and `--defsym` for sizes; do not expect the linker to detect overlap. Measured on `gnat_riscv64_elf` 15.1.2 with a `light-polarfiresoc` runtime copy; the wider PolarFire SoC context is in [RTS-POLARFIRE.md](RTS-POLARFIRE.md).
