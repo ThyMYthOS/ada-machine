@@ -1,0 +1,43 @@
+--  MPFS_SYSTEM (CONTRACT.md layout; RTS-POLARFIRE.md §4.4): the
+--  generated AMP system description.
+--
+--  This is a PLAIN, LIBRARY-LESS project: no Library_Kind, no
+--  Library_Name, no Object_Dir of its own. Unlike the tier-1-3 crates
+--  (CONTRACT.md §2), the units under Src_Dir ARE compiled -- but never
+--  by this project. Mpfs_System is `abstract`, exactly like a tier-3
+--  crate, and exports two path variables instead of compiling
+--  anything itself:
+--
+--    Src_Dir  -- src/mpfs.ads, src/mpfs-system_map.ads (ordinary,
+--                Pure, non-runtime Ada -- ships no vendored runtime
+--                source, needs no -gnatg/-nostdinc bootstrap)
+--    Ld_Dir   -- ld/partition-<name>.ld, one per AMP partition
+--
+--  "Usable as a source dependency" means: a dependent PARTITION project
+--  `with`s this project and then lists Mpfs_System.Src_Dir directly in
+--  its OWN Source_Dirs -- exactly as CONTRACT.md's leaves already list
+--  Rts_Support_Mpfs.Src_Dir. MPFS.System_Map is then compiled as an
+--  ordinary unit of THAT project, against THAT partition's own chosen
+--  runtime (light_mpfs / light_tasking_mpfs / embedded_mpfs). There is
+--  no bootstrap-cycle concern here the way there is for tiers 1-3: the
+--  spec is Pure and self-contained (only `with`s the predefined `Pure`
+--  package Interfaces), so any ordinary Ada compilation mode compiles
+--  it -- this is exactly what let this crate be verified with the
+--  native host compiler (README.md "Verification").
+--
+--  auto-gpr-with = false in alire.toml for the same reason tiers 1-3
+--  set it: Alire must not auto-"with" this project into a dependent's
+--  root project the way it would a normal library crate, because
+--  there is nothing here to link against -- only paths to add by hand.
+--
+--  Project'Project_Dir already ends in a directory separator
+--  (CONTRACT.md §2) -- the concatenations below must not add one.
+
+abstract project Mpfs_System is
+
+   for Source_Dirs use ();
+
+   Src_Dir := Project'Project_Dir & "src";
+   Ld_Dir  := Project'Project_Dir & "ld";
+
+end Mpfs_System;

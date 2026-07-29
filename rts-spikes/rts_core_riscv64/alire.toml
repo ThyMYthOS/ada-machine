@@ -1,0 +1,9 @@
+name = "rts_core_riscv64"
+description = "Tier 2: RISC-V architecture core (System.BB CPU primitives, gnat_riscv64_elf 15.1.2), source-only, never built by Alire"
+version = "0.1.0-dev"
+licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
+authors = ["Free Software Foundation", "AdaCore"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+auto-gpr-with = false
+project-files = ["rts_core_riscv64.gpr"]

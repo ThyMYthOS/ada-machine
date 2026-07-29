@@ -1,0 +1,16 @@
+--  Tier 2 (CONTRACT.md §2): the RISC-V architecture core -- System.BB's
+--  CPU-specific layer (CPU_Primitives, CPU_Specific, the context-switch
+--  asm). Source-only, never built by Alire -- see README.md for why.
+--  This project exists only to export the source-directory path; it has
+--  no sources of its own.
+--
+--  Project'Project_Dir already ends in a directory separator, so the
+--  concatenation below must not add one (CONTRACT.md §2).
+
+abstract project Rts_Core_Riscv64 is
+
+   for Source_Dirs use ();
+
+   Src_Dir := Project'Project_Dir & "src";
+
+end Rts_Core_Riscv64;
