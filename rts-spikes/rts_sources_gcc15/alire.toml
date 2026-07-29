@@ -1,0 +1,9 @@
+name = "rts_sources_gcc15"
+description = "Tier 1: shared libgnat/libgnarl source snapshot (source-only)"
+version = "0.1.0-dev"
+licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
+authors = ["Free Software Foundation", "AdaCore"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+auto-gpr-with = false
+project-files = ["rts_sources_gcc15.gpr"]

@@ -476,7 +476,7 @@ graph TD
 |---|---|---|---|---|
 | 0 | `gnat_arm_elf`, `gnat_riscv64_elf`, `gnat_avr_elf` | cross compiler | binary origin | target triple |
 | 1 | `rts_sources_gcc15` | the ~400-unit `libgnat`/`libgnarl` snapshot from the GCC tree, flat | **no** | GCC version only |
-| 2 | `rts_core_armv7m`, `rts_core_riscv32`, … | `System.BB.CPU_Primitives`, `Threads`, `Time`, `Interrupts`, protected-object support; hardware-free except through the family-support spec | **no** | architecture generation — or fold the variants into tier 1 and select them by knob (§4.2, §7) |
+| 2 | `rts_core_armv7m`, `rts_core_riscv64`, … | `System.BB.CPU_Primitives` and the context-switch asm — **only these**. `Threads`, `Time`, `Interrupts` and protected-object support are architecture-*independent* and belong in tier 1 (A.21) | **no** | architecture generation — or fold into tier 1 and select the variants by knob (§4.2, §7) |
 | 3 | `rts_support_stm32g4xx`, `rts_support_rp2040`, … | `System.BB.Board_Support` body, `Board_Parameters`, `MCU_Parameters`, startup, vector table, `ld/` variants, private register subset, and the device/board tables for **every** part in the family | **no** | family, *not* device, board or ISA |
 | 4 | `light_tasking_stm32g4xx` (and siblings) | manifest, configuration variables, renaming shim, `runtime_build.gpr`, `runtime.xml`, the metadata files, per-profile `Source_List_File`. Produces — does not ship — `adalib/libgnat.a` | **yes** | triple × profile × family (§4.1) |
 
@@ -544,7 +544,7 @@ Not all four tiers earn their complexity, and the scheme should not be sold as i
 
 **Tier 3 pays.** Family support code has its own cadence: it is generated from vendor register data, gets fixes when that data gets fixes, and is shared across the three profiles of one family. Independent versioning is a real benefit. Note the granularity §4.1 and §4.2 argue for — one crate per family, not per device, board or ISA. On the current index that folds `light_nrf52832`/`833`/`840` into one, and the eleven chip-agnostic `light-cortex-m*` runtimes into one crate with two knobs.
 
-**Tier 2 barely pays.** The architecture core changes only when the compiler or the architecture does, i.e. on nearly the same cadence as tier 1, and it is consumed only by tiers that already depend on tier 1. Merging it into tier 1 as a subdirectory costs little and removes a crate. Keep it separate only if the architecture set genuinely diverges in release cadence.
+**Tier 2 barely pays — and measurement makes that worse, not better.** Partitioning a real runtime (A.21) puts **six files** in tier 2 against tier 1's ~1050, and one of the six (`System.BB` itself) is an empty `pragma Pure` documentation package. The `Threads`/`Time`/`Interrupts`/protected-object units this document originally assigned to tier 2 turn out to contain no architecture-specific content at all — they call through the CPU-primitives seam — so they are shared-snapshot material. Tier 2's genuine content is `CPU_Primitives` plus the context-switch assembly. It also shares tier 1's release cadence (both are cut from the same compiler drop) and is consumed only by crates that already depend on tier 1. **Fold it into tier 1 as a subdirectory**; keep it separate only if an architecture set genuinely diverges in cadence.
 
 **And there is a strong counterargument to the whole hierarchy.** The hierarchy buys nothing at *build* time — the compiled artifact is identical either way — only at *maintenance* time. Maintenance-time sharing can also be achieved without Alire at all, and currently is: [community-bb-runtimes](https://github.com/damaki/community-bb-runtimes) carries upstream bb-runtimes as a git submodule plus per-target overlay directories (`rp2040_src/`, `stm32g4_src/`, `common_src/`) and a `patch-runtime.py` that stamps out self-contained crates. The sharing happens *upstream* of the package manager, and every published crate is flat and independent. That is a perfectly defensible answer to the same problem, with one moving part instead of four.
 
@@ -765,3 +765,18 @@ foreign_itim     0x0000000001810000 0x0000000000000000 xrw   <- zero-length, acc
 | two regions overlapping by 32 KB | **no diagnostic whatsoever** — only Alire's own warnings appeared |
 
 → §5.3: use selection for placement and `--defsym` for sizes; do not expect the linker to detect overlap. Measured on `gnat_riscv64_elf` 15.1.2 with a `light-polarfiresoc` runtime copy; the wider PolarFire SoC context is in [RTS-POLARFIRE.md](RTS-POLARFIRE.md).
+
+**A.21 — What is actually in each tier?** Partitioning the three installed PolarFire SoC runtimes (`gnat_riscv64_elf` 15.1.2) by unit, classifying each file as shared / architecture / family / profile-owned:
+
+| Tier | Units | Contents |
+|---|---|---|
+| 1 — shared snapshot | 963 `libgnat` + 86 `libgnarl` | everything not below |
+| 2 — architecture | **6** | `s-bb.ads`, `s-bbcppr.ads/.adb`, `s-bbcpsp.ads/.adb`, `context_switch.S` |
+| 3 — family | 14 | `s-bbbopa`, `s-bbbosu`, `s-bbripl`, `a-intnam`, `i-fe310`, `i-fe310-plic`, `riscv_def.h`, `start-ram.S`, `s-textio`, `s-macres` |
+| leaf-owned | 2–4 per profile | `system.ads`, `s-parame`, `s-bbpara` |
+
+Three results worth recording:
+
+- **Profile membership varies far more than expected**: 513 units for `light`, 602 for `light-tasking`, **1059** for `embedded`. Per-profile `Source_List_File` is load-bearing, not tidiness.
+- **`system.ads` differs across all three profiles** (distinct MD5s), so it is genuinely leaf-owned rather than shared — it carries the profile's `Restrictions`.
+- **§6's tier-2 row was wrong.** Grepping the bare-board kernel for architecture markers (`riscv`, `mhartid`, CSR names, register numbers): `s-bbthre.adb`, `s-bbtime.adb`, `s-bbinte.adb`, `s-bbprot.adb` score **zero**, while `s-bbcppr.adb` scores 5. The kernel is portable Ada over the CPU-primitives seam, so it belongs to tier 1; tier 2 is `CPU_Primitives` plus context-switch asm and nothing else. → §6, §7.

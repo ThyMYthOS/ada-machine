@@ -1,0 +1,27 @@
+# CONTRACT.md §1: runtime sources are copied by populate.sh, never committed
+rts_sources_gcc15/libgnat/
+rts_sources_gcc15/libgnarl/
+rts_core_riscv64/src/
+rts_support_mpfs/src/
+*/src/s-*.ad[bs]
+*/src/system.ads
+*/obj/
+*/adalib/
+*/bin/
+*/alire/
+*/config/
+
+# Alire-generates these from [configuration.variables] on every build; only the
+# hand-written mpfs_runtime_config.ads shim (CONTRACT.md §3.3) is committed.
+*/gnat_user/light_mpfs_config.*
+*/gnat_user/light_tasking_mpfs_config.*
+*/gnat_user/embedded_mpfs_config.*
+*/gnarl_user/light_tasking_mpfs_config.*
+*/gnarl_user/embedded_mpfs_config.*
+
+# Reference copies made by populate.sh from the installed toolchain
+*.upstream
+
+# Stray compiler output from verification probes
+*.ali
+*.o

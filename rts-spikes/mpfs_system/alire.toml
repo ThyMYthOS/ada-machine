@@ -1,0 +1,17 @@
+name = "mpfs_system"
+description = "PolarFire SoC AMP system description: generated cross-partition data + linker fragments (stand-in)"
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+tags = ["embedded", "riscv", "polarfire-soc", "amp"]
+
+#  This crate IS compiled -- by whichever partition depends on it -- but
+#  it owns no library project of its own (README.md "What this crate
+#  is"). auto-gpr-with = false so Alire does not auto-"with"
+#  mpfs_system.gpr into a dependent's root project; a dependent adds
+#  Mpfs_System.Src_Dir to its own Source_Dirs by hand, the same
+#  discipline CONTRACT.md §2 already requires of the tier-1-3 crates.
+auto-gpr-with = false
+project-files = ["mpfs_system.gpr"]
