@@ -41,7 +41,6 @@ generate_c = false
 #  and which silently defeats number declarations (CONTRACT.md 7.8).
 Harts_Mask = { type = "Integer", first = 1, last = 31, default = 2 }
 
-Hart_Class = { type = "Enum", values = ["e51", "u54"], default = "u54" }
 Privilege = { type = "Enum", values = ["m_mode", "s_mode"], default = "m_mode" }
 Memory_Profile = { type = "Enum", values = ["envm", "lim", "lim_lma_scratchpad_vma", "envm_lma_scratchpad_vma", "ddr_by_bootloader", "system_partition"], default = "lim" }
 L2_Cache_Ways = { type = "Integer", first = 0, last = 16, default = 1 }

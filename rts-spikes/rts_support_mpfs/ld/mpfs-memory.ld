@@ -40,8 +40,15 @@ MEMORY
   /*  MPFS_DTIM_LENGTH is the WHOLE E51 DTIM; the reserved switch-code tail
    *  is carved off its top, so the two regions cannot overlap however
    *  MPFS_DTIM_LENGTH is configured.  */
+  /*  The switch-code tail is APPLICATION policy, not runtime configuration:
+   *  only an application that reconfigures memory needs it, and only it
+   *  knows how much. So MPFS_SWITCH_CODE_LENGTH is optional -- defined by
+   *  the application's own Linker switches, 0 when absent. Same idiom the
+   *  placement scripts already use for __stack_size.  */
   dtim        (rwx) : ORIGIN = 0x01000000,
-                      LENGTH = MPFS_DTIM_LENGTH - MPFS_SWITCH_CODE_LENGTH
+                      LENGTH = MPFS_DTIM_LENGTH
+                             - (DEFINED (MPFS_SWITCH_CODE_LENGTH)
+                                ? MPFS_SWITCH_CODE_LENGTH : 0)
 
   /*  Six local-memory (L1-I cache/SRAM split) windows: one per hart,
    *  declared unconditionally -- names and bases are invariant, and a
@@ -52,8 +59,10 @@ MEMORY
    *  moves with it) or an L2 WayEnable change (LIM itself moves). Such code
    *  must not live in LIM. Read-execute only.  */
   switch_code_dtim (rx) : ORIGIN = 0x01000000 + MPFS_DTIM_LENGTH
-                                   - MPFS_SWITCH_CODE_LENGTH,
-                          LENGTH = MPFS_SWITCH_CODE_LENGTH
+                                   - (DEFINED (MPFS_SWITCH_CODE_LENGTH)
+                                      ? MPFS_SWITCH_CODE_LENGTH : 0),
+                          LENGTH = (DEFINED (MPFS_SWITCH_CODE_LENGTH)
+                                    ? MPFS_SWITCH_CODE_LENGTH : 0)
 
   e51_itim    (rwx) : ORIGIN = 0x01800000, LENGTH = MPFS_E51_ITIM_LENGTH
   u54_1_itim  (rwx) : ORIGIN = 0x01808000, LENGTH = MPFS_U54_1_ITIM_LENGTH
