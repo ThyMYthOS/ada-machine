@@ -1,10 +1,10 @@
 /*
- * place-lim-lma-scratchpad-vma.ld -- Memory_Profile => lim_lma_scratchpad_vma.
+ * place-envm-lma-scratchpad-vma.ld -- Memory_Profile => envm_lma_scratchpad_vma.
  * Adapted from this crate's populated ld/common-RAM.ld.upstream: the
  * whole loaded image -- .text through .sdata2, not just .data -- is
  * linked to *execute* from the L2 scratchpad (VMA), which is cacheable
  * and about 3x faster than LIM (RTS-POLARFIRE.md S1.2), but is stored
- * at, and must be copied from, l2lim (LMA) via "AT>". Scratchpad is 0
+ * at, and must be copied from, envm (LMA) via "AT>". Scratchpad is 0
  * length at reset (S1.2.1): some earlier actor must have carved it out
  * of L2 (S6.4) before this image's copy-and-jump can run.
  *
@@ -40,11 +40,11 @@ SECTIONS
     KEEP (*(SORT_NONE(.start)))
     *(.text .text.* .gnu.linkonce.t*)
     *(.gnu.warning)
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
-  .init  : { KEEP(*(.init)) } > scratchpad AT> l2lim
-  .ctors : { KEEP(SORT_BY_NAME(*)(.ctors)) } > scratchpad AT> l2lim
-  .dtors : { KEEP(SORT_BY_NAME(*)(.dtors)) } > scratchpad AT> l2lim
+  .init  : { KEEP(*(.init)) } > scratchpad AT> envm
+  .ctors : { KEEP(SORT_BY_NAME(*)(.ctors)) } > scratchpad AT> envm
+  .dtors : { KEEP(SORT_BY_NAME(*)(.dtors)) } > scratchpad AT> envm
 
   .rodata :
   {
@@ -52,30 +52,30 @@ SECTIONS
     *(.rodata .rodata.* .gnu.linkonce.r*)
     . = ALIGN(0x4);
     __rom_end = .;
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
   .eh_frame_hdr :
   {
      __eh_frame_hdr = .;
     *(.eh_frame_hdr)
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
   .eh_frame  :
   {
     KEEP (*(.eh_frame))
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
   .gcc_except_table :
   {
     *(.gcc_except_table .gcc_except_table.*)
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
   .data :
   {
     __data = .;
     __data_start = .;
     *(.data .data.* .gnu.linkonce.d*)
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
   .srodata ALIGN(4) : ALIGN(4) /* Align both virtual and load addresses */
   {
@@ -85,19 +85,19 @@ SECTIONS
     *(.srodata.cst4)
     *(.srodata.cst2)
     *(.srodata .srodata.*)
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
   .sdata ALIGN(4) : ALIGN(4) /* Align both virtual and load addresses */
   {
     *(.sdata .sdata.*)
     *(.gnu.linkonce.s.*)
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
   .sdata2 ALIGN(4) : ALIGN(4) /* Align both virtual and load addresses */
   {
     *(.sdata2 .sdata2.*)
     *(.gnu.linkonce.s2.*)
-  } > scratchpad AT> l2lim
+  } > scratchpad AT> envm
 
   __data_end = .;
 

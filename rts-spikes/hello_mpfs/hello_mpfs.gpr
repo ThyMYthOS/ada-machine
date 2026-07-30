@@ -24,6 +24,9 @@ project Hello_MPFS is
 
    package Linker is
       for Switches ("Ada") use
+        --  Our -L first: ld searches -L paths for INCLUDE, so this is how
+        --  app-sections.ld overrides the runtime empty default.
+        ("-L", Project'Project_Dir & "ld") &
         Runtime_Build.Linker_Switches & Runtime_Build.Defsyms
         & ("-Wl,--gc-sections");
    end Linker;

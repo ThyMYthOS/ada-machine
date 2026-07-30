@@ -35,41 +35,15 @@ SECTIONS
     *(.gnu.warning)
   } > l2lim
 
+  /*  Application-contributed sections. The runtime declares REGIONS -- what
+   *  the SoC has -- and the sections IT needs; what an application puts in
+   *  tightly-integrated memory, and under what section name, is not the
+   *  runtime's business. rts_support_mpfs/ld/app-sections.ld is empty; an
+   *  application overrides it by supplying its own and placing its -L ahead
+   *  of the runtime's (ld searches -L paths for INCLUDE).  */
+  INCLUDE app-sections.ld
+
   .init  : { KEEP(*(.init)) } > l2lim
-
-  /*  Application-placeable tightly-integrated memory.  An application puts a
-   *  subprogram or object here with `pragma Linker_Section (X, ".itim_text")`
-   *  (or ".dtim_data").  VMA is the per-hart ITIM window, LMA is l2lim, so
-   *  startup must copy it -- see __itim_load/__itim_start/__itim_end.  */
-  .itim_text : ALIGN(0x10)
-  {
-    __itim_start = .;
-    *(.itim_text .itim_text.*)
-    . = ALIGN(0x10);
-    __itim_end = .;
-  } > local_itim AT> l2lim
-  __itim_load = LOADADDR(.itim_text);
-
-  /*  Code that reconfigures memory. VMA in the reserved DTIM tail, LMA in
-   *  l2lim; the application copies it across and issues fence.i before
-   *  calling, since DTIM is RAM and starts empty.  */
-  .switch_code : ALIGN(0x10)
-  {
-    __switch_code_start = .;
-    *(.switch_code .switch_code.*)
-    . = ALIGN(0x10);
-    __switch_code_end = .;
-  } > switch_code_dtim AT> l2lim
-  __switch_code_load = LOADADDR(.switch_code);
-
-  .dtim_data : ALIGN(0x10)
-  {
-    __dtim_start = .;
-    *(.dtim_data .dtim_data.*)
-    . = ALIGN(0x10);
-    __dtim_end = .;
-  } > dtim AT> l2lim
-  __dtim_load = LOADADDR(.dtim_data);
 
   .ctors : { KEEP(SORT_BY_NAME(*)(.ctors)) } > l2lim
   .dtors : { KEEP(SORT_BY_NAME(*)(.dtors)) } > l2lim
