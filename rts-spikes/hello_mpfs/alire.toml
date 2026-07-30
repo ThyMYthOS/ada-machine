@@ -21,7 +21,7 @@ light_mpfs = { path = "../light_mpfs" }
 
 [configuration.values]
 light_mpfs.Hart_Class     = "u54"
-light_mpfs.Harts          = "1"
+light_mpfs.Harts_Mask     = 2
 light_mpfs.Memory_Profile = "lim"
 light_mpfs.ITIM_Ways      = 2
-light_mpfs.DTIM_Ways      = 1
+light_mpfs.DTIM_Ways      = 0   #  U54 has no DTIM (E51-only)

@@ -325,7 +325,27 @@ A combined membership list cannot be the `Source_List_File` of two projects with
 
 The combined `*.lst` remains as provenance only. Correction to §3.4: `ravenscar_build.gpr` **must** include `"src"` in `Source_Dirs` — six GNARL-side leaf-owned units (`s-bbpara.ads`, `s-taskin.ads`, `s-tpobop.*`, `s-tposen.*`) exist only there.
 
-### 7.8 `Harts` is a `String`: compare it, never index it
+### 7.8 SUPERSEDED — `Harts` is now an Integer bitmask
+
+Kept for the reasoning. The String form was replaced by
+`Harts_Mask = { type = "Integer", first = 1, last = 31 }`: bit N selects hart N,
+bit 0 being the E51. Every derived value — `First_Hart` (lowest set bit),
+`Hart_Count` (five-term popcount), the CLINT `mtimecmp` offset, `PLIC_Hart_Id`,
+`Max_Number_Of_CPUs` — is then an ordinary static named number, usable in the
+number declarations and scalar range bounds that the String form could not
+satisfy. It also expresses non-contiguous sets, which `First_Hart + Count`
+cannot, and the count cannot disagree with the set because it is derived.
+
+Two mechanics worth knowing. A GPR `case` needs a *typed* string variable and
+Alire emits Integers untyped, so the leaf declares
+`type U54_Mask_Kind is ("1", "2", "4", "8", "16")` — which doubles as
+validation, rejecting a multi-hart mask in a single-hart profile with
+`value "6" is illegal for typed string`. And "more than one hart" is
+`Harts_Mask not in 1 | 2 | 4 | 8 | 16`, not `> 1`: mask 2 is the single hart 1.
+
+The original reasoning follows.
+
+### 7.8.1 Why the `String` form could not work
 
 RM 4.9 makes any value derived from *indexing* a string constant non-static, and a non-static value cannot initialise a library-level constant in a preelaborated unit (`not a static constant (RM 4.9(5))`). Static **equality against a literal** is static, so enumerate the legal spellings instead:
 
@@ -390,3 +410,18 @@ invocation, not the library. Two notes: `Config_Tag` must be declared *after*
 `MPFS_ARCH`/`MPFS_ABI` if the ABI is in the tag, and `ada_object_path` may keep
 naming plain `adalib` — a stale entry is tolerated because the withed library
 project is authoritative (§1.1).
+
+### 7.12 A new unit must be added to the membership lists or it is dead code
+
+`mpfs_config_checks.ads` was authored by hand, so the lists — generated from the
+toolchain's own unit set — did not name it. It was therefore never compiled, and
+all of its `pragma Compile_Time_Error` checks were **dead code that looked like
+assurance**: builds passed with configurations the checks were written to reject.
+
+Adding it to each leaf's `Source_List_File` immediately caught a real
+misconfiguration that had been sitting in the tree — `hello_mpfs` carried
+`DTIM_Ways = 1` on a U54, and DTIM is E51-only.
+
+So the §7.4 rule needs a companion: proving a check fires is not only about the
+condition being static, it is also about the unit being *compiled*. Verify by
+breaking the data and watching the message appear.

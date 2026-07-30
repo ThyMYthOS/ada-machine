@@ -42,6 +42,12 @@ generate_c = false
 
 #  CONTRACT.md §3.2 -- names, types and defaults are pinned.
 [configuration.variables]
+#  Hart bitmask: bit N = hart N. Bit 0 is the E51, bits 1..4 the U54s.
+#  An Integer, so every derived value (count, first hart, CLINT offset)
+#  is STATIC -- a String forces indexing, which RM 4.9 makes non-static
+#  and which silently defeats number declarations (CONTRACT.md 7.8).
+Harts_Mask = { type = "Integer", first = 1, last = 31, default = 2 }
+
 #  Reserved tail of the E51 DTIM for memory-reconfiguration code
 #  (RTS-POLARFIRE 1.2). 0 disables the region.
 Switch_Code_Bytes = { type = "Integer", first = 0, default = 1024 }
@@ -55,8 +61,6 @@ Hart_Class.type = "Enum"
 Hart_Class.values = ["e51", "u54"]
 Hart_Class.default = "u54"
 
-Harts.type = "String"
-Harts.default = "1"
 
 Privilege.type = "Enum"
 Privilege.values = ["m_mode", "s_mode"]

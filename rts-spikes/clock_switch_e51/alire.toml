@@ -33,7 +33,7 @@ light_mpfs = { path = "../light_mpfs" }
 
 [configuration.values]
 light_mpfs.Hart_Class        = "e51"
-light_mpfs.Harts             = "0"
+light_mpfs.Harts_Mask     = 1
 light_mpfs.Memory_Profile    = "lim"
 light_mpfs.DTIM_Ways         = 1
 light_mpfs.Switch_Code_Bytes = 1024

@@ -44,8 +44,8 @@
 --  2. CLINT_Mtimecmp_Offset no longer hardcodes "mtimecmp for hart 1"
 --     (upstream: `16#4008# = 0x4000 + 8*1`). It is now a fixed base
 --     (CLINT_Mtimecmp_Base_Offset) plus a per-hart stride
---     (CLINT_Mtimecmp_Stride) times the configured hart, parsed from
---     MPFS_Runtime_Config.Harts.
+--     (CLINT_Mtimecmp_Stride) times First_Hart, derived statically
+--     from MPFS_Runtime_Config.Harts_Mask.
 --  3. PLIC_Hart_Id is derived from that same configured hart instead of
 --     the literal 1. This is only the hart-id half of RTS-POLARFIRE S8
 --     item 1: MPFS gives the E51 an M-mode PLIC context and each U54
@@ -72,34 +72,9 @@
 --  REMAINING RISK, partly UNVERIFIED end-to-end / CONFIRMED in isolation:
 --  past the S7.3 fix, Ada legality rules still make it impossible to
 --  fully honour this from Board_Parameters alone.
---  MPFS_Runtime_Config.Harts is pinned as
---  `String` (CONTRACT.md S3.2). Indexing into it, or a case/if
---  expression built from it, is accepted as *this* package's own,
---  first-use declaration (GNAT folds it; no elaboration code results,
---  confirmed with a scratch reproduction against this toolchain) but is
---  REJECTED -- "not a static constant (RM 4.9(5))" -- the instant
---  another preelaborated unit's own library-level constant combines it
---  further (also confirmed). That is exactly the shape of three
---  consumers this crate cannot edit or fully verify against (no leaf's
---  generated config exists yet in this workspace to link against --
---  UNVERIFIED end-to-end, CONFIRMED in isolation):
---    - s-bbsuti.adb (System.BB.Board_Support.Time, tier 1) computes
---      `System'To_Address (Mtimecmp_Base_Address + 4)`;
---    - s-bbripl.adb (System.BB.RISCV_PLIC, this crate) computes
---      `Use_Hart_0 : constant Boolean := PLIC_Hart_Id = 0;`;
---    - s-textio.adb (System.Text_IO, this crate) computes
---      `Base_Address : constant System.Address := ...UART_Base_Address;`.
---  All three are library-level constants of Preelaborate units, which
---  Ada requires to be static; a value parsed out of a String never is.
---  Fully resolving this needs either a run-time mhartid read in the
---  tier-1 consumer -- which is what RTS-POLARFIRE S8 item 1 actually
---  asks for ("computed at run time") -- or a differently-typed
---  configuration channel CONTRACT.md does not currently provide. Each
---  constant below is therefore declared as its own one-shot expression
---  (never referencing another Harts-derived constant by name), which is
---  enough to keep *this* unit compiling; it does not by itself prove the
---  three consumers above still compile.
-------------------------------------------------------------------------------
+--  Harts arrives as an Integer BITMASK, so First_Hart/Hart_Count below
+--  are genuinely static and usable in number declarations. The earlier
+--  String form could not be (RM 4.9: indexing is never static).
 
 --  Configuration pragma: must precede the compilation unit, not sit inside
 --  the spec. Not `No_Elaboration_Code_All` -- that propagates transitively
@@ -127,6 +102,35 @@ package System.BB.Board_Parameters is
    --  Scaled clock frequency
 
    CLINT_Base_Address    : constant := 16#0200_0000#;
+   ------------------------------------------------------------------
+   --  Hart selection, derived STATICALLY from the configured bitmask.
+   --  An Integer mask (not a String) is what makes these static: RM 4.9
+   --  makes indexing a string constant non-static, and a non-static value
+   --  cannot initialise a number declaration in a preelaborated unit.
+   --  Only five harts exist, so lowest-set-bit is a five-branch expression.
+   ------------------------------------------------------------------
+
+   Mask : constant := MPFS_Runtime_Config.Harts_Mask;
+
+   Has_Hart_0 : constant Boolean := (Mask / 1)  mod 2 = 1;   --  E51
+   Has_Hart_1 : constant Boolean := (Mask / 2)  mod 2 = 1;
+   Has_Hart_2 : constant Boolean := (Mask / 4)  mod 2 = 1;
+   Has_Hart_3 : constant Boolean := (Mask / 8)  mod 2 = 1;
+   Has_Hart_4 : constant Boolean := (Mask / 16) mod 2 = 1;
+
+   First_Hart : constant :=
+     (if     Has_Hart_0 then 0
+      elsif  Has_Hart_1 then 1
+      elsif  Has_Hart_2 then 2
+      elsif  Has_Hart_3 then 3
+      elsif  Has_Hart_4 then 4
+      else   0);
+
+   Hart_Count : constant :=
+     (if Has_Hart_0 then 1 else 0) + (if Has_Hart_1 then 1 else 0)
+   + (if Has_Hart_2 then 1 else 0) + (if Has_Hart_3 then 1 else 0)
+   + (if Has_Hart_4 then 1 else 0);
+
    CLINT_Mtime_Offset    : constant := 16#BFF8#;
 
    CLINT_Mtimecmp_Base_Offset : constant := 16#4000#;
@@ -136,9 +140,7 @@ package System.BB.Board_Parameters is
 
    CLINT_Mtimecmp_Offset : constant Natural :=
      CLINT_Mtimecmp_Base_Offset + CLINT_Mtimecmp_Stride *
-       (Character'Pos (MPFS_Runtime_Config.Harts
-                          (MPFS_Runtime_Config.Harts'First))
-          - Character'Pos ('0'));
+       First_Hart;
    --  Base plus per-hart stride, no longer "hart 1" always (see the
    --  header comment for what this does and does not verify).
 
@@ -150,9 +152,7 @@ package System.BB.Board_Parameters is
 
    Mtimecmp_Base_Address : constant Natural :=
      CLINT_Base_Address + CLINT_Mtimecmp_Base_Offset + CLINT_Mtimecmp_Stride *
-       (Character'Pos (MPFS_Runtime_Config.Harts
-                          (MPFS_Runtime_Config.Harts'First))
-          - Character'Pos ('0'));
+       First_Hart;
    --  Deliberately NOT "CLINT_Base_Address + CLINT_Mtimecmp_Offset":
    --  reusing a Harts-derived constant inside a further constant
    --  expression is exactly the pattern the header's REMAINING RISK note
@@ -215,22 +215,17 @@ package System.BB.Board_Parameters is
    PLIC_Priority_Bits    : constant := 3;
 
    PLIC_Hart_Id : constant Natural :=
-     Character'Pos (MPFS_Runtime_Config.Harts
-                       (MPFS_Runtime_Config.Harts'First))
-       - Character'Pos ('0');
+     First_Hart;
    --  The configured hart, not the literal 1 (see header comment 3 for
    --  what this does not yet do: PLIC *context* derivation).
 
    GDB_First_CPU_Id : constant Interfaces.Unsigned_32 :=
-     Interfaces.Unsigned_32
-       (Character'Pos (MPFS_Runtime_Config.Harts
-                          (MPFS_Runtime_Config.Harts'First))
-          - Character'Pos ('0'));
+     Interfaces.Unsigned_32 (First_Hart);
    pragma Export (C, GDB_First_CPU_Id, "__gnat_gdb_cpu_first_id");
    --  This value is used by GDB to know the hardware id of the first CPU
-   --  used by the run-time: the configured hart (recomputed rather than
-   --  referencing PLIC_Hart_Id by name, for the same reason
-   --  Mtimecmp_Base_Address recomputes rather than reuses
-   --  CLINT_Mtimecmp_Offset -- see above).
+   --  used by the run-time: the configured hart. With the mask form,
+   --  First_Hart is an ordinary static named number, so it can simply be
+   --  reused -- the earlier String form had to recompute each derivation
+   --  in place because a value derived from it was not static.
 
 end System.BB.Board_Parameters;

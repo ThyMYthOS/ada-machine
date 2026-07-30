@@ -58,6 +58,7 @@ i-fe310.ads
 interfac.ads
 light_mpfs_config.ads
 machcode.ads
+mpfs_config_checks.ads
 mpfs_runtime_config.ads
 s-addope.adb
 s-addope.ads
