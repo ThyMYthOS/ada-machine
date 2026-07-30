@@ -385,6 +385,7 @@ i-pacdec.ads
 interfac.ads
 ioexcept.ads
 machcode.ads
+mpfs_config_checks.ads
 newlib-bb.c
 raise-gcc.c
 s-addima.adb

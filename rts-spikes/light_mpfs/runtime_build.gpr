@@ -24,7 +24,7 @@ project Runtime_Build is
    --  deliberately: they change the linker invocation, not the library.
    --  GPR has no hash function, so this is an exact concatenation.
    Config_Tag := Light_Mpfs_Config.Hart_Class
-     & "-" & Light_Mpfs_Config.Harts
+     & "-" & Light_Mpfs_Config.Harts_Mask
      & "-" & Light_Mpfs_Config.Privilege
      & "-" & Light_Mpfs_Config.Console
      & "-" & Light_Mpfs_Config.Interrupt_Stack_Size
@@ -101,6 +101,9 @@ project Runtime_Build is
    --  DTIM must issue fence.i before executing it.
    Default_Arch := "rv64imafdc";
    Default_Abi  := "lp64d";
+   type U54_Mask_Kind is ("1", "2", "4", "8", "16");
+   U54_Hart_Mask : U54_Mask_Kind := Light_Mpfs_Config.Harts_Mask;
+
    case Light_Mpfs_Config.Hart_Class is
       when "e51" =>
          Default_Arch := "rv64imac_zicsr_zifencei";   --  no FPU on the E51
@@ -161,23 +164,26 @@ project Runtime_Build is
          Local_Itim_Length := E51_Itim_Length;
 
       when "u54" =>
-         case Light_Mpfs_Config.Harts is
-            when "1" =>
+         --  Single-hart masks only: light_mpfs is a single-hart profile, and
+         --  ITIM is per-hart private so a multi-hart mask could not own one
+         --  anyway (checked in Ada, MPFS_Config_Checks).
+         case U54_Hart_Mask is
+            when "2" =>
                U54_1_Itim_Length := Light_Mpfs_Config.ITIM_Ways
                                        & "*" & L1_Way_Size_Kb & "K";
                Local_Itim_Origin := "0x01808000";
                Local_Itim_Length := U54_1_Itim_Length;
-            when "2" =>
+            when "4" =>
                U54_2_Itim_Length := Light_Mpfs_Config.ITIM_Ways
                                        & "*" & L1_Way_Size_Kb & "K";
                Local_Itim_Origin := "0x01810000";
                Local_Itim_Length := U54_2_Itim_Length;
-            when "3" =>
+            when "8" =>
                U54_3_Itim_Length := Light_Mpfs_Config.ITIM_Ways
                                        & "*" & L1_Way_Size_Kb & "K";
                Local_Itim_Origin := "0x01818000";
                Local_Itim_Length := U54_3_Itim_Length;
-            when "4" =>
+            when "16" =>
                U54_4_Itim_Length := Light_Mpfs_Config.ITIM_Ways
                                        & "*" & L1_Way_Size_Kb & "K";
                Local_Itim_Origin := "0x01820000";

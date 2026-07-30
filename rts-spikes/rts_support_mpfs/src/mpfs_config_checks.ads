@@ -46,31 +46,33 @@ package MPFS_Config_Checks is
    --  `external()`s) is a `runtime.xml`/GPR-level concern the leaf's
    --  `MPFS_Runtime_Config` package does not carry -- there is no
    --  MPFS_Runtime_Config field this spec could put on the other side of
-   --  `and then`. Writing `Hart_Class = E51 and then <nothing available>`
+   --  `and then`. Writing `Hart_Class = e51 and then <nothing available>`
    --  would either not compile or -- worse -- compile as a condition
    --  that can never be true, which is exactly the silently-useless
    --  check this file's own header warns against. Flagged in the task
    --  report as a CONTRACT.md/RTS-POLARFIRE.md S5.3 mismatch instead.
 
    ---------------------------------------------------------------------
-   --  2. Hart_Class = e51 -> Harts must be "0" (the E51 is hart 0)
+   --  2/3. Hart mask consistency with Hart_Class
    ---------------------------------------------------------------------
    pragma Compile_Time_Error
-     (Hart_Class = E51 and then Harts /= "0",
-      "Hart_Class => E51 is hart 0; Harts must be ""0""");
+     (Hart_Class = e51 and then Harts_Mask /= 1,
+      "Hart_Class => e51 requires Harts_Mask => 1 (the e51 is hart 0)");
+
+   pragma Compile_Time_Error
+     (Hart_Class = u54 and then (Harts_Mask mod 2) = 1,
+      "hart 0 is the e51 and cannot appear in a u54 hart mask");
+
+   pragma Compile_Time_Error
+     ((Harts_Mask mod 2) = 1 and then Harts_Mask /= 1,
+      "the soft-float e51 cannot share a hart mask with the u54s");
 
    ---------------------------------------------------------------------
-   --  3. Hart_Class = u54 -> hart 0 (the E51) must not be in the set
+   --  3. Hart_Class = u54 -> hart 0 (the e51) must not be in the set
    ---------------------------------------------------------------------
-   --  Standalone mode is single-hart only (RTS-POLARFIRE.md S5, P1), so
-   --  Harts is exactly one digit; this is an exact-match, not a
-   --  substring search (pragma Compile_Time_Error's condition cannot
-   --  call Ada.Strings.Fixed.Index -- a general multi-hart "is 0 in the
-   --  set" test is not expressible this way; see check 8 below for the
-   --  'Length-based technique this file uses instead where it can).
-   pragma Compile_Time_Error
-     (Hart_Class = U54 and then Harts = "0",
-      "hart 0 is the E51 and cannot be part of a U54 Harts set");
+   --  With the Integer bitmask these are ordinary static scalar
+   --  comparisons; the earlier String form could not be checked this way
+   --  (RM 4.9: indexing a string constant is never static).
 
    ---------------------------------------------------------------------
    --  4-6. L2 way partition (RTS-POLARFIRE.md S1.2.1)
@@ -89,34 +91,33 @@ package MPFS_Config_Checks is
       "L2_Cache_Ways < 1: at least one way must remain a real cache");
 
    ---------------------------------------------------------------------
-   --  7. DTIM is E51-only (RTS-POLARFIRE.md S1.4)
+   --  7. DTIM is e51-only (RTS-POLARFIRE.md S1.4)
    ---------------------------------------------------------------------
    pragma Compile_Time_Error
-     (DTIM_Ways /= 0 and then Hart_Class /= E51,
-      "only the E51 has a configurable DTIM");
+     (DTIM_Ways /= 0 and then Hart_Class /= e51,
+      "only the e51 has a configurable DTIM");
 
    ---------------------------------------------------------------------
    --  8. ITIM is per-hart private: no multi-hart image may use it
    ---------------------------------------------------------------------
-   --  Every single-hart Harts value ("0".."4") is exactly one character;
-   --  every multi-hart value ("1..4", "2,3", ...) is necessarily longer.
-   --  'Length is an attribute of the whole Harts object, not an indexed
-   --  component, so (unlike Harts(Harts'First)) it remains usable here.
    pragma Compile_Time_Error
-     (ITIM_Ways /= 0 and then Harts'Length > 1,
+     (ITIM_Ways /= 0
+        and then Harts_Mask not in 1 | 2 | 4 | 8 | 16,
+      --  "more than one bit set", i.e. not a single-hart mask. A plain
+      --  "> 1" would be wrong: mask 2 is the single hart 1.
       "ITIM is per-hart private; a multi-hart image has no single ITIM");
 
    ---------------------------------------------------------------------
    --  9. A Memory_Profile that needs DDR requires DDR_Present
    ---------------------------------------------------------------------
-   --  Of the six Memory_Profile values, only Ddr_By_Bootloader names DDR
+   --  Of the six Memory_Profile values, only ddr_by_bootloader names DDR
    --  outright. System_Partition is derived-mode data (RTS-POLARFIRE.md
    --  S4.4); its own DDR window is range-checked in the generated
    --  MPFS.System_Map, not here, by design (S4.3's "range-check every
    --  window" applies to the generator, which is the only actor that can
    --  see the MSS XML this spec cannot).
    pragma Compile_Time_Error
-     (Memory_Profile = Ddr_By_Bootloader and then not DDR_Present,
-      "Memory_Profile => Ddr_By_Bootloader needs DDR_Present => True");
+     (Memory_Profile = ddr_by_bootloader and then not DDR_Present,
+      "Memory_Profile => ddr_by_bootloader needs DDR_Present => True");
 
 end MPFS_Config_Checks;

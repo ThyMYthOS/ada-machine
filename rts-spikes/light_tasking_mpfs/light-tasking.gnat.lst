@@ -57,6 +57,7 @@ i-fe310-plic.ads
 i-fe310.ads
 interfac.ads
 machcode.ads
+mpfs_config_checks.ads
 s-addope.adb
 s-addope.ads
 s-aridou.adb

@@ -35,8 +35,13 @@ output_dir = "gnat_user"
 generate_c = false
 
 [configuration.variables]
+#  Hart bitmask: bit N = hart N. Bit 0 is the E51, bits 1..4 the U54s.
+#  An Integer, so every derived value (count, first hart, CLINT offset)
+#  is STATIC -- a String forces indexing, which RM 4.9 makes non-static
+#  and which silently defeats number declarations (CONTRACT.md 7.8).
+Harts_Mask = { type = "Integer", first = 1, last = 31, default = 2 }
+
 Hart_Class = { type = "Enum", values = ["e51", "u54"], default = "u54" }
-Harts = { type = "String", default = "1" }
 Privilege = { type = "Enum", values = ["m_mode", "s_mode"], default = "m_mode" }
 Memory_Profile = { type = "Enum", values = ["envm", "lim", "lim_lma_scratchpad_vma", "envm_lma_scratchpad_vma", "ddr_by_bootloader", "system_partition"], default = "lim" }
 L2_Cache_Ways = { type = "Integer", first = 0, last = 16, default = 1 }
