@@ -23,3 +23,5 @@ light_mpfs = { path = "../light_mpfs" }
 light_mpfs.Hart_Class     = "u54"
 light_mpfs.Harts          = "1"
 light_mpfs.Memory_Profile = "lim"
+light_mpfs.ITIM_Ways      = 2
+light_mpfs.DTIM_Ways      = 1

@@ -37,11 +37,24 @@ MEMORY
   envm        (rx)  : ORIGIN = 0x20220100, LENGTH = MPFS_ENVM_LENGTH
 
   /*  E51-only local data window (L1-D cache/SRAM split).  */
-  dtim        (rwx) : ORIGIN = 0x01000000, LENGTH = MPFS_DTIM_LENGTH
+  /*  MPFS_DTIM_LENGTH is the WHOLE E51 DTIM; the reserved switch-code tail
+   *  is carved off its top, so the two regions cannot overlap however
+   *  MPFS_DTIM_LENGTH is configured.  */
+  dtim        (rwx) : ORIGIN = 0x01000000,
+                      LENGTH = MPFS_DTIM_LENGTH - MPFS_SWITCH_CODE_LENGTH
 
   /*  Six local-memory (L1-I cache/SRAM split) windows: one per hart,
    *  declared unconditionally -- names and bases are invariant, and a
    *  declared-but-unused window (LENGTH = 0) costs nothing (S1.4).  */
+  /*  Reserved tail of the E51 DTIM. Microchip's own reference scripts carve
+   *  1 KB off here for "switch code": anything that reconfigures the memory
+   *  it would otherwise be executing from -- a clock/PLL switch (L2 timing
+   *  moves with it) or an L2 WayEnable change (LIM itself moves). Such code
+   *  must not live in LIM. Read-execute only.  */
+  switch_code_dtim (rx) : ORIGIN = 0x01000000 + MPFS_DTIM_LENGTH
+                                   - MPFS_SWITCH_CODE_LENGTH,
+                          LENGTH = MPFS_SWITCH_CODE_LENGTH
+
   e51_itim    (rwx) : ORIGIN = 0x01800000, LENGTH = MPFS_E51_ITIM_LENGTH
   u54_1_itim  (rwx) : ORIGIN = 0x01808000, LENGTH = MPFS_U54_1_ITIM_LENGTH
   u54_2_itim  (rwx) : ORIGIN = 0x01810000, LENGTH = MPFS_U54_2_ITIM_LENGTH

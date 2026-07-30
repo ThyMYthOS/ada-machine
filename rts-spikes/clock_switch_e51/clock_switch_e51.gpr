@@ -1,0 +1,29 @@
+with "runtime_build.gpr";
+with "config/clock_switch_e51_config.gpr";
+
+project Clock_Switch_E51 is
+   for Target use Runtime_Build'Target;
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+   for Source_Dirs use ("src", "config");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Main use ("clock_switch_e51.adb");
+
+   --  runtime.xml is INERT when the runtime is reached through a withed
+   --  library project: neither its Compiler'Leading_Required_Switches nor its
+   --  Linker'Required_Switches apply (RTS.md A.8/A.9, sections 5.4). Without
+   --  this the image silently takes the compiler's DEFAULT riscv64-elf ISA --
+   --  hard-float rv64imafdc -- which for an E51 is wrong and undiagnosed.
+   --  Builder'Global_Compilation_Switches is read only from the ROOT project,
+   --  so only the application can do this.
+   package Builder is
+      for Global_Compilation_Switches ("Ada")     use Runtime_Build.ISA_Switches;
+      for Global_Compilation_Switches ("Asm_Cpp") use Runtime_Build.ISA_Switches;
+   end Builder;
+
+   package Linker is
+      for Switches ("Ada") use
+        Runtime_Build.Linker_Switches & Runtime_Build.Defsyms
+        & ("-Wl,--gc-sections");
+   end Linker;
+end Clock_Switch_E51;

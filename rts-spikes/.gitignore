@@ -25,9 +25,14 @@ rts_sources_gcc15/libgnarl/
 # Populated runtime sources are reproducible via populate.sh and not committed
 # (CONTRACT.md 1). The seven files we authored or deliberately edited ARE
 # deliverables, and populate.sh preserves them (FORCE_LEAF_SRC=1 to override).
-*/src/*.ad[bs]
-*/src/*.S
-*/src/*.h
+rts_core_riscv64/src/*.ad[bs]
+rts_core_riscv64/src/*.S
+rts_support_mpfs/src/*.ad[bs]
+rts_support_mpfs/src/*.S
+rts_support_mpfs/src/*.h
+light_mpfs/src/*.ad[bs]
+light_tasking_mpfs/src/*.ad[bs]
+embedded_mpfs/src/*.ad[bs]
 !rts_support_mpfs/src/mpfs_config_checks.ads
 !rts_support_mpfs/src/s-bbbopa.ads
 !rts_support_mpfs/src/s-bbbosu.ads
@@ -35,5 +40,3 @@ rts_sources_gcc15/libgnarl/
 !rts_support_mpfs/src/s-textio.ads
 !light_tasking_mpfs/src/s-bbpara.ads
 !embedded_mpfs/src/s-bbpara.ads
-!hello_mpfs/src/*.adb
-!mpfs_system/src/*.ads
