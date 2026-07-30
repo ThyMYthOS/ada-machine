@@ -1,0 +1,51 @@
+--  This is the default version of the target_options.gpr file,
+--  imported by runtime_build.gpr / ravenscar_build.gpr. Variables defined
+--  here are appended to the corresponding variables there.
+--
+--  Copied, not reinvented: this is the same file the shipped
+--  gnat_riscv64_elf 15.1.2 light-tasking-polarfiresoc runtime uses
+--  (read from the installed toolchain), so this leaf's compiler switches
+--  match the vendor runtime's own conventions rather than guessing at
+--  them.
+
+abstract project Target_Options is
+
+   type Build_Type is ("Production", "Debug", "Assert", "Gnatcov");
+   Build : Build_Type := external ("BUILD", "Production");
+
+   --  COMFLAGS here is common flags (used for C and Ada).
+   COMFLAGS := ("-ffunction-sections",
+                "-fdata-sections",
+                "-fcallgraph-info=su,da");
+   COMGNARLFLAGS := ("");
+   COMDEBUGFLAGS := ("-g");
+
+   --  Per language flags (COMFLAGS will be added later)
+   ADAFLAGS := ("-gnatg", "-nostdinc", "-fno-delete-null-pointer-checks");
+   ASMFLAGS := ("");
+
+   case Build is
+      when "Production" =>
+         --  Optimize
+         COMFLAGS := COMFLAGS & ("-O2");
+         ADAFLAGS := ADAFLAGS & ("-gnatp", "-gnatn2");
+      when "Debug" =>
+         --  Disable optimization and add debug symbols
+         COMFLAGS := COMFLAGS & COMDEBUGFLAGS & ("-O0");
+         ASMFLAGS := ASMFLAGS & COMDEBUGFLAGS;
+      when "Assert" =>
+         --  Possibly enable assertions. This might use too much memory on
+         --  some systems or could be too slow.
+         COMFLAGS := COMFLAGS & ("-O");
+         ADAFLAGS := ADAFLAGS & ("-gnata");
+      when "Gnatcov" =>
+         --  For coverage
+         COMFLAGS := COMFLAGS & COMDEBUGFLAGS &
+           ("-O0", "-fdump-scos", "-fpreserve-control-flow");
+   end case;
+
+   --  Concatenate with common flags
+   ALL_ADAFLAGS := ADAFLAGS & COMFLAGS;
+   GNARL_ADAFLAGS := ALL_ADAFLAGS & COMGNARLFLAGS;
+
+end Target_Options;

@@ -1,5 +1,14 @@
 name = "rts_core_riscv64"
-description = "Tier 2: RISC-V architecture core (System.BB CPU primitives, gnat_riscv64_elf 15.1.2), source-only, never built by Alire"
+description = "Tier 2: RISC-V architecture core (source-only)"
+long-description = """
+Tier 2 of the runtime crate hierarchy: the RISC-V architecture core --
+`System.BB.CPU_Primitives`, `System.BB.CPU_Specific` and the context-switch
+assembly. Source-only and never built by Alire (these units need
+`-gnatg -nostdinc`, the cross compiler and no runtime, which is a bootstrap
+cycle); a leaf crate compiles them. Sources are populated from an installed
+`gnat_riscv64_elf` 15.1.2 by `populate.sh` rather than vendored -- see
+CONTRACT.md section 1.
+"""
 version = "0.1.0-dev"
 licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
 authors = ["Free Software Foundation", "AdaCore"]

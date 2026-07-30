@@ -70,7 +70,6 @@ s-tasdeb.ads
 s-tasinf.adb
 s-tasinf.ads
 s-taskin.adb
-s-taskin.ads
 s-taspri.ads
 s-tasque.adb
 s-tasque.ads
@@ -79,8 +78,4 @@ s-tpoben.adb
 s-tpoben.ads
 s-tpobmu.adb
 s-tpobmu.ads
-s-tpobop.adb
-s-tpobop.ads
-s-tposen.adb
-s-tposen.ads
 trap_handler.S

@@ -1,0 +1,7 @@
+Listed in ravenscar_build.gpr's Source_Dirs (CONTRACT.md §3.4) and in
+ada_source_path. Deliberately empty: this leaf's only per-crate generated
+Ada unit is the gnat_user/mpfs_runtime_config.ads renaming shim, which the
+libgnat side needs (src/s-bbpara.ads withs MPFS_Runtime_Config); no
+libgnarl unit in this crate currently needs it. The directory must still
+exist on disk for GPR's Source_Dirs resolution (a missing directory is a
+hard error; git does not track empty ones), hence this placeholder.

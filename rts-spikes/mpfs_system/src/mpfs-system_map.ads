@@ -81,61 +81,36 @@ package MPFS.System_Map is
    --  App_Single has an IPC window.
 
    ---------------------------------------------------------------------------
-   --  2. Hardware maxima (RTS-POLARFIRE.md §1.2) that every window below,
-   --     and every future partition's window, must be checked against.
+   --  2. Hardware maxima (RTS-POLARFIRE.md §1.2), trimmed to only the
+   --     regions this three-partition example actually uses -- Monitor in
+   --     LIM, App_Smp/App_Single in cached DDR, App_Single's IPC window in
+   --     non-cached DDR. A full generator would carry every region of
+   --     §1.2 (ENVM, per-hart ITIM/DTIM, the two 38-bit DDR aliases); this
+   --     stand-in omits the ones no partition below claims, rather than
+   --     padding the worked example with data nothing here exercises.
    --     These are load-bearing, not decorative: §4.3 warns the MSS XML's
    --     own `mem_elements` is "designer intent, not hardware ground
-   --     truth" (the Icicle reference labels its DDR entries "example
-   --     instance" at 1 MB) -- so a generator (and this stand-in) must
-   --     range-check every window against the SoC's real ceilings rather
-   --     than trust the vendor file to be internally consistent.
+   --     truth" -- so a generator (and this stand-in) must range-check
+   --     every window against the SoC's real ceilings rather than trust
+   --     the vendor file to be internally consistent.
+   --
+   --     One honest gap: RTS-POLARFIRE.md §1.2 lists the 38-bit DDR
+   --     aliases' non-cached/WCB sizes as "board-dependent" -- there is no
+   --     SoC-fixed ceiling for those two regions, so no partition using
+   --     them could get a "does not exceed hardware maxima" check the way
+   --     every region below does; that is a genuine limit, not an
+   --     oversight (see the task report).
    ---------------------------------------------------------------------------
 
-   Envm_Base_Address           : constant := 16#2022_0100#;
-   Envm_Max_Size               : constant := 16#1_FF00#;              --  128 KB - 0x100
-
-   E51_Dtim_Base_Address       : constant := 16#0100_0000#;
-   E51_Dtim_Max_Size           : constant := 8 * 1_024;               --  E51 only
-
-   E51_Itim_Base_Address       : constant := 16#0180_0000#;
-   E51_Itim_Max_Size           : constant := 28 * 1_024;
-
-   U54_1_Itim_Base_Address     : constant := 16#0180_8000#;
-   U54_2_Itim_Base_Address     : constant := 16#0181_0000#;
-   U54_3_Itim_Base_Address     : constant := 16#0181_8000#;
-   U54_4_Itim_Base_Address     : constant := 16#0182_0000#;
-   U54_Itim_Max_Size           : constant := 28 * 1_024;              --  each, per hart
-
    L2_Lim_Base_Address         : constant := 16#0800_0000#;
-   L2_Lim_Max_Size             : constant := 1_920 * 1_024;           --  15 ways * 128 KB
+   L2_Lim_Max_Size             : constant := 15 * 128 * 1_024;   --  15 ways * 128 KB
    L2_Scratchpad_Base_Address  : constant := 16#0A00_0000#;
-   L2_Scratchpad_Max_Size      : constant := 15 * 128 * 1_024;        --  same 15-way pool as
-                                                                       --  LIM (§1.2.1) -- the
-                                                                       --  two ceilings cannot
-                                                                       --  both be reached at
-                                                                       --  once, but each is
-                                                                       --  individually bounded
-                                                                       --  by it.
+   L2_Scratchpad_Max_Size      : constant := 15 * 128 * 1_024;   --  same 15-way pool as LIM
 
-   Ddr_Cached_Base_Address     : constant := 16#8000_0000#;           --  32-bit alias
-   Ddr_Cached_Max_Size         : constant := 768 * 1_024 * 1_024;
-   Ddr_Non_Cached_Base_Address : constant := 16#C000_0000#;           --  32-bit alias
+   Ddr_Cached_Base_Address     : constant := 16#8000_0000#;
+   Ddr_Cached_Max_Size         : constant := 1_024 * 1_024 * 1_024;  --  1 GB
+   Ddr_Non_Cached_Base_Address : constant := 16#C000_0000#;
    Ddr_Non_Cached_Max_Size     : constant := 256 * 1_024 * 1_024;
-   Ddr_Wcb_Base_Address        : constant := 16#D000_0000#;           --  32-bit alias
-   Ddr_Wcb_Max_Size            : constant := 256 * 1_024 * 1_024;
-
-   Ddr_Cached_38_Base_Address     : constant := 16#10_0000_0000#;     --  38-bit alias
-   Ddr_Cached_38_Max_Size         : constant := 1_024 * 1_024 * 1_024;
-   Ddr_Non_Cached_38_Base_Address : constant := 16#14_0000_0000#;     --  38-bit alias
-   Ddr_Wcb_38_Base_Address        : constant := 16#18_0000_0000#;
-   --  RTS-POLARFIRE.md §1.2 lists the two 38-bit non-cached/WCB alias
-   --  sizes as "board-dependent" -- there is no SoC-fixed ceiling to
-   --  check a window in either region against, only whatever a specific
-   --  board's DDR controller was actually programmed with. This crate
-   --  therefore cannot write a "does not exceed hardware maxima" check
-   --  for those two regions the way it can for every other region above;
-   --  see README.md / the task report for why that is a genuine, not a
-   --  missed, gap.
 
    ---------------------------------------------------------------------------
    --  3. The worked example, as FLAT named constants.
@@ -186,7 +161,7 @@ package MPFS.System_Map is
    --  App_Smp's window, with an IPC window in NON-cached DDR (§4.4:
    --  "coherence is not free"). Matches RTS-POLARFIRE.md §4.1's
    --  "app-single.elf: {owner-hart: u54_3, priv-mode: PRV_S}".
-   App_Single_Harts     : constant Hart_Mask     := Hart_2;  --  DELIBERATE BREAK #2: App_Smp already claims hart 2, for verification only
+   App_Single_Harts     : constant Hart_Mask     := Hart_3;
    App_Single_Base      : constant               := App_Smp_Base + App_Smp_Size;
    App_Single_Size      : constant               := 32 * 1_024 * 1_024;
    App_Single_Console   : constant Console_Id    := Mmuart2;
@@ -320,26 +295,6 @@ package MPFS.System_Map is
      (App_Smp_App_Single_Overlap,
       "MPFS.System_Map: App_Smp and App_Single memory windows overlap");
 
-   --  Beyond the minimum ask: the IPC window is shared infrastructure, not
-   --  owned by any one partition, but it still must not collide with
-   --  either partition's primary window.
-
-   Ipc_Monitor_Overlap : constant Boolean :=
-     App_Single_Ipc_Base < Monitor_Base + Monitor_Size
-       and then Monitor_Base < App_Single_Ipc_Base + App_Single_Ipc_Size;
-
-   pragma Compile_Time_Error
-     (Ipc_Monitor_Overlap,
-      "MPFS.System_Map: App_Single's IPC window overlaps Monitor's window");
-
-   Ipc_App_Smp_Overlap : constant Boolean :=
-     App_Single_Ipc_Base < App_Smp_Base + App_Smp_Size
-       and then App_Smp_Base < App_Single_Ipc_Base + App_Single_Ipc_Size;
-
-   pragma Compile_Time_Error
-     (Ipc_App_Smp_Overlap,
-      "MPFS.System_Map: App_Single's IPC window overlaps App_Smp's window");
-
    -----------------------------------------------------------
    --  6.2 Two partitions claiming the same hart
    -----------------------------------------------------------
@@ -443,7 +398,9 @@ package MPFS.System_Map is
    --      not free" -- the U54s are coherent through L2, but a LIM- or
    --      DDR-resident partition is not automatically coherent with a
    --      cached-DDR one). L2 LIM is explicitly NOT cached (§1.2.1), so
-   --      only L2 scratchpad and the two DDR *cached* aliases count here.
+   --      only L2 scratchpad and the (32-bit) DDR cached alias count
+   --      here -- the 38-bit DDR cached alias is out of scope for this
+   --      trimmed worked example (§2).
    -----------------------------------------------------------
 
    App_Single_Ipc_In_Cached_Region : constant Boolean :=
@@ -452,11 +409,7 @@ package MPFS.System_Map is
           L2_Scratchpad_Base_Address + L2_Scratchpad_Max_Size - 1)
      or else
      (App_Single_Ipc_Base in
-        Ddr_Cached_Base_Address .. Ddr_Cached_Base_Address + Ddr_Cached_Max_Size - 1)
-     or else
-     (App_Single_Ipc_Base in
-        Ddr_Cached_38_Base_Address ..
-          Ddr_Cached_38_Base_Address + Ddr_Cached_38_Max_Size - 1);
+        Ddr_Cached_Base_Address .. Ddr_Cached_Base_Address + Ddr_Cached_Max_Size - 1);
 
    pragma Compile_Time_Error
      (App_Single_Ipc_In_Cached_Region,

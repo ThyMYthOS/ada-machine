@@ -1,0 +1,30 @@
+with "runtime_build.gpr";
+with "config/hello_mpfs_config.gpr";
+
+project Hello_MPFS is
+   --  Restated because gprbuild reads Target/Runtime only from the root
+   --  project, never from a withed dependency (RTS.md section 6).
+   for Target use Runtime_Build'Target;
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+
+   for Source_Dirs use ("src", "config");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Main use ("hello_mpfs.adb");
+
+   --  runtime.xml is INERT when the runtime is reached through a withed
+   --  library project: neither Compiler'Leading_Required_Switches nor
+   --  Linker'Required_Switches apply (RTS.md A.8/A.9). Without this the image
+   --  silently takes the compiler's DEFAULT riscv64-elf ISA. Only the ROOT
+   --  project can set Builder'Global_Compilation_Switches.
+   package Builder is
+      for Global_Compilation_Switches ("Ada")     use Runtime_Build.ISA_Switches;
+      for Global_Compilation_Switches ("Asm_Cpp") use Runtime_Build.ISA_Switches;
+   end Builder;
+
+   package Linker is
+      for Switches ("Ada") use
+        Runtime_Build.Linker_Switches & Runtime_Build.Defsyms
+        & ("-Wl,--gc-sections");
+   end Linker;
+end Hello_MPFS;

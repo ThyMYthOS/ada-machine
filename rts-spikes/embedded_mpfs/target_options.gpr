@@ -1,0 +1,69 @@
+--  Build-profile compiler switches shared by Runtime_Build and
+--  Ravenscar_Build. Adapted from the upstream embedded-polarfiresoc
+--  runtime shipped in gnat_riscv64_elf 15.1.2
+--  (~/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_*/riscv64-elf/
+--  lib/gnat/embedded-polarfiresoc/target_options.gpr), trimmed to what this
+--  spike's fixed `for Library_Kind use "static";` (CONTRACT.md §3.4) needs:
+--  the upstream Lib_Type / LOPTIONS / Library_Version machinery for an
+--  alternative "dynamic" library is dropped since this leaf never selects
+--  it.
+--
+--  External() names are prefixed with the crate name, matching the
+--  convention the community-index `embedded_stm32g4xx` crate uses for the
+--  same two knobs (EMBEDDED_STM32G4XX_BUILD / _LIBRARY_TYPE) -- otherwise
+--  a bare "-XBUILD=" would leak across every runtime crate sharing one
+--  gprbuild invocation.
+
+abstract project Target_Options is
+
+   type Build_Type is ("Production", "Debug", "Assert", "Gnatcov");
+   Build : Build_Type := external ("EMBEDDED_MPFS_BUILD", "Production");
+
+   --  GNAT version string (informational; not consumed by this leaf's own
+   --  project files, carried over for parity with upstream).
+   Version := external ("GNAT_VERSION", "15");
+
+   --  COMFLAGS here is common flags (used for C and Ada).
+   COMFLAGS := ("-ffunction-sections",
+                "-fdata-sections",
+                "-fcallgraph-info=su,da");
+   COMGNARLFLAGS := ("");
+   COMDEBUGFLAGS := ("-g");
+
+   --  Per language flags (COMFLAGS will be added later)
+   ADAFLAGS := ("-gnatg", "-nostdinc", "-fno-delete-null-pointer-checks");
+   ASMFLAGS := ("");
+   CFLAGS := ("-DIN_RTS", "-Dinhibit_libc", "-DLIGHT_RUNTIME", "-Werror", "-Wall");
+   --  "-DLIGHT_RUNTIME" is carried over verbatim from the upstream
+   --  embedded-polarfiresoc target_options.gpr (task instruction: read it
+   --  and carry the switches over). It is not referenced by any .c file
+   --  actually in this crate's unit set (grep across
+   --  rts_sources_gcc15/libgnat/*.c found no use), so it is inert, but
+   --  changing it risks losing fidelity to what upstream actually ships.
+
+   case Build is
+      when "Production" =>
+         --  Optimize
+         COMFLAGS := COMFLAGS & ("-O2");
+         ADAFLAGS := ADAFLAGS & ("-gnatp", "-gnatn2");
+      when "Debug" =>
+         --  Disable optimization and add debug symbols
+         COMFLAGS := COMFLAGS & COMDEBUGFLAGS & ("-O0");
+         ASMFLAGS := ASMFLAGS & COMDEBUGFLAGS;
+      when "Assert" =>
+         --  Possibly enable assertions.
+         COMFLAGS := COMFLAGS & ("-O");
+         ADAFLAGS := ADAFLAGS & ("-gnata");
+      when "Gnatcov" =>
+         --  For coverage
+         COMFLAGS := COMFLAGS & COMDEBUGFLAGS &
+           ("-O0", "-fdump-scos", "-fpreserve-control-flow");
+   end case;
+
+   --  Concatenate with common flags
+   ALL_ADAFLAGS   := ADAFLAGS & COMFLAGS;
+   ALL_CFLAGS     := CFLAGS & COMFLAGS;
+   GNARL_ADAFLAGS := ALL_ADAFLAGS & COMGNARLFLAGS;
+   GNARL_CFLAGS   := ALL_CFLAGS & COMGNARLFLAGS;
+
+end Target_Options;

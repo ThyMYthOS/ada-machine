@@ -79,7 +79,6 @@ i-fe310-plic.ads
 i-fe310.ads
 interfac.ads
 machcode.ads
-riscv_def.h
 s-addope.adb
 s-addope.ads
 s-aridou.adb

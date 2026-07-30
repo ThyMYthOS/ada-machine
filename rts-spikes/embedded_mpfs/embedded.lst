@@ -414,8 +414,6 @@ ioexcept.ads
 machcode.ads
 newlib-bb.c
 raise-gcc.c
-raise.h
-riscv_def.h
 s-addima.adb
 s-addima.ads
 s-addope.adb
@@ -1048,12 +1046,8 @@ s-wwdwch.adb
 s-wwdwch.ads
 start-ram.S
 system.ads
-tconfig.h
 text_io.ads
 trap_handler.S
-tsystem.h
 unchconv.ads
 unchdeal.ads
 unwind-dw2-fde-bb.c
-unwind-dw2-fde.h
-unwind-pe.h

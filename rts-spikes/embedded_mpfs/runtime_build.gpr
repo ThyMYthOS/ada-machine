@@ -1,0 +1,298 @@
+with "rts_sources_gcc15.gpr";
+with "rts_core_riscv64.gpr";
+with "rts_support_mpfs.gpr";
+with "target_options.gpr";
+with "gnat_user/embedded_mpfs_config.gpr";
+
+--  CONTRACT.md §3.4. This is the `embedded` leaf: the one profile in this
+--  spike that compiles C (the unwinder, raise-gcc.c) as well as Ada and
+--  preprocessed asm.
+
+project Runtime_Build is
+
+   for Languages use ("Ada", "Asm_Cpp", "C");
+   for Target use "riscv64-elf";
+   for Runtime ("Ada") use Project'Project_Dir;
+   for Library_Name use "gnat";
+   for Library_Kind use "static";
+   for Library_Dir use "adalib";
+   for Object_Dir use "obj";
+
+   --  ORDER IS LOAD-BEARING: board shadows core shadows shared
+   --  (RTS.md §2.1). src/ holds this leaf's own units (20 files, not just
+   --  system.ads/s-parame.*/s-bbpara.ads -- CONTRACT.md §3.4 and the 18
+   --  units later found to differ in content between profiles), so it
+   --  must precede the tier crates that would otherwise supply
+   --  same-named units.
+   for Source_Dirs use
+     ("gnat_user", "src",
+      Rts_Support_Mpfs.Src_Dir,
+      Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnat_Dir);
+
+   --  embedded.lst (1053 units, headers stripped per CONTRACT.md §7.2) is
+   --  this profile's TOTAL membership, spanning both libgnat and libgnarl
+   --  -- but Source_Dirs above has no libgnarl directory at all
+   --  (Rts_Sources_Gcc15.Gnarl_Dir is not listed), and tier 2/3's shared
+   --  directories physically hold a mix of both sides. Using embedded.lst
+   --  directly as this project's Source_List_File therefore fails two
+   --  ways at once: gprbuild reports "source file ... not found" for
+   --  every libgnarl-only name embedded.lst lists (it is genuinely absent
+   --  from these Source_Dirs), and, for the tier 2/3 names Source_Dirs
+   --  *does* reach, "unit ... cannot belong to several projects" once
+   --  Ravenscar_Build also claims them (both projects list the same tier
+   --  2/3 directories).
+   --
+   --  The fix is embedded.gnat.lst -- the 959-unit libgnat subset of
+   --  embedded.lst, split along the tier/gnat vs tier/gnarl attribution
+   --  in lists/embedded.gnat.tier1/2/3.lst + lists/embedded.gnat.leaf.lst
+   --  (concatenated, then re-derived as embedded.lst minus
+   --  embedded.gnarl.lst once those per-tier lists were found to still
+   --  include the 6 headers CONTRACT.md §7.2 says must not appear in
+   --  either Source_List_File; embedded.lst itself is untouched).
+   --  Verified: this file's 959 lines plus ravenscar_build.gpr's
+   --  embedded.gnarl.lst's 94 are disjoint and their union is exactly
+   --  embedded.lst's 1053 lines (`diff` empty, `sort | uniq -d` empty).
+   --  Restricting to only this project's 959 also resolves the "several
+   --  projects" conflict with no Excluded_Source_Files needed
+   --  (CONTRACT.md §7.1: Source_List_File alone is a restriction, so the
+   --  tier 2/3 files not named here are simply not selected by this
+   --  project at all; do not add Excluded_Source_Files too -- one of the
+   --  two would silently win).
+   for Source_List_File use "embedded.gnat.lst";
+
+   --  RTS.md §6, leaf responsibility: applications proving their own code
+   --  must not also analyse the runtime.
+   GPR_Tool := external ("GPR_TOOL", "");
+   case GPR_Tool is
+      when "gnatprove" =>
+         for Externally_Built use "True";
+      when others =>
+         null;
+   end case;
+
+   ---------------------------------------------------------------------
+   --  §3.7: ISA_Switches, exported for an application that wants to
+   --  apply the same ISA/ABI to its own units via
+   --  Builder.Global_Compilation_Switches (RTS.md §5.4).
+   --
+   --  This reads the SAME external()s as runtime.xml (§3.6), not
+   --  Hart_Class: a gprconfig <config> fragment cannot `with` this
+   --  project's generated config, so runtime.xml's actual injected
+   --  switches come from MPFS_ARCH/MPFS_ABI regardless of what
+   --  Hart_Class says. Deriving ISA_Switches from Hart_Class instead
+   --  would make this exported variable disagree with what the compiler
+   --  actually received whenever an application forgets to pass
+   --  -XMPFS_ARCH/-XMPFS_ABI to match its Hart_Class choice; reading the
+   --  same external()s keeps ISA_Switches truthful by construction. See
+   --  README.md "Two knobs, not one" for the resulting constraint on the
+   --  application (light_mpfs converged on the same fix independently).
+   ---------------------------------------------------------------------
+
+   MPFS_ARCH := external ("MPFS_ARCH", "rv64imafdc");
+   MPFS_ABI  := external ("MPFS_ABI",  "lp64d");
+
+   ISA_Switches := ("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI);
+
+   --  Hart_Class (the Alire config Enum) still independently drives
+   --  source selection below (Single_Hart / DTIM ownership) and
+   --  Max_Number_Of_CPUs's domain (src/s-bbpara.ads) -- see README.md
+   --  "Two knobs, not one" for why these two are not, and cannot be,
+   --  tied together mechanically.
+
+   ---------------------------------------------------------------------
+   --  §4/§3.7: Defsyms, the -Wl,--defsym= list for
+   --  rts_support_mpfs/ld/mpfs-memory.ld. GPR has no arithmetic
+   --  operators, so lengths are computed by ld itself: --defsym accepts
+   --  a full linker-script expression, including "N*128K" / "NK"
+   --  suffixes (verified: riscv64-elf-ld --defsym=X=3*128K resolves to
+   --  0x60000 = 3*128*1024).
+   ---------------------------------------------------------------------
+
+   --  UNVERIFIED: the L1 way size is a TRM item RTS-POLARFIRE.md §11
+   --  itself flags as not yet looked up. Pending that, this leaf assumes
+   --  4 total L1 ways per hart (CONTRACT.md caps ITIM_Ways/DTIM_Ways at
+   --  0..3, "leave one cache way" per RTS-POLARFIRE.md §5.3), so one way
+   --  is window-size / 4. Report/replace once the MSS TRM value is known.
+   ITIM_Way_Size := "7168";   --  28 KB / 4
+   DTIM_Way_Size := "2048";   --  8 KB / 4  (E51 only)
+
+   --  Which single hart (if any) Harts names. Harts is a plain String
+   --  (not an Alire Enum), but GPR `case` still works directly on an
+   --  untyped string variable with an "others" catch-all (verified).
+   --  Only a single hart can ever own a non-zero ITIM (RTS-POLARFIRE.md
+   --  §1.4/§5.3: multi-hart Harts with ITIM_Ways /= 0 is a tier-3
+   --  Compile_Time_Error), so "others" is the correct fallback for every
+   --  multi-hart or unrecognized Harts value -- all five ITIM lengths
+   --  are then correctly 0 regardless of which harts are actually named.
+   Single_Hart := "none";
+   case Embedded_Mpfs_Config.Harts is
+      when "0" => Single_Hart := "e51";
+      when "1" => Single_Hart := "u54_1";
+      when "2" => Single_Hart := "u54_2";
+      when "3" => Single_Hart := "u54_3";
+      when "4" => Single_Hart := "u54_4";
+      when others => null;
+   end case;
+
+   E51_ITIM_Len       := "0";
+   U54_1_ITIM_Len     := "0";
+   U54_2_ITIM_Len     := "0";
+   U54_3_ITIM_Len     := "0";
+   U54_4_ITIM_Len     := "0";
+   Local_ITIM_Origin  := "0x01808000";  --  u54_1's base; moot when LENGTH=0
+   Local_ITIM_Len     := "0";
+
+   case Single_Hart is
+      when "e51" =>
+         E51_ITIM_Len      := Embedded_Mpfs_Config.ITIM_Ways & "*" & ITIM_Way_Size;
+         Local_ITIM_Origin := "0x01800000";
+         Local_ITIM_Len    := E51_ITIM_Len;
+      when "u54_1" =>
+         U54_1_ITIM_Len    := Embedded_Mpfs_Config.ITIM_Ways & "*" & ITIM_Way_Size;
+         Local_ITIM_Origin := "0x01808000";
+         Local_ITIM_Len    := U54_1_ITIM_Len;
+      when "u54_2" =>
+         U54_2_ITIM_Len    := Embedded_Mpfs_Config.ITIM_Ways & "*" & ITIM_Way_Size;
+         Local_ITIM_Origin := "0x01810000";
+         Local_ITIM_Len    := U54_2_ITIM_Len;
+      when "u54_3" =>
+         U54_3_ITIM_Len    := Embedded_Mpfs_Config.ITIM_Ways & "*" & ITIM_Way_Size;
+         Local_ITIM_Origin := "0x01818000";
+         Local_ITIM_Len    := U54_3_ITIM_Len;
+      when "u54_4" =>
+         U54_4_ITIM_Len    := Embedded_Mpfs_Config.ITIM_Ways & "*" & ITIM_Way_Size;
+         Local_ITIM_Origin := "0x01820000";
+         Local_ITIM_Len    := U54_4_ITIM_Len;
+      when others =>
+         null;
+   end case;
+
+   --  DTIM: E51 only (RTS-POLARFIRE.md §1.4).
+   DTIM_Len := "0";
+   case Embedded_Mpfs_Config.Hart_Class is
+      when "e51" =>
+         DTIM_Len := Embedded_Mpfs_Config.DTIM_Ways & "*" & DTIM_Way_Size;
+      when "u54" =>
+         null;
+   end case;
+
+   --  L2: expressed in ways, 128 KB each (CONTRACT.md §4/§5).
+   LIM_Len        := Embedded_Mpfs_Config.L2_LIM_Ways & "*128K";
+   Scratchpad_Len := Embedded_Mpfs_Config.L2_Scratchpad_Ways & "*128K";
+
+   --  DDR: 0 (alias absent, the vendor's own idiom -- RTS-POLARFIRE.md
+   --  §1.3) whenever DDR_Present is False.
+   DDR_Cached_Len := "0";
+   DDR_NC_Len     := "0";
+   DDR_WCB_Len    := "0";
+   case Embedded_Mpfs_Config.DDR_Present is
+      when "True" =>
+         DDR_Cached_Len := Embedded_Mpfs_Config.DDR_Cached_KB & "K";
+         DDR_NC_Len     := Embedded_Mpfs_Config.DDR_NonCached_KB & "K";
+         DDR_WCB_Len    := Embedded_Mpfs_Config.DDR_WCB_KB & "K";
+      when "False" =>
+         null;
+      when others =>
+         --  Alire's Boolean config variables generate a plain untyped
+         --  "True"/"False" string, not a declared two-value enum type, so
+         --  GPR cannot itself verify the case above is exhaustive.
+         null;
+   end case;
+
+   Defsyms :=
+     ("-Wl,--defsym=MPFS_ENVM_LENGTH=0x1FF00",
+      "-Wl,--defsym=MPFS_DTIM_LENGTH=" & DTIM_Len,
+      "-Wl,--defsym=MPFS_E51_ITIM_LENGTH=" & E51_ITIM_Len,
+      "-Wl,--defsym=MPFS_U54_1_ITIM_LENGTH=" & U54_1_ITIM_Len,
+      "-Wl,--defsym=MPFS_U54_2_ITIM_LENGTH=" & U54_2_ITIM_Len,
+      "-Wl,--defsym=MPFS_U54_3_ITIM_LENGTH=" & U54_3_ITIM_Len,
+      "-Wl,--defsym=MPFS_U54_4_ITIM_LENGTH=" & U54_4_ITIM_Len,
+      "-Wl,--defsym=MPFS_LOCAL_ITIM_ORIGIN=" & Local_ITIM_Origin,
+      "-Wl,--defsym=MPFS_LOCAL_ITIM_LENGTH=" & Local_ITIM_Len,
+      "-Wl,--defsym=MPFS_LIM_LENGTH=" & LIM_Len,
+      "-Wl,--defsym=MPFS_SCRATCHPAD_LENGTH=" & Scratchpad_Len,
+      "-Wl,--defsym=MPFS_DDR_CACHED_LENGTH=" & DDR_Cached_Len,
+      "-Wl,--defsym=MPFS_DDR_NC_LENGTH=" & DDR_NC_Len,
+      "-Wl,--defsym=MPFS_DDR_WCB_LENGTH=" & DDR_WCB_Len);
+
+   ---------------------------------------------------------------------
+   --  §3.7: Linker_Switches -- -T/-L for the selected Memory_Profile.
+   --  Names verified directly against rts_support_mpfs/ld/ (its
+   --  committed scripts are "place-<profile>.ld", each `INCLUDE
+   --  mpfs-memory.ld`, not the "mpfs-<profile>.ld" this leaf originally
+   --  guessed from RTS-POLARFIRE.md §1.3's vendor names -- corrected
+   --  once rts_support_mpfs existed to check against). "envm_lma_
+   --  scratchpad_vma" has no committed script yet as of this writing
+   --  (only envm, lim, lim_lma_scratchpad_vma, ddr_by_bootloader do);
+   --  the name below follows the same pattern the other four use.
+   ---------------------------------------------------------------------
+
+   Placement_Script := "place-lim.ld";
+   case Embedded_Mpfs_Config.Memory_Profile is
+      when "envm" =>
+         Placement_Script := "place-envm.ld";
+      when "lim" =>
+         Placement_Script := "place-lim.ld";
+      when "lim_lma_scratchpad_vma" =>
+         Placement_Script := "place-lim-lma-scratchpad-vma.ld";
+      when "envm_lma_scratchpad_vma" =>
+         --  UNVERIFIED: no committed script for this profile as of this
+         --  writing (see comment above); name follows the pattern of
+         --  the other four.
+         Placement_Script := "place-envm-lma-scratchpad-vma.ld";
+      when "ddr_by_bootloader" =>
+         Placement_Script := "place-ddr-by-bootloader.ld";
+      when "system_partition" =>
+         --  RTS-POLARFIRE.md §6.1 point 3: generated, one per partition.
+         Placement_Script := "partition-" & Embedded_Mpfs_Config.MPFS_PARTITION & ".ld";
+   end case;
+
+   Linker_Switches :=
+     ("-L", Rts_Support_Mpfs.Ld_Dir,
+      "-T", Placement_Script);
+
+   package Compiler is
+      for Default_Switches ("C")       use Target_Options.ALL_CFLAGS;
+      for Default_Switches ("Ada")     use Target_Options.ALL_ADAFLAGS;
+      for Default_Switches ("Asm_Cpp") use Target_Options.ASMFLAGS;
+
+      --  Per-unit overrides carried over from the upstream
+      --  embedded-polarfiresoc runtime_build.gpr (task instruction: read
+      --  it and carry these over). RTS.md A.11: a `for Switches (...)`
+      --  override REPLACES Default_Switches rather than extending it, so
+      --  each one restates the base list explicitly.
+
+      --  Some runtime files need to be compiled with debug info, so that
+      --  gdb is not blind.
+      for Switches ("s-traceb.adb") use Target_Options.ALL_ADAFLAGS
+        & ("-g")
+        & ("-fno-optimize-sibling-calls", "-fno-inline-functions-called-once");
+      for Switches ("a-except.adb") use Target_Options.ALL_ADAFLAGS
+        & ("-g", "-O1", "-fno-inline", "-fno-toplevel-reorder");
+      for Switches ("s-excdeb.adb") use Target_Options.ALL_ADAFLAGS
+        & ("-g", "-O0");
+      for Switches ("s-assert.adb") use Target_Options.ALL_ADAFLAGS
+        & ("-g");
+      for Switches ("a-tags.adb") use Target_Options.ALL_ADAFLAGS
+        & ("-g");
+      for Switches ("raise-gcc.c") use Target_Options.ALL_CFLAGS
+        & ("-fexceptions");
+
+      --  Don't inline System.Machine_Reset otherwise we can lose our
+      --  common exit system.
+      for Switches ("s-macres.adb") use Target_Options.ALL_ADAFLAGS
+        & ("-fno-inline");
+
+      --  Generate ada_target_properties to give target-specific
+      --  information to formal verification tools.
+      for Switches ("system.ads") use Target_Options.ALL_ADAFLAGS
+        & ("-gnatet=" & Project'Project_Dir & "/ada_target_properties");
+
+      --  NOT carried over: upstream also overrides "unwind-sjlj-cert.c",
+      --  which is not part of this crate's unit set (embedded.lst has no
+      --  such entry -- rv64 uses the DWARF/table unwinder via
+      --  raise-gcc.c + unwind-dw2-fde-bb.c, not setjmp/longjmp).
+   end Compiler;
+
+end Runtime_Build;

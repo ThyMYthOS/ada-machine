@@ -1,0 +1,49 @@
+<?xml version="1.0" ?>
+
+<gprconfig>
+  <configuration>
+    <config><![CDATA[
+   type Loaders is ("RAM", "USER");
+   Loader : Loaders := external("LOADER", "RAM");
+   MPFS_ARCH := external("MPFS_ARCH", "rv64imafdc");
+   MPFS_ABI  := external("MPFS_ABI",  "lp64d");
+
+   package Compiler is
+      Common_Required_Switches := ("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI,
+                                   "-fno-tree-loop-distribute-patterns");
+
+      for Leading_Required_Switches ("Ada") use
+         Compiler'Leading_Required_Switches ("Ada") &
+         Common_Required_Switches;
+      for Leading_Required_Switches ("C") use
+         Compiler'Leading_Required_Switches ("C") &
+         Common_Required_Switches;
+      for Leading_Required_Switches ("C++") use
+         Compiler'Leading_Required_Switches ("C++") &
+         Common_Required_Switches;
+      for Leading_Required_Switches ("Asm") use
+         Compiler'Leading_Required_Switches ("Asm") &
+         Common_Required_Switches;
+      for Leading_Required_Switches ("Asm2") use
+         Compiler'Leading_Required_Switches ("Asm2") &
+         Common_Required_Switches;
+      for Leading_Required_Switches ("Asm_Cpp") use
+         Compiler'Leading_Required_Switches ("Asm_Cpp") &
+         Common_Required_Switches;
+   end Compiler;
+
+   --  No link group here: that is embedded-only (RTS.md A.14 -- without
+   --  it embedded's link fails with ~30 undefined memcpy/memset
+   --  references; light-tasking needs no such group).
+   package Linker is
+      for Required_Switches use Linker'Required_Switches &
+        ("-Wl,-L${RUNTIME_DIR(Ada)}/adalib",
+         "-nostartfiles", "-nolibc",
+         "-L${RUNTIME_DIR(ada)}/ld_user",
+         "-L${RUNTIME_DIR(ada)}/ld") &
+         Compiler.Common_Required_Switches;
+   end Linker;
+]]>
+   </config>
+  </configuration>
+</gprconfig>

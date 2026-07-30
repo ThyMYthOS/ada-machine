@@ -1,0 +1,85 @@
+with "rts_sources_gcc15.gpr";
+with "rts_core_riscv64.gpr";
+with "rts_support_mpfs.gpr";
+with "target_options.gpr";
+with "runtime_build.gpr";
+
+--  CONTRACT.md §3.4: the second library project every tasking/embedded
+--  leaf owns, producing libgnarl.a into the *same* adalib as
+--  runtime_build.gpr's libgnat.a (RTS.md §1).
+
+project Ravenscar_Build is
+
+   for Languages use ("Ada", "Asm_Cpp");
+
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+   for Target use Runtime_Build'Target;
+
+   for Library_Name use "gnarl";
+   for Library_Kind use "static";
+   for Library_Dir use "adalib";
+   for Object_Dir use "obj";
+
+   --  Tier 2 (rts_core_riscv64) holds only the CPU-primitives layer
+   --  (System.BB.CPU_Primitives / CPU_Specific, the context-switch asm);
+   --  the tasking kernel units (System.BB.Threads, .Time, .Interrupts,
+   --  .Protection, ...) are part of tier 1's libgnarl snapshot, not tier
+   --  2 -- both directories are therefore required here.
+   --
+   --  "src" (this leaf's own directory) is ALSO required here, which is
+   --  a correction against CONTRACT.md §3.4's original template: six of
+   --  the 18 units later found to differ in content between profiles are
+   --  GNARL-side (s-bbpara.ads, s-taskin.ads, s-tpobop.ad[sb],
+   --  s-tposen.ad[sb] -- lists/embedded.gnarl.leaf.lst) and live only in
+   --  src/, not in any tier crate. Listed first, matching
+   --  runtime_build.gpr's own ordering, so it would shadow a same-named
+   --  tier file if one ever existed; Source_List_File (embedded.gnarl.lst
+   --  below) already restricts this project to its own 6 of src/'s 20
+   --  files, so this is safe even though "src" is also in
+   --  runtime_build.gpr's Source_Dirs.
+   for Source_Dirs use
+     ("gnarl_user", "src",
+      Rts_Support_Mpfs.Src_Dir,
+      Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnarl_Dir);
+
+   --  embedded.gnarl.lst -- the 94-unit libgnarl complement of
+   --  runtime_build.gpr's 959-unit embedded.gnat.lst; see the long
+   --  comment there for why embedded.lst's full 1053-unit list (CONTRACT
+   --  §7.2: headers stripped) cannot be used directly as either project's
+   --  Source_List_File, and why Excluded_Source_Files must not be added
+   --  alongside this attribute (CONTRACT §7.1). Concatenated from
+   --  lists/embedded.gnarl.tier1/2/3.lst + lists/embedded.gnarl.leaf.lst;
+   --  embedded.lst itself is untouched.
+   for Source_List_File use "embedded.gnarl.lst";
+
+   GPR_Tool := external ("GPR_TOOL", "");
+   case GPR_Tool is
+      when "gnatprove" =>
+         for Externally_Built use "True";
+      when others =>
+         null;
+   end case;
+
+   package Compiler is
+      for Default_Switches ("Ada")     use Target_Options.GNARL_ADAFLAGS;
+      for Default_Switches ("Asm_Cpp") use Target_Options.ASMFLAGS;
+
+      --  Carried over from the upstream embedded-polarfiresoc
+      --  ravenscar_build.gpr (same rationale as runtime_build.gpr: RTS.md
+      --  A.11, per-file Switches replace rather than extend
+      --  Default_Switches).
+
+      --  Always build System.BB.CPU_Primitives at -O2 as some targets
+      --  may make use of inline assembly that relies on specific
+      --  compiler behaviour to load constants that are not enabled at
+      --  -O0.
+      for Switches ("s-bbcppr.adb") use Target_Options.GNARL_ADAFLAGS & ("-O2");
+
+      --  Some runtime files need to be compiled with debug info, so that
+      --  gdb is not blind.
+      for Switches ("s-tasdeb.adb") use Target_Options.ALL_ADAFLAGS
+        & ("-g", "-O0");
+   end Compiler;
+
+end Ravenscar_Build;
