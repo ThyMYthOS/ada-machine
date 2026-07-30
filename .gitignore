@@ -1,0 +1,4 @@
+
+# Stray compiler output from verification probes
+*.ali
+*.o

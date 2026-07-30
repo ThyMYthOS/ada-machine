@@ -104,11 +104,7 @@ a-decima.adb
 a-decima.ads
 a-einuoc.adb
 a-einuoc.ads
-a-elchha.adb
-a-elchha.ads
 a-excach.adb
-a-except.adb
-a-except.ads
 a-exctra.adb
 a-exctra.ads
 a-exexda.adb
@@ -206,8 +202,6 @@ a-strmap.adb
 a-strmap.ads
 a-strsea.adb
 a-strsea.ads
-a-strsup.adb
-a-strsup.ads
 a-strunb.adb
 a-strunb.ads
 a-sttebu.adb
@@ -276,8 +270,6 @@ a-szunau.adb
 a-szunau.ads
 a-szuzha.adb
 a-szuzha.ads
-a-tags.adb
-a-tags.ads
 a-textio.adb
 a-textio.ads
 a-unccon.ads
@@ -385,7 +377,6 @@ ioexcept.ads
 machcode.ads
 newlib-bb.c
 raise-gcc.c
-raise.h
 s-addima.adb
 s-addima.ads
 s-addope.adb
@@ -398,7 +389,6 @@ s-arit32.adb
 s-arit32.ads
 s-arit64.adb
 s-arit64.ads
-s-assert.adb
 s-assert.ads
 s-atacco.adb
 s-atacco.ads
@@ -568,8 +558,6 @@ s-mantis.adb
 s-mantis.ads
 s-mastop.adb
 s-mastop.ads
-s-memory.adb
-s-memory.ads
 s-oslock.ads
 s-pack03.adb
 s-pack03.ads
@@ -942,11 +930,7 @@ s-wwdenu.adb
 s-wwdenu.ads
 s-wwdwch.adb
 s-wwdwch.ads
-tconfig.h
 text_io.ads
-tsystem.h
 unchconv.ads
 unchdeal.ads
 unwind-dw2-fde-bb.c
-unwind-dw2-fde.h
-unwind-pe.h

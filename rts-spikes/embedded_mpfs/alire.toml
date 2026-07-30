@@ -1,0 +1,151 @@
+name = "embedded_mpfs"
+description = "PolarFire SoC embedded runtime: Ravenscar tasking + full exceptions"
+long-description = """
+The `embedded` leaf for Microchip PolarFire SoC (riscv64-elf), per
+CONTRACT.md section 3 and RTS-POLARFIRE.md. Full exception propagation (the
+zero-cost/C unwinder, `raise-gcc.c`), the C unwinder itself (this crate is
+the one leaf whose `Languages` includes `"C"`), and Ravenscar tasking --
+two library projects, `runtime_build.gpr` (libgnat) and `ravenscar_build.gpr`
+(libgnarl), assembled from three source-only tier crates
+(`rts_sources_gcc15`, `rts_core_riscv64`, `rts_support_mpfs`) plus the
+leaf-owned units in `src/`. Largest of the three profiles in this spike
+(1059 units against light's 513).
+"""
+version = "0.1.0-dev"
+licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
+authors = ["Free Software Foundation", "AdaCore"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
+
+# CONTRACT.md section 4: profile is a crate, and the mechanism is
+# `provides`. This is the `embedded` leaf, so -- like light_tasking_mpfs --
+# it satisfies any library's "I need a tasking runtime" dependency
+# (RTS.md section 4).
+provides = ["gnat_rts_tasking=0.1.0"]
+
+[configuration]
+output_dir = "gnat_user"
+generate_c = false
+
+# CONTRACT.md section 3.2 -- names and defaults are pinned.
+
+[configuration.variables.Hart_Class]
+type = "Enum"
+values = ["e51", "u54"]
+default = "u54"
+
+[configuration.variables.Harts]
+type = "String"
+default = "1"
+
+[configuration.variables.Privilege]
+type = "Enum"
+values = ["m_mode", "s_mode"]
+default = "m_mode"
+
+[configuration.variables.Memory_Profile]
+type = "Enum"
+values = [
+   "envm",
+   "lim",
+   "lim_lma_scratchpad_vma",
+   "envm_lma_scratchpad_vma",
+   "ddr_by_bootloader",
+   "system_partition",
+]
+default = "lim"
+
+[configuration.variables.L2_Cache_Ways]
+type = "Integer"
+first = 0
+last = 16
+default = 1
+
+[configuration.variables.L2_LIM_Ways]
+type = "Integer"
+first = 0
+last = 16
+default = 15
+
+[configuration.variables.L2_Scratchpad_Ways]
+type = "Integer"
+first = 0
+last = 16
+default = 0
+
+[configuration.variables.ITIM_Ways]
+type = "Integer"
+first = 0
+last = 3
+default = 0
+
+[configuration.variables.DTIM_Ways]
+type = "Integer"
+first = 0
+last = 3
+default = 0
+
+[configuration.variables.DDR_Present]
+type = "Boolean"
+default = false
+
+# KB knobs: upper bounds are the largest alias each names (RTS-POLARFIRE.md
+# section 1.2): 1 GiB for the 38-bit cached alias, 256 MiB for the 32-bit
+# NC/WCB aliases. Not pinned by CONTRACT.md; chosen generously (see
+# README.md).
+
+[configuration.variables.DDR_Cached_KB]
+type = "Integer"
+first = 0
+last = 1048576
+default = 0
+
+[configuration.variables.DDR_NonCached_KB]
+type = "Integer"
+first = 0
+last = 262144
+default = 0
+
+[configuration.variables.DDR_WCB_KB]
+type = "Integer"
+first = 0
+last = 262144
+default = 0
+
+[configuration.variables.Console]
+type = "Enum"
+values = ["mmuart0", "mmuart1", "mmuart2", "mmuart3", "mmuart4", "ram_fifo", "none"]
+default = "mmuart0"
+
+[configuration.variables.Interrupt_Stack_Size]
+type = "Integer"
+first = 256
+last = 1048576
+default = 8192
+
+[configuration.variables.Secondary_Stack_Size]
+type = "Integer"
+first = 0
+last = 1048576
+default = 2048
+
+[configuration.variables.MPFS_PARTITION]
+type = "String"
+default = ""
+
+[[depends-on]]
+gnat_riscv64_elf = "^15"
+rts_sources_gcc15 = "*"
+rts_core_riscv64 = "*"
+rts_support_mpfs = "*"
+
+# Siblings in this same spike tree, not published anywhere -- pin them by
+# relative path (RTS.md section 2.2, verified: pins declared in a
+# *dependency's* own manifest propagate transitively to whatever depends
+# on it, so an application need only pin embedded_mpfs itself; see
+# README.md).
+[[pins]]
+rts_sources_gcc15 = { path = "../rts_sources_gcc15" }
+rts_core_riscv64 = { path = "../rts_core_riscv64" }
+rts_support_mpfs = { path = "../rts_support_mpfs" }

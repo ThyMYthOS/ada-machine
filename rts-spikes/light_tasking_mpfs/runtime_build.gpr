@@ -1,0 +1,208 @@
+--  Leaf (CONTRACT.md §3.4): the light-tasking (Ravenscar/Jorvik) libgnat
+--  half. Composes tier 1/2/3 source-only crates plus this crate's own
+--  leaf-owned units ("src") and configuration ("gnat_user"). Produces --
+--  does not ship -- adalib/libgnat.a. See ravenscar_build.gpr for libgnarl.
+
+with "rts_sources_gcc15.gpr";
+with "rts_core_riscv64.gpr";
+with "rts_support_mpfs.gpr";
+with "gnat_user/light_tasking_mpfs_config.gpr";
+with "target_options.gpr";
+
+project Runtime_Build is
+
+   for Languages use ("Ada", "Asm_Cpp");
+   for Target use "riscv64-elf";
+   for Runtime ("Ada") use Project'Project_Dir;
+
+   for Library_Name use "gnat";
+   for Library_Kind use "static";
+   for Library_Dir use "adalib";
+   for Object_Dir use "obj";
+
+   --  ORDER IS LOAD-BEARING (RTS.md §2.1): board (tier 3) shadows core
+   --  (tier 2) shadows shared (tier 1); "gnat_user"/"src" (this leaf)
+   --  shadow everything. No Gnarl_Dir here -- this project's Source_List_
+   --  File (below) already names only this project's own members, so
+   --  there is nothing to reach for in the other tier-1 half and nothing
+   --  to subtract (CONTRACT.md §7.1: Source_List_File alone is correct;
+   --  Excluded_Source_Files/Excluded_Source_List_File are not used at
+   --  all -- combining either with Source_List_File warns "both
+   --  attributes ... are present" and one silently wins, and having both
+   --  tier-1 dirs present made every unit in the shared list a candidate
+   --  for both library projects at once: "unit ... cannot belong to
+   --  several projects").
+   for Source_Dirs use
+     ("gnat_user", "src",
+      Rts_Support_Mpfs.Src_Dir,
+      Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnat_Dir);
+
+   --  This project's own membership (513 units): a disjoint partition of
+   --  light-tasking.lst (601), generated together with
+   --  light-tasking.gnarl.lst (88) for ravenscar_build.gpr -- the two sum
+   --  to exactly 601, so every unit belongs to exactly one library
+   --  project. light-tasking.lst itself stays as provenance and is not
+   --  used as a Source_List_File by either project.
+   for Source_List_File use "light-tasking.gnat.lst";
+
+   ------------------------------------------------------------------
+   --  §3.7 exported variables -- the application's interface
+   ------------------------------------------------------------------
+
+   ISA_Switches :=
+     ("-march=" & external ("MPFS_ARCH", "rv64imafdc"),
+      "-mabi=" & external ("MPFS_ABI", "lp64d"));
+
+   --  Memory_Profile selects a committed placement script (CONTRACT.md
+   --  §3.6/§6.1); all profiles share one mpfs-memory.ld with symbolic
+   --  region lengths supplied below via Defsyms. system_partition (the
+   --  generated, per-partition placement, CONTRACT.md §4) is out of
+   --  scope for this leaf and falls back to the lim script below.
+   --
+   --  Filenames match what rts_support_mpfs/ld actually contains
+   --  ("place-*.ld", not "placement-*.ld"). Each place-*.ld does its own
+   --  "INCLUDE mpfs-memory.ld" (a bare, relative name), so that file is
+   --  NOT also passed as a second -T below -- it is reached via -L
+   --  (Rts_Support_Mpfs.Ld_Dir) instead, which is what makes the bare
+   --  INCLUDE resolve. Passing it as a second -T risked a "MEMORY region
+   --  already defined" clash with the INCLUDE.
+   Placement_Script := "place-lim.ld";
+   case Light_Tasking_Mpfs_Config.Memory_Profile is
+      when "envm"                    => Placement_Script := "place-envm.ld";
+      when "lim"                     => Placement_Script := "place-lim.ld";
+      when "lim_lma_scratchpad_vma"  => Placement_Script := "place-lim-lma-scratchpad-vma.ld";
+      when "envm_lma_scratchpad_vma" => Placement_Script := "place-envm-lma-scratchpad-vma.ld"; --  UNVERIFIED: not yet present in rts_support_mpfs/ld (as of this writing)
+      when "ddr_by_bootloader"       => Placement_Script := "place-ddr-by-bootloader.ld";
+      when "system_partition"        => Placement_Script := "place-lim.ld"; --  UNVERIFIED: system_partition is generated (mpfs_system, P4); not produced by this leaf
+   end case;
+
+   --  --defsym symbol names are pinned (CONTRACT.md §4). ld accepts a full
+   --  arithmetic expression as a --defsym value (verified directly against
+   --  the pinned riscv64-elf ld: "(15*128K)" evaluated to exactly
+   --  0x1E0000), so the multiplication by the per-way size happens in ld,
+   --  not in GPR (GPR has no arithmetic operators of its own).
+   Defsym_Envm_Length       := "MPFS_ENVM_LENGTH=0x1FF00";
+   Defsym_Lim_Length        := "MPFS_LIM_LENGTH=(" & Light_Tasking_Mpfs_Config.L2_LIM_Ways & "*128K)";
+   Defsym_Scratchpad_Length := "MPFS_SCRATCHPAD_LENGTH=(" & Light_Tasking_Mpfs_Config.L2_Scratchpad_Ways & "*128K)";
+
+   --  GPR project variables are untyped (an explicit "X : String := ..."
+   --  fails with "unknown string type" -- verified directly against this
+   --  gprbuild) and GPR has no "(if ... then ... else ...)" expression
+   --  (verified: "cannot be part of an expression") -- its only
+   --  conditional is the "case" statement used throughout this file.
+   Defsym_Ddr_Cached_Length := "MPFS_DDR_CACHED_LENGTH=0";
+   Defsym_Ddr_Nc_Length     := "MPFS_DDR_NC_LENGTH=0";
+   Defsym_Ddr_Wcb_Length    := "MPFS_DDR_WCB_LENGTH=0";
+   case Light_Tasking_Mpfs_Config.DDR_Present is
+      when "True" =>
+         Defsym_Ddr_Cached_Length :=
+           "MPFS_DDR_CACHED_LENGTH=(" & Light_Tasking_Mpfs_Config.DDR_Cached_KB & "K)";
+         Defsym_Ddr_Nc_Length :=
+           "MPFS_DDR_NC_LENGTH=(" & Light_Tasking_Mpfs_Config.DDR_NonCached_KB & "K)";
+         Defsym_Ddr_Wcb_Length :=
+           "MPFS_DDR_WCB_LENGTH=(" & Light_Tasking_Mpfs_Config.DDR_WCB_KB & "K)";
+      when others =>
+         null; --  DDR_Present = False: the vendor's own idiom for "absent" (RTS-POLARFIRE.md §1.3)
+   end case;
+
+   --  UNVERIFIED: the L1-I/L1-D per-way byte size is not given in
+   --  CONTRACT.md or RTS-POLARFIRE.md -- RTS-POLARFIRE.md §11 item 5
+   --  flags it as still to confirm from the TRM. ITIM_Ways/DTIM_Ways
+   --  default to 0, so "0 * <anything>" is 0 regardless; this only
+   --  matters once either is set non-zero. Placeholder only.
+   L1_I_Way_Size := "7K";  --  UNVERIFIED: 28 KB ITIM window / 4 (ITIM_Ways range 0..3 => 4 slots)
+   L1_D_Way_Size := "2K";  --  UNVERIFIED: 8 KB DTIM window / 4 (DTIM_Ways range 0..3 => 4 slots)
+
+   Defsym_E51_Itim_Length := "MPFS_E51_ITIM_LENGTH=0";
+   Defsym_Dtim_Length     := "MPFS_DTIM_LENGTH=0";
+
+   --  Per-hart U54 ITIM: which of the four slots is "owned" depends on
+   --  the actual value(s) in Harts, not just the count -- so this can
+   --  only be resolved for the validated single-hart case (RTS-POLARFIRE
+   --  §5.3: multi-hart Harts with ITIM_Ways /= 0 is a tier-3 validation
+   --  error, not something derivable here). ITIM_Ways = 0 (the default)
+   --  makes every branch below evaluate to 0 regardless of hart.
+   U54_1_Itim_Length := "0";
+   U54_2_Itim_Length := "0";
+   U54_3_Itim_Length := "0";
+   U54_4_Itim_Length := "0";
+   Local_Itim_Origin := "0x01800000"; --  default: E51 window
+   Local_Itim_Length := "0";
+
+   case Light_Tasking_Mpfs_Config.Hart_Class is
+      when "e51" =>
+         Defsym_E51_Itim_Length :=
+           "MPFS_E51_ITIM_LENGTH=(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
+         Defsym_Dtim_Length :=
+           "MPFS_DTIM_LENGTH=(" & Light_Tasking_Mpfs_Config.DTIM_Ways & "*" & L1_D_Way_Size & ")";
+      when "u54" =>
+         null; --  neither E51 ITIM nor DTIM exist on this hart class; both left at 0
+   end case;
+
+   case Light_Tasking_Mpfs_Config.Hart_Class is
+      when "e51" =>
+         Local_Itim_Origin := "0x01800000";
+         Local_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
+      when "u54" =>
+         case Light_Tasking_Mpfs_Config.Harts is
+            when "1" =>
+               U54_1_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
+               Local_Itim_Origin := "0x01808000";
+               Local_Itim_Length := U54_1_Itim_Length;
+            when "2" =>
+               U54_2_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
+               Local_Itim_Origin := "0x01810000";
+               Local_Itim_Length := U54_2_Itim_Length;
+            when "3" =>
+               U54_3_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
+               Local_Itim_Origin := "0x01818000";
+               Local_Itim_Length := U54_3_Itim_Length;
+            when "4" =>
+               U54_4_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
+               Local_Itim_Origin := "0x01820000";
+               Local_Itim_Length := U54_4_Itim_Length;
+            when others =>
+               null; --  multi-hart Harts: no single local_itim; left at 0
+         end case;
+   end case;
+
+   Defsyms := ("-Wl,--defsym=" & Defsym_Envm_Length,
+               "-Wl,--defsym=" & Defsym_Lim_Length,
+               "-Wl,--defsym=" & Defsym_Scratchpad_Length,
+               "-Wl,--defsym=" & Defsym_Ddr_Cached_Length,
+               "-Wl,--defsym=" & Defsym_Ddr_Nc_Length,
+               "-Wl,--defsym=" & Defsym_Ddr_Wcb_Length,
+               "-Wl,--defsym=" & Defsym_E51_Itim_Length,
+               "-Wl,--defsym=" & Defsym_Dtim_Length,
+               "-Wl,--defsym=MPFS_U54_1_ITIM_LENGTH=" & U54_1_Itim_Length,
+               "-Wl,--defsym=MPFS_U54_2_ITIM_LENGTH=" & U54_2_Itim_Length,
+               "-Wl,--defsym=MPFS_U54_3_ITIM_LENGTH=" & U54_3_Itim_Length,
+               "-Wl,--defsym=MPFS_U54_4_ITIM_LENGTH=" & U54_4_Itim_Length,
+               "-Wl,--defsym=MPFS_LOCAL_ITIM_ORIGIN=" & Local_Itim_Origin,
+               "-Wl,--defsym=MPFS_LOCAL_ITIM_LENGTH=" & Local_Itim_Length);
+
+   Linker_Switches :=
+     ("-L", Rts_Support_Mpfs.Ld_Dir, --  so place-*.ld's own "INCLUDE mpfs-memory.ld" resolves
+      "-T", Rts_Support_Mpfs.Ld_Dir & "/" & Placement_Script) & Defsyms;
+
+   ------------------------------------------------------------------
+   --  Compiler switches -- matching the shipped light-tasking-
+   --  polarfiresoc runtime's own runtime_build.gpr (read from the
+   --  installed gnat_riscv64_elf 15.1.2 toolchain) so this leaf is not
+   --  guessing at conventions the vendor runtime already settled.
+   ------------------------------------------------------------------
+
+   package Compiler is
+      for Default_Switches ("Ada") use Target_Options.ALL_ADAFLAGS & ISA_Switches;
+      for Default_Switches ("Asm_Cpp") use Target_Options.ASMFLAGS & ISA_Switches;
+
+      for Switches ("a-except.adb") use Target_Options.ALL_ADAFLAGS & ISA_Switches
+        & ("-g", "-O1", "-fno-inline", "-fno-toplevel-reorder");
+      for Switches ("s-macres.adb") use Target_Options.ALL_ADAFLAGS & ISA_Switches
+        & ("-fno-inline");
+      for Switches ("system.ads") use Target_Options.ALL_ADAFLAGS & ISA_Switches
+        & ("-gnatet=" & Project'Project_Dir & "ada_target_properties");
+   end Compiler;
+
+end Runtime_Build;

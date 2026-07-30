@@ -1,6 +1,5 @@
 i-fe310-plic.ads
 i-fe310.ads
-riscv_def.h
 s-bbbopa.ads
 s-macres.adb
 s-macres.ads

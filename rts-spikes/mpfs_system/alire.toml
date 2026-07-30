@@ -1,5 +1,17 @@
 name = "mpfs_system"
-description = "PolarFire SoC AMP system description: generated cross-partition data + linker fragments (stand-in)"
+description = "PolarFire SoC AMP system description (generated data, stand-in)"
+long-description = """
+The generated AMP system description for the PolarFire SoC rts-spikes
+(CONTRACT.md; RTS-POLARFIRE.md §4): a `Pure` Ada spec holding a worked
+three-partition Icicle-Kit-like example (Monitor/E51, App_Smp/U54 1-2,
+App_Single/U54 3) as static data, plus the `pragma Compile_Time_Error`
+cross-partition checks only a crate that sees every partition can make
+(window overlap, hart collisions, MMUART collisions, hardware maxima,
+an IPC window in a cached region), and the per-partition linker
+placement scripts. Hand-written stand-in for what a fork of
+Microchip's `mpfs_configuration_generator.py` would emit from the MSS
+Configurator XML and the HSS payload YAML -- see README.md.
+"""
 version = "0.1.0-dev"
 licenses = "Apache-2.0 WITH LLVM-exception"
 authors = ["Manuel Stahl"]

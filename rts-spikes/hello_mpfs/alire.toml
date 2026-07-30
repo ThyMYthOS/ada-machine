@@ -1,0 +1,25 @@
+name = "hello_mpfs"
+description = "Example: hello world on PolarFire SoC via light_mpfs"
+long-description = """
+Minimal application proving the seven-crate composition links a real
+PolarFire SoC image. Built for the `light` profile with
+`Memory_Profile => lim`, which needs no DDR, no HSS memory setup and no
+L2 programming -- LIM is 1920 KB at reset (RTS-POLARFIRE.md 1.2.1).
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+executables = ["hello_mpfs"]
+
+[[depends-on]]
+light_mpfs = "*"
+
+[[pins]]
+light_mpfs = { path = "../light_mpfs" }
+
+[configuration.values]
+light_mpfs.Hart_Class     = "u54"
+light_mpfs.Harts          = "1"
+light_mpfs.Memory_Profile = "lim"

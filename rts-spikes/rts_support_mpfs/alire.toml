@@ -1,0 +1,31 @@
+name = "rts_support_mpfs"
+description = "PolarFire SoC board-support layer for the bare-board RTS spike"
+long-description = """
+Tier-3, source-only board-support crate for the Microchip PolarFire SoC
+(one E51 monitor core plus four U54 application cores, riscv64-elf). It
+is **never built by Alire**: like the other two source-only crates in
+this spike it needs `-gnatg -nostdinc`, the cross compiler, and no
+runtime yet selected -- a bootstrap cycle only the three buildable leaf
+crates (`light_mpfs`, `light_tasking_mpfs`, `embedded_mpfs`) complete.
+
+Ships `System.BB.Board_Parameters` (now configuration-driven, see
+`src/s-bbbopa.ads`), `System.BB.Board_Support` plus the RISC-V PLIC
+driver, the FE310/PLIC register interfaces, `a-intnam.ads`,
+`start-ram.S`, `System.Text_IO`, `System.Machine_Reset`, the
+`MPFS_Runtime_Config` validation spec (`src/mpfs-config_checks.ads`),
+and the shared linker memory map (`ld/mpfs-memory.ld`) plus the five
+committed `Memory_Profile` placement scripts.
+
+The sources are **not vendored** in this repository: `make populate`
+copies them out of the locally installed `gnat_riscv64_elf` 15.1.2
+toolchain, named by the committed `src.lst`. A fresh clone therefore
+does not build until `make populate` has run -- see CONTRACT.md S1 and
+this crate's own `README.md`.
+"""
+version = "0.1.0-dev"
+licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
+authors = ["Free Software Foundation", "AdaCore"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+auto-gpr-with = false
+project-files = ["rts_support_mpfs.gpr"]

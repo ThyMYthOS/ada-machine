@@ -1,0 +1,74 @@
+--  Leaf (CONTRACT.md §3.4): the light-tasking (Ravenscar/Jorvik) libgnarl
+--  half. Withs runtime_build.gpr and reuses its exported switches so the
+--  two library projects agree on ISA/ABI. Produces -- does not ship --
+--  adalib/libgnarl.a, into the SAME adalib directory as libgnat.a.
+
+with "rts_sources_gcc15.gpr";
+with "rts_core_riscv64.gpr";
+with "rts_support_mpfs.gpr";
+with "target_options.gpr";
+with "runtime_build.gpr";
+
+project Ravenscar_Build is
+
+   for Languages use ("Ada", "Asm_Cpp");
+   for Target use Runtime_Build'Target;
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+
+   for Library_Name use "gnarl";
+   for Library_Kind use "static";
+   for Library_Dir use "adalib";
+   for Object_Dir use "obj";
+
+   --  ORDER IS LOAD-BEARING (RTS.md §2.1), mirroring runtime_build.gpr:
+   --  "gnarl_user" (config shim) then "src" (this leaf -- see below) then
+   --  tier 3 then tier 2 then this project's own tier-1 half
+   --  (Gnarl_Dir). No Gnat_Dir here, for the same reason runtime_build.gpr
+   --  has no Gnarl_Dir: this project's Source_List_File (below) already
+   --  names only this project's own members, so there is nothing to
+   --  reach for in the other tier-1 half (CONTRACT.md §7.1 -- see
+   --  runtime_build.gpr's comment for the "cannot belong to several
+   --  projects" failure this avoids).
+   --
+   --  "src" is required, not optional: 6 of the 20 leaf-owned units are
+   --  gnarl-side -- System.Tasking's spec, two child packages, AND
+   --  System.BB.Parameters (s-bbpara.ads: conceptually tasking-kernel
+   --  data, and grouped with the tasking profile's own leaf-owned units
+   --  even though CONTRACT.md §3.4's Source_Dirs snippet for this project
+   --  omits "src" -- that snippet is incomplete). Their companion
+   --  bodies/specs live in rts_sources_gcc15/libgnarl and reference them
+   --  as ordinary same-library units, which needs them in this project's
+   --  own Source_Dirs (not merely reachable through ada_source_path,
+   --  which is for cross-*library* references only).
+   for Source_Dirs use
+     ("gnarl_user", "src",
+      Rts_Support_Mpfs.Src_Dir,
+      Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnarl_Dir);
+
+   --  This project's own membership (88 units): a disjoint partition of
+   --  light-tasking.lst (601), generated together with
+   --  light-tasking.gnat.lst (513) for runtime_build.gpr -- see its
+   --  matching comment.
+   for Source_List_File use "light-tasking.gnarl.lst";
+
+   ------------------------------------------------------------------
+   --  Compiler switches -- matching the shipped light-tasking-
+   --  polarfiresoc runtime's own ravenscar_build.gpr (read from the
+   --  installed gnat_riscv64_elf 15.1.2 toolchain).
+   ------------------------------------------------------------------
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        Target_Options.GNARL_ADAFLAGS & Runtime_Build.ISA_Switches;
+      for Default_Switches ("Asm_Cpp") use
+        Target_Options.ASMFLAGS & Runtime_Build.ISA_Switches;
+
+      --  Always build System.BB.CPU_Primitives at -O2: some targets rely
+      --  on specific compiler behaviour for inline asm operand loading
+      --  that is not reliable at -O0 (upstream comment, preserved).
+      for Switches ("s-bbcppr.adb") use
+        Target_Options.GNARL_ADAFLAGS & Runtime_Build.ISA_Switches & ("-O2");
+   end Compiler;
+
+end Ravenscar_Build;

@@ -1,0 +1,7 @@
+gnat_user
+src
+../rts_support_mpfs/src
+../rts_core_riscv64/src
+../rts_sources_gcc15/libgnat
+gnarl_user
+../rts_sources_gcc15/libgnarl

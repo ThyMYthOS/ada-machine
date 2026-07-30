@@ -24,6 +24,9 @@ copy() {   # copy <list> <dest> <src-dir>...
 L=$T/light-polarfiresoc; LT=$T/light-tasking-polarfiresoc; E=$T/embedded-polarfiresoc
 
 echo "rts_sources_gcc15"
+# libgnat.lst now excludes every profile-variant unit (lists/profile-variant.lst),
+# so any profile is a valid source for the rest. Search order is still
+# widest-first because embedded ships units the narrower profiles omit.
 copy "$here/rts_sources_gcc15/libgnat.lst"  "$here/rts_sources_gcc15/libgnat"  "$E/gnat"  "$LT/gnat"  "$L/gnat"
 copy "$here/rts_sources_gcc15/libgnarl.lst" "$here/rts_sources_gcc15/libgnarl" "$E/gnarl" "$LT/gnarl"
 echo "rts_core_riscv64"
@@ -40,7 +43,12 @@ for p in light:light_mpfs light-tasking:light_tasking_mpfs embedded:embedded_mpf
   for d in gnat gnarl; do
     lst="$here/lists/$prof.$d.leaf.lst"
     [ -f "$lst" ] && while read -r f; do
-      [ -n "$f" ] && [ -f "$T/$prof-polarfiresoc/$d/$f" ] && cp "$T/$prof-polarfiresoc/$d/$f" "$here/$crate/src/$f"
+      # Never clobber a leaf source that has been edited: these files are
+      # deliberately modified (s-bbbopa/s-bbpara read MPFS_Runtime_Config).
+      # Use FORCE_LEAF_SRC=1 to re-copy pristine upstream copies.
+      [ -n "$f" ] && [ -f "$T/$prof-polarfiresoc/$d/$f" ] && \
+        { [ -z "${FORCE_LEAF_SRC:-}" ] && [ -f "$here/$crate/src/$f" ] \
+          || cp "$T/$prof-polarfiresoc/$d/$f" "$here/$crate/src/$f"; }
     done < "$lst"
   done
   echo "  -> $crate/src: $(ls "$here/$crate/src" | wc -l | tr -d ' ') files"

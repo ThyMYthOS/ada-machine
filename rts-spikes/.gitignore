@@ -1,10 +1,6 @@
 # CONTRACT.md §1: runtime sources are copied by populate.sh, never committed
 rts_sources_gcc15/libgnat/
 rts_sources_gcc15/libgnarl/
-rts_core_riscv64/src/
-rts_support_mpfs/src/
-*/src/s-*.ad[bs]
-*/src/system.ads
 */obj/
 */adalib/
 */bin/
@@ -25,3 +21,19 @@ rts_support_mpfs/src/
 # Stray compiler output from verification probes
 *.ali
 *.o
+
+# Populated runtime sources are reproducible via populate.sh and not committed
+# (CONTRACT.md 1). The seven files we authored or deliberately edited ARE
+# deliverables, and populate.sh preserves them (FORCE_LEAF_SRC=1 to override).
+*/src/*.ad[bs]
+*/src/*.S
+*/src/*.h
+!rts_support_mpfs/src/mpfs_config_checks.ads
+!rts_support_mpfs/src/s-bbbopa.ads
+!rts_support_mpfs/src/s-bbbosu.ads
+!rts_support_mpfs/src/s-bbripl.ads
+!rts_support_mpfs/src/s-textio.ads
+!light_tasking_mpfs/src/s-bbpara.ads
+!embedded_mpfs/src/s-bbpara.ads
+!hello_mpfs/src/*.adb
+!mpfs_system/src/*.ads

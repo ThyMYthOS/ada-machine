@@ -1,5 +1,19 @@
 name = "light_mpfs"
 description = "PolarFire SoC 'light' (no-tasking) Ada runtime for riscv64-elf"
+long-description = """
+Leaf crate of the rts-spikes hierarchy (CONTRACT.md §3): the buildable,
+no-tasking Ada runtime for Microchip PolarFire SoC, riscv64-elf. Owns
+`for Runtime ("Ada") use Project'Project_Dir;` and produces
+adalib/libgnat.a from the shared tier-1..3 source crates
+(rts_sources_gcc15, rts_core_riscv64, rts_support_mpfs) plus its own
+gnat_user/ (configuration renaming shim) and src/ (system.ads,
+s-parame.ads, populated -- not vendored -- from the installed
+gnat_riscv64_elf toolchain by ../populate.sh; `make populate` is a
+prerequisite for any build). It is this spike's critical-path leaf: the
+only one of the three profiles with no tasking floor to clear, so the
+only one that must build in the first milestone. See README.md for the
+configuration-variable table and the standalone/derived mode split.
+"""
 version = "0.1.0-dev"
 licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
 authors = ["Free Software Foundation", "AdaCore"]
@@ -28,6 +42,10 @@ generate_c = false
 
 #  CONTRACT.md §3.2 -- names, types and defaults are pinned.
 [configuration.variables]
+#  Main task stack, reserved by the placement script. The scripts default to
+#  2 MB, which does not fit a 1920 KB LIM (RTS-POLARFIRE 1.2.1).
+Main_Stack_Size = { type = "Integer", first = 4096, default = 65536 }
+
 
 Hart_Class.type = "Enum"
 Hart_Class.values = ["e51", "u54"]

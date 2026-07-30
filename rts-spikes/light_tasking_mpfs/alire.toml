@@ -1,0 +1,54 @@
+name = "light_tasking_mpfs"
+description = "MPFS light-tasking (Ravenscar/Jorvik) GNAT runtime leaf"
+long-description = """
+Buildable leaf crate (CONTRACT.md §3) for the `light-tasking` (Ravenscar/
+Jorvik) GNAT runtime profile on Microchip PolarFire SoC, riscv64-elf.
+
+Unlike `light_mpfs`, this profile has tasking: two library projects,
+`runtime_build.gpr` (libgnat) and `ravenscar_build.gpr` (libgnarl), both
+producing archives into the same `adalib`. It composes tier 1
+(`rts_sources_gcc15`), tier 2 (`rts_core_riscv64`) and tier 3
+(`rts_support_mpfs`) source-only crates per CONTRACT.md, adding only the
+leaf-owned units (`system.ads`, `s-parame.ads/adb`, `s-bbpara.ads`),
+configuration variables, and the metadata files a runtime directory needs.
+"""
+version = "0.1.0-dev"
+licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
+authors = ["Free Software Foundation", "AdaCore"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+
+project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
+
+#  This profile has tasking (unlike light_mpfs, whose floor excludes it,
+#  RTS.md §4) -- see README.md for why this declaration belongs here and
+#  not on light_mpfs.
+provides = ["gnat_rts_tasking=0.1.0"]
+
+[[depends-on]]
+rts_sources_gcc15 = "*"
+rts_core_riscv64 = "*"
+rts_support_mpfs = "*"
+
+[configuration]
+output_dir = "gnat_user"
+generate_c = false
+
+[configuration.variables]
+Hart_Class = { type = "Enum", values = ["e51", "u54"], default = "u54" }
+Harts = { type = "String", default = "1" }
+Privilege = { type = "Enum", values = ["m_mode", "s_mode"], default = "m_mode" }
+Memory_Profile = { type = "Enum", values = ["envm", "lim", "lim_lma_scratchpad_vma", "envm_lma_scratchpad_vma", "ddr_by_bootloader", "system_partition"], default = "lim" }
+L2_Cache_Ways = { type = "Integer", first = 0, last = 16, default = 1 }
+L2_LIM_Ways = { type = "Integer", first = 0, last = 16, default = 15 }
+L2_Scratchpad_Ways = { type = "Integer", first = 0, last = 16, default = 0 }
+ITIM_Ways = { type = "Integer", first = 0, last = 3, default = 0 }
+DTIM_Ways = { type = "Integer", first = 0, last = 3, default = 0 }
+DDR_Present = { type = "Boolean", default = false }
+DDR_Cached_KB = { type = "Integer", default = 0 }
+DDR_NonCached_KB = { type = "Integer", default = 0 }
+DDR_WCB_KB = { type = "Integer", default = 0 }
+Console = { type = "Enum", values = ["mmuart0", "mmuart1", "mmuart2", "mmuart3", "mmuart4", "ram_fifo", "none"], default = "mmuart0" }
+Interrupt_Stack_Size = { type = "Integer", default = 8192 }
+Secondary_Stack_Size = { type = "Integer", default = 2048 }
+MPFS_PARTITION = { type = "String", default = "" }

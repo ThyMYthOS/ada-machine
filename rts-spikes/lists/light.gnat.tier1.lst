@@ -4,10 +4,6 @@ a-chahan.adb
 a-chahan.ads
 a-charac.ads
 a-chlat1.ads
-a-elchha.adb
-a-elchha.ads
-a-except.adb
-a-except.ads
 a-nbnbig.adb
 a-nbnbig.ads
 a-ngelfu.adb
@@ -29,10 +25,6 @@ a-strmap.adb
 a-strmap.ads
 a-strsea.adb
 a-strsea.ads
-a-strsup.adb
-a-strsup.ads
-a-tags.adb
-a-tags.ads
 a-textio.adb
 a-textio.ads
 a-unccon.ads
@@ -65,7 +57,6 @@ s-arit32.adb
 s-arit32.ads
 s-arit64.adb
 s-arit64.ads
-s-assert.adb
 s-assert.ads
 s-atacco.adb
 s-atacco.ads
@@ -194,8 +185,6 @@ s-memcop.adb
 s-memcop.ads
 s-memmov.adb
 s-memmov.ads
-s-memory.adb
-s-memory.ads
 s-memset.adb
 s-memset.ads
 s-memtyp.ads

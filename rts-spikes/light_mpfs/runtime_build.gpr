@@ -1,8 +1,5 @@
---  light_mpfs -- leaf crate, CONTRACT.md §3. Builds the "light" (no
---  tasking) PolarFire SoC runtime from the shared tier-1..3 source
---  crates plus this leaf's own units (gnat_user/, src/).  This project
---  produces adalib/libgnat.a; it ships no compiled artifact of its own
---  (RTS.md §1).
+--  light_mpfs -- leaf crate, CONTRACT.md §3. Produces adalib/libgnat.a
+--  from the shared tier-1..3 source crates plus this leaf's own units.
 
 with "rts_sources_gcc15.gpr";
 with "rts_core_riscv64.gpr";
@@ -22,123 +19,104 @@ project Runtime_Build is
    for Object_Dir use "obj";
 
    --  ORDER IS LOAD-BEARING (RTS.md §2.1, CONTRACT.md §3.4): board
-   --  (rts_support_mpfs) shadows core (rts_core_riscv64) shadows shared
-   --  (rts_sources_gcc15); gnat_user/src are this leaf's own units and
-   --  take precedence over all three. Source_List_File is the
-   --  reviewable membership manifest -- do not rely on shadowing for
-   --  membership, only for per-unit variant selection (RTS.md §2.1).
+   --  shadows core shadows shared; gnat_user/src (this leaf) win over
+   --  all three. Source_List_File, not shadowing, is what defines
+   --  membership.
    for Source_Dirs use
      ("gnat_user", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
-   for Source_List_File use "light.lst";
 
-   --  light_mpfs has no "C" in Languages (CONTRACT.md §3.4: only
-   --  embedded_mpfs adds it, for its C unwinder). But the shared
-   --  Source_Dirs above are not filtered by language before GPR's own
-   --  naming/source-discovery scan runs, and both rts_sources_gcc15's
-   --  libgnat/ (C exception-handling support shared with
-   --  light-tasking/embedded) and rts_support_mpfs's src/ (riscv_def.h,
-   --  a C header meant only to be #included from start-ram.S's
-   --  Asm_Cpp preprocessing) physically contain .c/.h files. Without
-   --  Excluded_Source_Files, gprbuild fails project loading itself --
-   --  "language unknown for <file>" -- before Source_List_File ever
-   --  gets a chance to restrict the compiled set. None of these files
-   --  are in light.lst; verified none of them disappear from adalib.a
-   --  membership by excluding them here.
+   --  Not in Languages (CONTRACT.md §3.4: "C" is embedded_mpfs-only) and
+   --  not in light.lst, but physically present in the shared dirs above
+   --  for other profiles. See the task report: excluding them here does
+   --  NOT stop gprbuild's naming scan from failing on them regardless
+   --  ("language unknown for riscv_def.h") -- reported, not solved.
    for Excluded_Source_Files use
      ("riscv_def.h",
       "unwind-dw2-fde.h", "tsystem.h", "unwind-pe.h", "adaint-xi.c",
       "raise.h", "newlib-bb.c", "tconfig.h", "unwind-dw2-fde-bb.c",
       "raise-gcc.c");
 
+   for Source_List_File use "light.lst";
+
    package Naming is
       for Spec_Suffix ("Asm_Cpp") use ".inc";
    end Naming;
 
+   --  Per-unit overrides below are carried over from the shipped
+   --  light-polarfiresoc runtime_build.gpr, restricted to units
+   --  actually in light.lst (s-traceb.adb/s-excdeb.adb are not, and are
+   --  omitted).
    package Compiler is
       for Default_Switches ("Ada")     use Target_Options.ALL_ADAFLAGS;
       for Default_Switches ("Asm_Cpp") use Target_Options.ASMFLAGS;
 
-      --  Per-unit overrides, carried over from the shipped
-      --  light-polarfiresoc runtime_build.gpr, restricted to the units
-      --  actually present in light.lst (a-except.adb, a-tags.adb,
-      --  s-assert.adb, s-macres.adb, system.ads -- verified by grep;
-      --  s-traceb.adb/s-excdeb.adb are NOT in light.lst and are
-      --  intentionally omitted).
       for Switches ("a-except.adb") use Target_Options.ALL_ADAFLAGS
         & ("-g", "-O1", "-fno-inline", "-fno-toplevel-reorder");
-      for Switches ("a-tags.adb") use Target_Options.ALL_ADAFLAGS
-        & ("-g");
-      for Switches ("s-assert.adb") use Target_Options.ALL_ADAFLAGS
-        & ("-g");
+      for Switches ("a-tags.adb") use Target_Options.ALL_ADAFLAGS & ("-g");
+      for Switches ("s-assert.adb") use Target_Options.ALL_ADAFLAGS & ("-g");
 
-      --  Don't inline System.Machine_Reset, or the common exit path is
-      --  lost (comment carried over from the shipped runtime_build.gpr).
+      --  Don't inline System.Machine_Reset, or the common exit path is lost.
       for Switches ("s-macres.adb") use Target_Options.ALL_ADAFLAGS
         & ("-fno-inline");
 
-      --  Generate ada_target_properties for GNATprove/CodePeer
-      --  (RTS.md §6). Not one of this leaf's committed deliverables --
-      --  it is a build product of compiling system.ads, same as
-      --  adalib/libgnat.a.
+      --  ada_target_properties for GNATprove/CodePeer (RTS.md §6); a
+      --  build product, like adalib/libgnat.a, not a committed file.
       for Switches ("system.ads") use Target_Options.ALL_ADAFLAGS
         & ("-gnatet=" & Project'Project_Dir & "ada_target_properties");
    end Compiler;
 
    ------------------------------------------------------------------
-   --  ISA_Switches (CONTRACT.md §3.7).
-   --
-   --  Deliberately the SAME external()s as runtime.xml (§3.6), not the
-   --  Hart_Class configuration variable -- see runtime.xml's header
-   --  comment and README.md "Two independent ISA knobs" for why these
-   --  are two separate knobs in this design rather than one.
+   --  ISA_Switches (CONTRACT.md §3.7) -- the SAME external()s as
+   --  runtime.xml (§3.6), not Hart_Class. See README "Two independent
+   --  ISA knobs".
    ------------------------------------------------------------------
 
-   MPFS_ARCH := external ("MPFS_ARCH", "rv64imafdc");
-   MPFS_ABI  := external ("MPFS_ABI",  "lp64d");
+   --  CONTRACT.md §7.9: Hart_Class and the ISA externals were independent, so
+   --  Hart_Class => e51 still compiled hard-float rv64imafdc and lost the
+   --  _zicsr the E51 startup needs. The externals now DEFAULT from Hart_Class;
+   --  they remain overridable for a deliberate experiment. zifencei is
+   --  included because application code that copies into ITIM or DTIM must
+   --  issue fence.i before executing it.
+   Default_Arch := "rv64imafdc";
+   Default_Abi  := "lp64d";
+   case Light_Mpfs_Config.Hart_Class is
+      when "e51" =>
+         Default_Arch := "rv64imac_zicsr_zifencei";   --  no FPU on the E51
+         Default_Abi  := "lp64";
+      when "u54" =>
+         Default_Arch := "rv64imafdc_zicsr_zifencei";
+         Default_Abi  := "lp64d";
+   end case;
+
+   MPFS_ARCH := external ("MPFS_ARCH", Default_Arch);
+   MPFS_ABI  := external ("MPFS_ABI",  Default_Abi);
 
    ISA_Switches := ("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI);
 
    ------------------------------------------------------------------
-   --  Defsyms (CONTRACT.md §4): the -Wl,--defsym= list, computed from
-   --  Light_Mpfs_Config.  Region BASES are literal, owned by
-   --  rts_support_mpfs/ld/mpfs-memory.ld; only LENGTHs (and the
-   --  local_itim alias's ORIGIN) are symbolic (RTS-POLARFIRE §1.2/§6.1).
-   --
-   --  ld's --defsym expression grammar accepts both the K/M size
-   --  suffix and '*' (e.g. "5*128K"), verified directly against this
-   --  toolchain's riscv64-elf-ld by linking a trivial object and
-   --  reading the resulting symbol values back with nm -- see
-   --  README.md "Defsym arithmetic, verified" for the transcript.
+   --  Defsyms (CONTRACT.md §4), computed from Light_Mpfs_Config.
+   --  Region bases are literal, owned by rts_support_mpfs's
+   --  mpfs-memory.ld; only lengths (and local_itim's origin) are
+   --  symbolic (RTS-POLARFIRE §1.2/§6.1). ld's --defsym expressions
+   --  accept both '*' and the K/M suffix (e.g. "5*128K") -- verified
+   --  directly against this toolchain's riscv64-elf-ld.
    ------------------------------------------------------------------
 
-   --  eNVM: fixed length, not configuration-dependent (CONTRACT.md §4).
-   Envm_Length := "0x1FF00";
+   Envm_Length := "0x1FF00";  --  fixed (CONTRACT.md §4)
 
-   --  L2 ways: 128 KB granularity (RTS-POLARFIRE §1.2.1).
    Lim_Length        := Light_Mpfs_Config.L2_LIM_Ways & "*128K";
    Scratchpad_Length := Light_Mpfs_Config.L2_Scratchpad_Ways & "*128K";
 
-   --  ITIM/DTIM: per-hart-private, so a length is nonzero only for the
-   --  single window this configuration actually owns
-   --  (RTS-POLARFIRE §1.4); light_mpfs is single-hart only (SMP is a
-   --  light_tasking_mpfs/embedded_mpfs concern, CONTRACT.md §3.2).
-   --
-   --  L1_Way_Size_Kb below is a NAMED, CLEARLY-FLAGGED PLACEHOLDER, not
-   --  a verified hardware fact: the L1-I/L1-D way size in KB is not
-   --  given by any document available to this crate and is an open,
-   --  explicitly-unconfirmed item (RTS-POLARFIRE.md §11, risk 5: "the
-   --  L1-I and L1-D way sizes ... still to confirm from the TRM"). The
-   --  formula shape (Ways * per-way-size) mirrors the pinned L2 formula
-   --  above and is believed correct; the constant is not. Every
-   --  configuration this milestone (P1) actually exercises has
-   --  ITIM_Ways = DTIM_Ways = 0, for which this placeholder is provably
-   --  irrelevant (0 * anything = 0). Do not rely on a nonzero
-   --  MPFS_*_ITIM_LENGTH / MPFS_DTIM_LENGTH before confirming this
-   --  constant from the MSS TRM. See README.md "Open: L1 way size".
-   L1_Way_Size_Kb := "7";  --  UNCONFIRMED -- see comment above
+   --  L1_Way_Size_Kb is a NAMED PLACEHOLDER, not a verified hardware
+   --  constant: the L1-I/L1-D way size is an open item, unconfirmed
+   --  from the TRM (RTS-POLARFIRE.md §11 risk 5). Every configuration
+   --  this milestone exercises has ITIM_Ways = DTIM_Ways = 0, for which
+   --  this value is irrelevant (0 * anything = 0). See README "Open:
+   --  L1 way size" before trusting a nonzero ITIM/DTIM length.
+   L1_Way_Size_Kb := "7";  --  UNCONFIRMED
 
    Dtim_Length       := "0";
    E51_Itim_Length   := "0";
@@ -149,10 +127,11 @@ project Runtime_Build is
    Local_Itim_Origin := "0x01800000";
    Local_Itim_Length := "0";
 
+   --  ITIM/DTIM are per-hart-private (RTS-POLARFIRE §1.4); light_mpfs
+   --  is single-hart only (SMP is light_tasking_mpfs/embedded_mpfs's
+   --  concern, CONTRACT.md §3.2), so exactly one window is ever owned.
    case Light_Mpfs_Config.Hart_Class is
       when "e51" =>
-         --  Hart_Class = e51 implies Harts = "0" (CONTRACT.md §5); the
-         --  E51 owns the DTIM and its own ITIM window unconditionally.
          Dtim_Length       := Light_Mpfs_Config.DTIM_Ways
                                  & "*" & L1_Way_Size_Kb & "K";
          E51_Itim_Length   := Light_Mpfs_Config.ITIM_Ways
@@ -183,15 +162,12 @@ project Runtime_Build is
                Local_Itim_Origin := "0x01820000";
                Local_Itim_Length := U54_4_Itim_Length;
             when others =>
-               --  Multi-hart Harts (e.g. "1..4" or "2,3"): light_mpfs
-               --  is single-hart only, so no single local_itim alias
-               --  applies. All five owned-window lengths stay "0".
-               null;
+               null;  --  multi-hart Harts: no single owned ITIM here
          end case;
    end case;
 
-   --  DDR: absent unless DDR_Present, matching the vendor idiom of
-   --  LENGTH = 0 for "alias not present" (RTS-POLARFIRE §1.3/§6.2).
+   --  DDR: absent unless DDR_Present (RTS-POLARFIRE §1.3/§6.2's
+   --  LENGTH = 0 idiom for "alias not present").
    Ddr_Cached_Length := "0";
    Ddr_Nc_Length     := "0";
    Ddr_Wcb_Length    := "0";
@@ -223,35 +199,36 @@ project Runtime_Build is
 
    ------------------------------------------------------------------
    --  Linker_Switches (CONTRACT.md §3.7): -T/-L for the selected
-   --  Memory_Profile, from Rts_Support_Mpfs.Ld_Dir (RTS-POLARFIRE
-   --  §6.1). Deliberately does NOT include Defsyms -- the app
-   --  concatenates both itself (see the "hello_mpfs" handshake in
-   --  README.md and RTS.md §6 "The leaf's responsibilities").
+   --  Memory_Profile, from Rts_Support_Mpfs.Ld_Dir. Deliberately does
+   --  NOT append Defsyms -- the app concatenates both itself.
    ------------------------------------------------------------------
 
-   Placement_Script := "mpfs-lim.ld";
+   Placement_Script := "place-lim.ld";
    case Light_Mpfs_Config.Memory_Profile is
       when "envm" =>
-         Placement_Script := "mpfs-envm.ld";
+         Placement_Script := "place-envm.ld";
       when "lim" =>
-         Placement_Script := "mpfs-lim.ld";
+         Placement_Script := "place-lim.ld";
       when "lim_lma_scratchpad_vma" =>
-         Placement_Script := "mpfs-lim-lma-scratchpad-vma.ld";
+         Placement_Script := "place-lim-lma-scratchpad-vma.ld";
       when "envm_lma_scratchpad_vma" =>
-         Placement_Script := "mpfs-envm-lma-scratchpad-vma.ld";
+         Placement_Script := "place-envm-lma-scratchpad-vma.ld";
       when "ddr_by_bootloader" =>
-         Placement_Script := "mpfs-ddr-loaded-by-boot-loader.ld";
+         Placement_Script := "place-ddr-by-bootloader.ld";
       when "system_partition" =>
-         --  Generated per-partition script (RTS-POLARFIRE §4, §6.1),
-         --  emitted by the (not-yet-implemented) mpfs_system generator
-         --  alongside MPFS.System_Map; standalone mode does not use it
-         --  (MPFS_PARTITION = "").
+         --  Generated per-partition script (RTS-POLARFIRE §4/§6.1);
+         --  standalone mode (MPFS_PARTITION = "") does not use it.
          Placement_Script := "partition-" & Light_Mpfs_Config.MPFS_PARTITION
                                 & ".ld";
    end case;
 
    Linker_Switches :=
      ("-L", Rts_Support_Mpfs.Ld_Dir,
-      "-T", Placement_Script);
+      "-T", Placement_Script)
+     --  runtime.xml supplies these via Linker'Required_Switches for a
+     --  gprconfig-discovered runtime, but not for one reached through a
+     --  withed library project, so the leaf must export them itself.
+     & ISA_Switches & ("-nostartfiles", "-nolibc",
+        "-Wl,--defsym=__stack_size=" & Light_Mpfs_Config.Main_Stack_Size);
 
 end Runtime_Build;

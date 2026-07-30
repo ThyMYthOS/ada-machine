@@ -1,0 +1,13 @@
+abstract project Rts_Support_Mpfs is
+
+   --  Source-only, tier-3 crate (CONTRACT.md S2): never built by Alire.
+   --  Exports paths only; the leaf's runtime_build.gpr / ravenscar_build.gpr
+   --  add Src_Dir to its own Source_Dirs and Ld_Dir to its own linker
+   --  search path (-L). `Project'Project_Dir` already ends in a separator.
+
+   for Source_Dirs use ();
+
+   Src_Dir := Project'Project_Dir & "src";
+   Ld_Dir  := Project'Project_Dir & "ld";
+
+end Rts_Support_Mpfs;
