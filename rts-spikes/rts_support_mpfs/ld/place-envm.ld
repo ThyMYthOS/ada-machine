@@ -44,6 +44,14 @@ SECTIONS
     *(.gnu.warning)
   } > envm
 
+  /*  Application-contributed sections. The runtime declares REGIONS -- what
+   *  the SoC has -- and the sections IT needs; what an application puts in
+   *  tightly-integrated memory, and under what section name, is not the
+   *  runtime's business. rts_support_mpfs/ld/app-sections.ld is empty; an
+   *  application overrides it by supplying its own and placing its -L ahead
+   *  of the runtime's (ld searches -L paths for INCLUDE).  */
+  INCLUDE app-sections.ld
+
   .init  : { KEEP(*(.init)) } > envm
   .ctors : { KEEP(SORT_BY_NAME(*)(.ctors)) } > envm
   .dtors : { KEEP(SORT_BY_NAME(*)(.dtors)) } > envm

@@ -455,3 +455,47 @@ derived, not configured alongside what implies it.**
 
 Net effect on `light_mpfs`: 15 configuration variables instead of 17, two fewer
 checks, and two fewer ways for two settings to contradict each other.
+
+### 7.14 The runtime declares regions; applications declare sections
+
+The runtime's linker scripts may declare **MEMORY regions** — what the SoC has,
+and where — plus the output sections the runtime needs for **its own** code and
+data. They must not declare sections for what an *application* chooses to put in
+tightly-integrated memory. A section name is an application convention, not
+hardware.
+
+An earlier version of this spike got that wrong twice over: `mpfs-memory.ld`
+declared a `switch_code_dtim` region and `place-lim.ld` defined `.switch_code`,
+`.itim_text` and `.dtim_data`. "Switch code" is an application concept; so is
+every one of those section names.
+
+**Mechanism.** Each placement script ends its `SECTIONS` with
+
+```
+  INCLUDE app-sections.ld
+```
+
+`rts_support_mpfs/ld/app-sections.ld` is empty. An application that needs to
+place code or data in ITIM/DTIM ships its own `ld/app-sections.ld` and puts its
+own `-L` **ahead** of the runtime's — `ld` searches `-L` paths for `INCLUDE`, so
+the application's file wins:
+
+```ada
+for Switches ("Ada") use
+  ("-L", Project'Project_Dir & "ld") &        --  ours first
+  Runtime_Build.Linker_Switches & Runtime_Build.Defsyms & ("-Wl,--gc-sections");
+```
+
+Verified both directions: with only the runtime's `-L` the image has no
+application sections; with the application's `-L` first its section appears at
+the intended address.
+
+**`INSERT AFTER` does not work here.** It augments `ld`'s *default* script only,
+not a user script supplied with `-T`, and fails with `.text not found for
+insert`. That was the first thing tried.
+
+**What this deleted**, beyond the misplaced concept: the `switch_code_dtim`
+region, the two-region DTIM split with its `ld` arithmetic, and the silent
+region-overlap hazard that split created — it no longer has anything to overlap.
+`Switch_Code_Bytes` and `MPFS_SWITCH_CODE_LENGTH` are gone entirely rather than
+merely relocated.
