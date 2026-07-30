@@ -1,0 +1,49 @@
+name = "clock_switch_e51"
+description = "E51 monitor: clock switch executed from reserved DTIM"
+long-description = """
+Second example application, and the one that motivates tightly-integrated
+memory rather than merely demonstrating it.
+
+The E51 monitor core reconfigures the MSS clock. That changes L2 timing, so
+code resident in L2 LIM cannot safely perform the switch -- it would be
+reconfiguring the memory it is executing from. The same applies to an L2
+`WayEnable` change, which moves LIM itself (RTS-POLARFIRE.md 6.4).
+
+Microchip's own reference linker scripts reserve 1 KB at 0x01001c00 for
+exactly this, named `switch_code_dtim`. This crate places the switch
+sequence there via `pragma Linker_Section (..., ".switch_code")`, copies it
+from its load address in LIM, issues `fence.i`, and only then calls it.
+
+Note this is an E51 image: soft-float `lp64`, `rv64imac_zicsr_zifencei`.
+light_mpfs derives that from `Hart_Class => e51` (CONTRACT.md 7.9), so no
+command-line ISA override is needed.
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+executables = ["clock_switch_e51"]
+
+[[depends-on]]
+light_mpfs = "*"
+
+[[pins]]
+light_mpfs = { path = "../light_mpfs" }
+
+[configuration.values]
+light_mpfs.Hart_Class        = "e51"
+light_mpfs.Harts             = "0"
+light_mpfs.Memory_Profile    = "lim"
+light_mpfs.DTIM_Ways         = 1
+light_mpfs.Switch_Code_Bytes = 1024
+light_mpfs.Console           = "mmuart0"
+
+#  runtime.xml drives COMPILATION via Leading_Required_Switches, and it is a
+#  gprconfig configuration project: it cannot see Alire's crate configuration,
+#  only GPR externals. So Hart_Class alone cannot steer the ISA -- the external
+#  has to be set, and Alire's [environment] is how a crate does that.
+#  (CONTRACT.md 7.9; the two knobs are still separate, this keeps them agreed.)
+[environment]
+MPFS_ARCH = { set = "rv64imac_zicsr_zifencei" }
+MPFS_ABI  = { set = "lp64" }

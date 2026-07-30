@@ -74,12 +74,12 @@ project Runtime_Build is
    --  ISA knobs".
    ------------------------------------------------------------------
 
-   --  CONTRACT.md §7.9: Hart_Class and the ISA externals were independent, so
-   --  Hart_Class => e51 still compiled hard-float rv64imafdc and lost the
-   --  _zicsr the E51 startup needs. The externals now DEFAULT from Hart_Class;
-   --  they remain overridable for a deliberate experiment. zifencei is
-   --  included because application code that copies into ITIM or DTIM must
-   --  issue fence.i before executing it.
+   --  CONTRACT.md §7.9: Hart_Class and the ISA externals used to be
+   --  independent, so Hart_Class => e51 still compiled hard-float rv64imafdc
+   --  and lost the _zicsr the E51 startup needs. The externals now DEFAULT
+   --  from Hart_Class; they remain overridable for a deliberate experiment.
+   --  zifencei is included because application code that copies into ITIM or
+   --  DTIM must issue fence.i before executing it.
    Default_Arch := "rv64imafdc";
    Default_Abi  := "lp64d";
    case Light_Mpfs_Config.Hart_Class is
@@ -119,6 +119,7 @@ project Runtime_Build is
    L1_Way_Size_Kb := "7";  --  UNCONFIRMED
 
    Dtim_Length       := "0";
+   Switch_Code_Length := "0";   --  E51-only, and only with DTIM enabled
    E51_Itim_Length   := "0";
    U54_1_Itim_Length := "0";
    U54_2_Itim_Length := "0";
@@ -134,6 +135,7 @@ project Runtime_Build is
       when "e51" =>
          Dtim_Length       := Light_Mpfs_Config.DTIM_Ways
                                  & "*" & L1_Way_Size_Kb & "K";
+         Switch_Code_Length := Light_Mpfs_Config.Switch_Code_Bytes;
          E51_Itim_Length   := Light_Mpfs_Config.ITIM_Ways
                                  & "*" & L1_Way_Size_Kb & "K";
          Local_Itim_Origin := "0x01800000";
@@ -184,6 +186,7 @@ project Runtime_Build is
    Defsyms :=
      ("-Wl,--defsym=MPFS_ENVM_LENGTH="       & Envm_Length,
       "-Wl,--defsym=MPFS_DTIM_LENGTH="       & Dtim_Length,
+      "-Wl,--defsym=MPFS_SWITCH_CODE_LENGTH=" & Switch_Code_Length,
       "-Wl,--defsym=MPFS_E51_ITIM_LENGTH="   & E51_Itim_Length,
       "-Wl,--defsym=MPFS_U54_1_ITIM_LENGTH=" & U54_1_Itim_Length,
       "-Wl,--defsym=MPFS_U54_2_ITIM_LENGTH=" & U54_2_Itim_Length,

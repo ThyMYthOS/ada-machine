@@ -42,6 +42,10 @@ generate_c = false
 
 #  CONTRACT.md §3.2 -- names, types and defaults are pinned.
 [configuration.variables]
+#  Reserved tail of the E51 DTIM for memory-reconfiguration code
+#  (RTS-POLARFIRE 1.2). 0 disables the region.
+Switch_Code_Bytes = { type = "Integer", first = 0, default = 1024 }
+
 #  Main task stack, reserved by the placement script. The scripts default to
 #  2 MB, which does not fit a 1920 KB LIM (RTS-POLARFIRE 1.2.1).
 Main_Stack_Size = { type = "Integer", first = 4096, default = 65536 }
