@@ -15,8 +15,9 @@ sequence there via `pragma Linker_Section (..., ".switch_code")`, copies it
 from its load address in LIM, issues `fence.i`, and only then calls it.
 
 Note this is an E51 image: soft-float `lp64`, `rv64imac_zicsr_zifencei`.
-light_mpfs derives that from `Hart_Class => e51` (CONTRACT.md 7.9), so no
-command-line ISA override is needed.
+light_mpfs derives that from Harts_Mask => 1 (hart 0 is the E51), so no
+command-line ISA override is needed. The 1 KB reserved for the switch
+sequence is set by this crate, not by the runtime -- see the project file.
 """
 version = "0.1.0-dev"
 licenses = "Apache-2.0 WITH LLVM-exception"
@@ -32,16 +33,14 @@ light_mpfs = "*"
 light_mpfs = { path = "../light_mpfs" }
 
 [configuration.values]
-light_mpfs.Hart_Class        = "e51"
 light_mpfs.Harts_Mask     = 1
 light_mpfs.Memory_Profile    = "lim"
 light_mpfs.DTIM_Ways         = 1
-light_mpfs.Switch_Code_Bytes = 1024
 light_mpfs.Console           = "mmuart0"
 
 #  runtime.xml drives COMPILATION via Leading_Required_Switches, and it is a
 #  gprconfig configuration project: it cannot see Alire's crate configuration,
-#  only GPR externals. So Hart_Class alone cannot steer the ISA -- the external
+#  only GPR externals. So Harts_Mask alone cannot steer the ISA -- the external
 #  has to be set, and Alire's [environment] is how a crate does that.
 #  (CONTRACT.md 7.9; the two knobs are still separate, this keeps them agreed.)
 [environment]

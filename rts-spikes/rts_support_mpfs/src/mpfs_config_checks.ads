@@ -31,45 +31,39 @@
 --  "with ... and nothing else" (CONTRACT.md S3.3) is read here as "no
 --  other dependency", not as "no use clause" -- the `use` below only
 --  brings this one, already-with'ed package's names into scope, needed
---  for the Hart_Class/Memory_Profile equality tests below.
+--  for the Memory_Profile equality tests below.
 with MPFS_Runtime_Config; use MPFS_Runtime_Config;
 
 package MPFS_Config_Checks is
 
    ---------------------------------------------------------------------
-   --  1. Hart_Class = e51 with a hard-float ABI -> error (no FPU)
+   --  1. (not implementable) e51 with a hard-float ABI
    ---------------------------------------------------------------------
    --  NOT IMPLEMENTED AS A PRAGMA -- reported, not faked. CONTRACT.md
    --  S3.2's finalised variable table has no separate Float_ABI (or
-   --  similar) knob: Hart_Class is the sole determinant, and the
+   --  similar) knob: the mask is the sole determinant, and the
    --  ISA/ABI pairing (RTS-POLARFIRE.md S1.1, S3.6's MPFS_ARCH/MPFS_ABI
    --  `external()`s) is a `runtime.xml`/GPR-level concern the leaf's
    --  `MPFS_Runtime_Config` package does not carry -- there is no
    --  MPFS_Runtime_Config field this spec could put on the other side of
-   --  `and then`. Writing `Hart_Class = e51 and then <nothing available>`
+   --  `and then`. Writing `<e51 test> and then <nothing available>`
    --  would either not compile or -- worse -- compile as a condition
    --  that can never be true, which is exactly the silently-useless
    --  check this file's own header warns against. Flagged in the task
    --  report as a CONTRACT.md/RTS-POLARFIRE.md S5.3 mismatch instead.
 
    ---------------------------------------------------------------------
-   --  2/3. Hart mask consistency with Hart_Class
+   --  2. The mask must not mix the E51 with the U54s
    ---------------------------------------------------------------------
-   pragma Compile_Time_Error
-     (Hart_Class = e51 and then Harts_Mask /= 1,
-      "Hart_Class => e51 requires Harts_Mask => 1 (the e51 is hart 0)");
-
-   pragma Compile_Time_Error
-     (Hart_Class = u54 and then (Harts_Mask mod 2) = 1,
-      "hart 0 is the e51 and cannot appear in a u54 hart mask");
-
+   --  Hart_Class is DERIVED from Harts_Mask in runtime_build.gpr (bit 0 is
+   --  the E51), so "Hart_Class disagrees with the mask" is no longer
+   --  representable and needs no check. What remains is that hart 0 is
+   --  soft-float lp64 while harts 1..4 are hard-float lp64d: one image
+   --  cannot serve both.
    pragma Compile_Time_Error
      ((Harts_Mask mod 2) = 1 and then Harts_Mask /= 1,
-      "the soft-float e51 cannot share a hart mask with the u54s");
+      "the soft-float E51 (hart 0) cannot share a mask with the U54s");
 
-   ---------------------------------------------------------------------
-   --  3. Hart_Class = u54 -> hart 0 (the e51) must not be in the set
-   ---------------------------------------------------------------------
    --  With the Integer bitmask these are ordinary static scalar
    --  comparisons; the earlier String form could not be checked this way
    --  (RM 4.9: indexing a string constant is never static).
@@ -94,8 +88,8 @@ package MPFS_Config_Checks is
    --  7. DTIM is e51-only (RTS-POLARFIRE.md S1.4)
    ---------------------------------------------------------------------
    pragma Compile_Time_Error
-     (DTIM_Ways /= 0 and then Hart_Class /= e51,
-      "only the e51 has a configurable DTIM");
+     (DTIM_Ways /= 0 and then Harts_Mask /= 1,
+      "only the e51 (Harts_Mask => 1) has a configurable DTIM");
 
    ---------------------------------------------------------------------
    --  8. ITIM is per-hart private: no multi-hart image may use it

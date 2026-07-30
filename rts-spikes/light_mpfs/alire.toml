@@ -48,18 +48,12 @@ generate_c = false
 #  and which silently defeats number declarations (CONTRACT.md 7.8).
 Harts_Mask = { type = "Integer", first = 1, last = 31, default = 2 }
 
-#  Reserved tail of the E51 DTIM for memory-reconfiguration code
-#  (RTS-POLARFIRE 1.2). 0 disables the region.
-Switch_Code_Bytes = { type = "Integer", first = 0, default = 1024 }
 
 #  Main task stack, reserved by the placement script. The scripts default to
 #  2 MB, which does not fit a 1920 KB LIM (RTS-POLARFIRE 1.2.1).
 Main_Stack_Size = { type = "Integer", first = 4096, default = 65536 }
 
 
-Hart_Class.type = "Enum"
-Hart_Class.values = ["e51", "u54"]
-Hart_Class.default = "u54"
 
 
 Privilege.type = "Enum"

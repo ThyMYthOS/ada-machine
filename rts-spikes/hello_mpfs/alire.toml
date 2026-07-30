@@ -20,7 +20,6 @@ light_mpfs = "*"
 light_mpfs = { path = "../light_mpfs" }
 
 [configuration.values]
-light_mpfs.Hart_Class     = "u54"
 light_mpfs.Harts_Mask     = 2
 light_mpfs.Memory_Profile = "lim"
 light_mpfs.ITIM_Ways      = 2

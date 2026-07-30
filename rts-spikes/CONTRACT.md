@@ -425,3 +425,33 @@ misconfiguration that had been sitting in the tree — `hello_mpfs` carried
 So the §7.4 rule needs a companion: proving a check fires is not only about the
 condition being static, it is also about the unit being *compiled*. Verify by
 breaking the data and watching the message appear.
+
+### 7.13 Derive what is implied; keep application policy out of the runtime
+
+Two configuration variables were removed after the spike built, for the same
+reason the `Harts` string became a mask: **a value that is implied should be
+derived, not configured alongside what implies it.**
+
+- **`Hart_Class` is implied by `Harts_Mask`** — bit 0 is the E51, bits 1..4 the
+  U54s. It is now derived in `runtime_build.gpr`. That deletes two
+  `Compile_Time_Error` checks outright ("e51 requires mask 1", "hart 0 cannot be
+  in a U54 mask"): they existed *only* to catch the two disagreeing, and a
+  disagreement is no longer representable. What survives is the check that a
+  mask must not mix the soft-float E51 with the hard-float U54s, which is a real
+  hardware constraint rather than a bookkeeping one.
+
+  GPR has no conditional expression, so the derivation is a `case` on the typed
+  mask variable, and both must be declared at the top of the project — before
+  `Config_Tag` and the ISA derivation use them.
+
+- **`Switch_Code_Bytes` was too specific to be runtime configuration.** How much
+  DTIM to reserve for a memory-reconfiguration routine is application policy;
+  the runtime only declares that the region *may* exist. `MPFS_SWITCH_CODE_LENGTH`
+  is therefore optional in `mpfs-memory.ld` —
+  `DEFINED (MPFS_SWITCH_CODE_LENGTH) ? ... : 0`, the same idiom the placement
+  scripts already use for `__stack_size` — and the application supplies it from
+  its own `package Linker`. Leaving it undefined is not an error, it just yields
+  a zero-length region, so an accidental placement fails the link.
+
+Net effect on `light_mpfs`: 15 configuration variables instead of 17, two fewer
+checks, and two fewer ways for two settings to contradict each other.

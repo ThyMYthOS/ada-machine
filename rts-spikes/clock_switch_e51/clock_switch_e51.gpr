@@ -24,6 +24,10 @@ project Clock_Switch_E51 is
    package Linker is
       for Switches ("Ada") use
         Runtime_Build.Linker_Switches & Runtime_Build.Defsyms
-        & ("-Wl,--gc-sections");
+        & ("-Wl,--gc-sections",
+           --  This crate reserves 1 KB of the E51 DTIM for its switch
+           --  sequence. Application policy, not runtime configuration: the
+           --  runtime only declares that the region may exist.
+           "-Wl,--defsym=MPFS_SWITCH_CODE_LENGTH=1024");
    end Linker;
 end Clock_Switch_E51;
