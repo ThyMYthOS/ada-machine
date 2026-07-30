@@ -40,3 +40,7 @@ embedded_mpfs/src/*.ad[bs]
 !rts_support_mpfs/src/s-textio.ads
 !light_tasking_mpfs/src/s-bbpara.ads
 !embedded_mpfs/src/s-bbpara.ads
+
+# Per-configuration runtime build outputs (CONTRACT.md 7.11)
+*/adalib-*/
+*/obj-*/
