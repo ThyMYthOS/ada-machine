@@ -345,3 +345,48 @@ pragma Compile_Time_Error (<unrecognised>, "unrecognised Harts spelling");
 §5 requires "`Hart_Class = e51` with a hard-float ABI → error". There is no ABI field in `MPFS_Runtime_Config`: the ABI arrives via `external("MPFS_ABI", ...)`, read by `runtime.xml` and the leaf's `ISA_Switches`, and is invisible to Ada. So the two knobs are independent and unsynchronised — setting `Hart_Class => e51` alone still compiles `rv64imafdc`/`lp64d`, missing the `_zicsr` the E51's startup needs (RTS-POLARFIRE §1.1).
 
 Implement it as a documented non-check rather than a pragma that can never fire. The real fix is for `Hart_Class` to *derive* `MPFS_ARCH`/`MPFS_ABI` rather than sit beside them — recorded here as a design gap for RTS-POLARFIRE §5.3.
+
+### 7.10 `runtime.xml` is a stub; the application carries the ISA
+
+Settled by building the spike (RTS.md A.22). With the runtime reached through a
+withed library project, `runtime.xml` is **parsed but ineffective**: editing its
+ISA default literally still produced a hard-float image, and its
+`-nostartfiles`/`-nolibc` never reached the link. It must remain syntactically
+valid — a deliberate error in its CDATA fails the build — but it must not be
+treated as the source of the ISA.
+
+Every leaf therefore exports `ISA_Switches`, and **every application must apply
+them**, because `Builder'Global_Compilation_Switches` is read only from the root
+project:
+
+```ada
+package Builder is
+   for Global_Compilation_Switches ("Ada")     use Runtime_Build.ISA_Switches;
+   for Global_Compilation_Switches ("Asm_Cpp") use Runtime_Build.ISA_Switches;
+end Builder;
+```
+
+Omitting it does not fail — the image silently takes the compiler's default
+riscv64-elf ISA, which for a U54 is indistinguishable from correct. That is how
+the E51 image stayed hard-float across six attempts. `ISA_Switches` now derives
+from `Hart_Class` (§7.9), so the leaf and the application cannot disagree once
+the application applies it.
+
+### 7.11 Per-configuration output directories
+
+Two applications setting different `[configuration.values]` for the same
+path-pinned runtime crate shared one `adalib/` and overwrote each other's
+library. `runtime_build.gpr` now tags `Library_Dir`/`Object_Dir` with every
+configuration variable a compiled unit can read, so the instances coexist:
+
+```
+light_mpfs/adalib-e51-0-m_mode-mmuart0-8192-2048-1-15-0-0-1
+light_mpfs/adalib-u54-1-m_mode-mmuart0-8192-2048-1-15-0-2-1
+```
+
+Link-only values (`Memory_Profile`, `DDR_*`, `Main_Stack_Size`,
+`Switch_Code_Bytes`) are excluded deliberately — they change the linker
+invocation, not the library. Two notes: `Config_Tag` must be declared *after*
+`MPFS_ARCH`/`MPFS_ABI` if the ABI is in the tag, and `ada_object_path` may keep
+naming plain `adalib` — a stale entry is tolerated because the withed library
+project is authoritative (§1.1).

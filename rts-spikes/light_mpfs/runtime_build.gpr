@@ -15,8 +15,27 @@ project Runtime_Build is
 
    for Library_Name use "gnat";
    for Library_Kind use "static";
-   for Library_Dir use "adalib";
-   for Object_Dir use "obj";
+   --  EXPERIMENT: per-configuration output dirs so two applications with
+   --  different [configuration.values] can coexist.
+   --  Tag must cover EVERY configuration variable a compiled unit can read,
+   --  or two configurations differing only in an untagged value would share
+   --  one adalib and silently reuse each other's objects. Link-only values
+   --  (Memory_Profile, DDR_*, Main_Stack_Size, Switch_Code_Bytes) are excluded
+   --  deliberately: they change the linker invocation, not the library.
+   --  GPR has no hash function, so this is an exact concatenation.
+   Config_Tag := Light_Mpfs_Config.Hart_Class
+     & "-" & Light_Mpfs_Config.Harts
+     & "-" & Light_Mpfs_Config.Privilege
+     & "-" & Light_Mpfs_Config.Console
+     & "-" & Light_Mpfs_Config.Interrupt_Stack_Size
+     & "-" & Light_Mpfs_Config.Secondary_Stack_Size
+     & "-" & Light_Mpfs_Config.L2_Cache_Ways
+     & "-" & Light_Mpfs_Config.L2_LIM_Ways
+     & "-" & Light_Mpfs_Config.L2_Scratchpad_Ways
+     & "-" & Light_Mpfs_Config.ITIM_Ways
+     & "-" & Light_Mpfs_Config.DTIM_Ways;
+   for Library_Dir use "adalib-" & Config_Tag;
+   for Object_Dir  use "obj-" & Config_Tag;
 
    --  ORDER IS LOAD-BEARING (RTS.md §2.1, CONTRACT.md §3.4): board
    --  shadows core shadows shared; gnat_user/src (this leaf) win over

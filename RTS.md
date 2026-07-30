@@ -452,7 +452,13 @@ Three consequences worth weighing before deleting the XML:
 
 Each leaf's linker content therefore has to be transcribed individually — which is fine when leaves are generated (§6), but it is one more thing the generator must get right, and the failure mode is a wall of undefined references rather than a clear message.
 
-**Recommendation.** For the *configurability* motive, deleting the XML is not required: `runtime.xml`'s CDATA is GPR source and already contains a live `external("LOADER", "ROM")` with a `case` statement, so ISA switches can be made externally selectable inside it as it stands — `-XMCPU=bogus-cpu` reaches the real command line and is rejected by name (A.7). For the *one-language* motive, deletion is genuinely possible and costs one paragraph in the application's project file. What it buys is removing ~40 lines of XML per leaf; what it costs is that the ABI becomes an application responsibility — caught loudly today only because the runtime happens to contain Cortex-M asm (consequence 2). Given that the leaf crate is generated anyway (§6), maintaining generated XML is cheap — so this is a defensible change but not an obvious win, and it should be decided on whether the ecosystem is willing to add a mandatory `Builder` package to every application's project file.
+**Decision: do not use `runtime.xml` as the mechanism of record.** Building the seven-crate spike settled this, and not the way §5.4 originally guessed (A.22). In an architecture where the runtime is reached through a *withed library project* — which is what tier composition requires — `runtime.xml` is parsed but its `Compiler` and `Linker` packages do not take effect. It is therefore required to *exist* and not required to *work*, which is the worst of both.
+
+Concretely: setting its ISA default literally to a soft-float string still produced a hard-float image, and its `-nostartfiles`/`-nolibc` never reached the link — while the same file in a *published* crate reached via gprconfig discovery was load-bearing (A.2). The two configurations disagree and the reason was not isolated.
+
+So put the switches in GPR: the leaf exports `ISA_Switches`, `Linker_Switches` and `Defsyms`; the application applies the first via `Builder'Global_Compilation_Switches` and the rest in its `Linker` package. Keep a minimal, valid `runtime.xml` only if the toolchain wants the file present. **Two sources of truth for the ISA is the real hazard**: in the spike, a leaf whose `Hart_Class => e51` and whose computed `ISA_Switches` were both correct still produced a hard-float E51 image for six build attempts, because a second independent default in `runtime.xml` was nominally in charge and silently was not.
+
+**There is no good mechanism, and that is a gap in GPR rather than a choice.** `Leading_Required_Switches` has exactly the right semantics — prepended to every compilation, unforgettable, immune to per-file `Switches` overrides — but is configuration-project-only, so reachable *only* through `runtime.xml`. `Builder'Global_Compilation_Switches` has the reach but is root-project-only, so a runtime crate cannot guarantee its own ABI; every application must opt in. What is missing is any way for a *withed* project to contribute required switches to its dependents. Until that exists, the residual risk is that a forgetting application gets a silently wrong ABI — undetectable for a target whose intended ISA coincides with the compiler default. A compile-time ABI *witness* in the runtime would close it; no way to observe the float ABI from Ada at compile time was found.
 
 ## 6. The proposed hierarchy
 
@@ -780,3 +786,17 @@ Three results worth recording:
 - **Profile membership varies far more than expected**: 513 units for `light`, 602 for `light-tasking`, **1059** for `embedded`. Per-profile `Source_List_File` is load-bearing, not tidiness.
 - **`system.ads` differs across all three profiles** (distinct MD5s), so it is genuinely leaf-owned rather than shared — it carries the profile's `Restrictions`.
 - **§6's tier-2 row was wrong.** Grepping the bare-board kernel for architecture markers (`riscv`, `mhartid`, CSR names, register numbers): `s-bbthre.adb`, `s-bbtime.adb`, `s-bbinte.adb`, `s-bbprot.adb` score **zero**, while `s-bbcppr.adb` scores 5. The kernel is portable Ada over the CPU-primitives seam, so it belongs to tier 1; tier 2 is `CPU_Primitives` plus context-switch asm and nothing else. → §6, §7.
+
+**A.22 — Is `runtime.xml` effective when the runtime is a withed library project?** Measured on the seven-crate PolarFire spike, where `runtime_build.gpr` declares `for Runtime ("Ada") use Project'Project_Dir` and the application `with`s it (the arrangement tier composition forces):
+
+| Test | Result |
+|---|---|
+| deliberate GPR syntax error inside its CDATA | build fails: `":=" expected`, `processing of configuration project ... failed` — so the file **is** parsed |
+| its ISA default edited literally to `rv64imac_zicsr`/`lp64`, root `Builder` package removed | image still **hard-float** — its `Compiler'Leading_Required_Switches` do **not** apply |
+| its `-nostartfiles`/`-nolibc` | never reach the link; the leaf must export them itself |
+| `-XMPFS_ARCH=...`, and Alire `[environment]` | neither overrides the ISA |
+| `Builder'Global_Compilation_Switches` in the **root** project | works — soft-float E51 image, no `f`/`d` in `Tag_RISCV_arch` |
+
+Contrast A.2, where deleting `runtime.xml` from a *published* crate reached by gprconfig discovery broke the ISA outright. The two arrangements disagree and the cause was not isolated; the practical consequence is that `runtime.xml` cannot be relied on in a tier-composed runtime. → §5.4.
+
+Cost of getting this wrong, for the record: the E51 image came out hard-float across six attempts while `Hart_Class => e51` sat correctly in the generated config, because two independent ISA defaults existed and the ineffective one looked authoritative.

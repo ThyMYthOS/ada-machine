@@ -181,7 +181,7 @@ Upstream [bb-runtimes](https://github.com/AdaCore/bb-runtimes) does carry more t
 | 1 | `rts_sources_gcc15` | source-only, shared | the `libgnat`/`libgnarl` snapshot (RTS.md tier 1) |
 | 2 | `rts_core_riscv64` | source-only | `System.BB.CPU_Primitives`, threads, time — or folded into (1) per RTS.md §7 |
 | 3 | `rts_support_mpfs` | source-only | `s-bbbopa.ads`, `s-bbripl.adb` (PLIC), `a-intnam.ads`, `riscv_def.h`, startup variants (single-hart / SMP × M-mode / S-mode), CLINT / PLIC / L2-controller / L1-split private register bindings, the Ada that *interprets* the generator's raw values (§4.3), `ld/mpfs-memory.ld` + the five placement scripts (§6.1) |
-| 4 | `light_mpfs` | **buildable leaf** | manifest, config variables, `runtime.xml`, metadata, per-profile source list |
+| 4 | `light_mpfs` | **buildable leaf** | manifest, config variables, metadata, per-profile source list, and the exported `ISA_Switches`/`Linker_Switches`/`Defsyms`. `runtime.xml` is a valid stub only — see §11 item 13 |
 | 5 | `light_tasking_mpfs` | **buildable leaf** | + `ravenscar_build.gpr`/`libgnarl` |
 | 6 | `embedded_mpfs` | **buildable leaf** | + full exception propagation, C unwinder |
 | 7 | `mpfs_system` | **generated, project-local** | derived from the MSS Configurator XML + HSS payload YAML — see §4 |
@@ -512,5 +512,9 @@ A useful property of this order: each phase's milestone is checkable on hardware
 8. **The generator fork inherits vendor register encodings.** Forking `mpfs_configuration_generator.py` (§4.3) keeps the XML-parsing half untouched, but the interpretation of raw values into frequencies, PMP regions and way counts is ours to maintain and will drift with the XML format version. The script already reads `xml_format_version`; the fork should refuse an unknown one rather than mis-decode it.
 9. **`mem_elements` is designer intent, not hardware truth** (§4.3) — the Icicle reference labels its DDR entries "example instance" at 1 MB. Every derived window needs range-checking against §1.2 regardless of what the XML says.
 10. **The L2 startup-order contract is not checkable at run time** (§6.4). Generation can verify that whoever reduces LIM runs first; nothing verifies it actually did.
+13. **`runtime.xml` cannot carry the ISA in a tier-composed runtime — settled, not open.** Measured on the spike (RTS.md A.22): with the application `with`ing `runtime_build.gpr`, the file is parsed (a syntax error in its CDATA fails the build) but its `Compiler` and `Linker` packages do not take effect — editing its ISA default literally still produced a hard-float image. The switches must come from GPR, with the **application** applying `ISA_Switches` via `Builder'Global_Compilation_Switches`, which only a root project can set.
+
+    Two consequences for this plan. First, keeping a second ISA default inside `runtime.xml` is worse than having none: it looks authoritative and is not, and that is exactly why the E51 image stayed hard-float across six build attempts while `Hart_Class => e51` sat correctly in the generated config. Second, the residual risk is unclosed — an application that omits the `Builder` package gets a silently wrong ABI, undetectable whenever the intended ISA coincides with the compiler default. A compile-time ABI witness in the runtime would fix it; no way to observe the float ABI from Ada at compile time was found.
+
 11. **Who owns HSS.** This plan assumes HSS stays responsible for DDR training and optionally L2 configuration. Replacing it with Ada is a much larger project and explicitly out of scope.
 12. **PMP/U-mode is deferred to P5** but the data exists in `pmp_h0…h4` (§4.2), so `System_Map` should carry per-hart PMP regions from the start — that keeps P5 a decoding exercise rather than a schema change.
