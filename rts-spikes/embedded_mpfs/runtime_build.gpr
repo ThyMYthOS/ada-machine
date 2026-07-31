@@ -13,32 +13,17 @@ project Runtime_Build is
    --  Ported from light_mpfs, the reference leaf. Declarations first: both
    --  Config_Tag and the ISA derivation below use them (GPR needs
    --  declaration before use, and has no conditional expression).
+   --  Hart_Class and the ISA are derived ONCE, in target_options.gpr, so
+   --  that libgnat, libgnarl, the application and any third crate share one
+   --  decision (CONTRACT.md §3.6). The types are restated because a GPR
+   --  case statement needs a typed variable; the VALUES come from there.
    type Hart_Mask_Kind is ("1", "2", "4", "6", "8", "16", "30");
-   Hart_Mask : Hart_Mask_Kind := Embedded_Mpfs_Config.Harts_Mask;
+   Hart_Mask : Hart_Mask_Kind := Target_Options.Hart_Mask;
 
-   --  Hart_Class is IMPLIED by the mask: bit 0 is the E51, bits 1..4 the U54s
-   --  (CONTRACT.md §7.13).
    type Hart_Class_Kind is ("e51", "u54");
-   Hart_Class : Hart_Class_Kind := "u54";
-   case Hart_Mask is
-      when "1"    => Hart_Class := "e51";
-      when others => Hart_Class := "u54";
-   end case;
+   Hart_Class : Hart_Class_Kind := Target_Options.Hart_Class;
 
-   --  ISA defaults follow Hart_Class rather than sitting beside it
-   --  (CONTRACT.md §7.9). zifencei because an application copying into
-   --  ITIM/DTIM must fence.i before executing.
-   Default_Arch := "rv64imafdc_zicsr_zifencei";
-   Default_Abi  := "lp64d";
-   case Hart_Class is
-      when "e51" => Default_Arch := "rv64imac_zicsr_zifencei";
-                    Default_Abi  := "lp64";
-      when "u54" => null;
-   end case;
-
-   MPFS_ARCH := external ("MPFS_ARCH", Default_Arch);
-   MPFS_ABI  := external ("MPFS_ABI",  Default_Abi);
-   ISA_Switches := ("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI);
+   ISA_Switches := Target_Options.ISA_Switches;
 
    --  Per-configuration output dirs so applications with different
    --  [configuration.values] coexist instead of overwriting one adalib
@@ -119,30 +104,21 @@ project Runtime_Build is
    end case;
 
    ---------------------------------------------------------------------
-   --  §3.7: ISA_Switches, exported for an application that wants to
-   --  apply the same ISA/ABI to its own units via
-   --  Builder.Global_Compilation_Switches (RTS.md §5.4).
+   --  §3.7: ISA_Switches, re-exported from target_options.gpr, which is
+   --  now the single derivation site.
    --
-   --  This reads the SAME external()s as runtime.xml (§3.6), not
-   --  Hart_Class: a gprconfig <config> fragment cannot `with` this
-   --  project's generated config, so runtime.xml's actual injected
-   --  switches come from MPFS_ARCH/MPFS_ABI regardless of what
-   --  Hart_Class says. Deriving ISA_Switches from Hart_Class instead
-   --  would make this exported variable disagree with what the compiler
-   --  actually received whenever an application forgets to pass
-   --  -XMPFS_ARCH/-XMPFS_ABI to match its Hart_Class choice; reading the
-   --  same external()s keeps ISA_Switches truthful by construction. See
-   --  README.md "Two knobs, not one" for the resulting constraint on the
-   --  application (light_mpfs converged on the same fix independently).
+   --  It used to read the same external()s (MPFS_ARCH/MPFS_ABI) as
+   --  runtime.xml rather than deriving from Hart_Class, on the reasoning
+   --  that a gprconfig <config> fragment cannot `with` a generated
+   --  config project and so the two had to be kept in step by hand.
+   --  With runtime.xml deleted there is no second consumer to stay in
+   --  step with, and the "two knobs, not one" constraint on the
+   --  application is gone: Hart_Class alone decides (CONTRACT.md §7.10).
    ---------------------------------------------------------------------
 
-
-
-   --  Hart_Class (the Alire config Enum) still independently drives
-   --  source selection below (Single_Hart / DTIM ownership) and
-   --  Max_Number_Of_CPUs's domain (src/s-bbpara.ads) -- see README.md
-   --  "Two knobs, not one" for why these two are not, and cannot be,
-   --  tied together mechanically.
+   --  Hart_Class also drives source selection below (Single_Hart / DTIM
+   --  ownership) and Max_Number_Of_CPUs's domain (src/s-bbpara.ads).
+   --  Since it now also decides the ISA, those cannot drift apart.
 
    ---------------------------------------------------------------------
    --  §4/§3.7: Defsyms, the -Wl,--defsym= list for
@@ -305,10 +281,16 @@ project Runtime_Build is
      & ("-nostartfiles", "-nolibc",
         "-Wl,--start-group,-lgnarl,-lgnat,-lc,-lgcc,--end-group");
 
+   --  Runtime-only: -gnatg (internal GNAT implementation mode) and
+   --  -nostdinc (don't search the default RTS location). Kept out of
+   --  Target_Options.ALL_ADAFLAGS because applications reference that.
+   --  ALL_ADAFLAGS already carries the ISA, so it is not appended again.
+   RTS_ADAFLAGS := Target_Options.ALL_ADAFLAGS & ("-gnatg", "-nostdinc");
+
    package Compiler is
       for Default_Switches ("C")       use Target_Options.ALL_CFLAGS;
-      for Default_Switches ("Ada")     use Target_Options.ALL_ADAFLAGS;
-      for Default_Switches ("Asm_Cpp") use Target_Options.ASMFLAGS;
+      for Default_Switches ("Ada")     use RTS_ADAFLAGS;
+      for Default_Switches ("Asm_Cpp") use Target_Options.ALL_ASMFLAGS;
 
       --  Per-unit overrides carried over from the upstream
       --  embedded-polarfiresoc runtime_build.gpr (task instruction: read
@@ -318,28 +300,28 @@ project Runtime_Build is
 
       --  Some runtime files need to be compiled with debug info, so that
       --  gdb is not blind.
-      for Switches ("s-traceb.adb") use Target_Options.ALL_ADAFLAGS
+      for Switches ("s-traceb.adb") use RTS_ADAFLAGS
         & ("-g")
         & ("-fno-optimize-sibling-calls", "-fno-inline-functions-called-once");
-      for Switches ("a-except.adb") use Target_Options.ALL_ADAFLAGS
+      for Switches ("a-except.adb") use RTS_ADAFLAGS
         & ("-g", "-O1", "-fno-inline", "-fno-toplevel-reorder");
-      for Switches ("s-excdeb.adb") use Target_Options.ALL_ADAFLAGS
+      for Switches ("s-excdeb.adb") use RTS_ADAFLAGS
         & ("-g", "-O0");
-      for Switches ("s-assert.adb") use Target_Options.ALL_ADAFLAGS
+      for Switches ("s-assert.adb") use RTS_ADAFLAGS
         & ("-g");
-      for Switches ("a-tags.adb") use Target_Options.ALL_ADAFLAGS
+      for Switches ("a-tags.adb") use RTS_ADAFLAGS
         & ("-g");
       for Switches ("raise-gcc.c") use Target_Options.ALL_CFLAGS
         & ("-fexceptions");
 
       --  Don't inline System.Machine_Reset otherwise we can lose our
       --  common exit system.
-      for Switches ("s-macres.adb") use Target_Options.ALL_ADAFLAGS
+      for Switches ("s-macres.adb") use RTS_ADAFLAGS
         & ("-fno-inline");
 
       --  Generate ada_target_properties to give target-specific
       --  information to formal verification tools.
-      for Switches ("system.ads") use Target_Options.ALL_ADAFLAGS
+      for Switches ("system.ads") use RTS_ADAFLAGS
         & ("-gnatet=" & Project'Project_Dir & "/ada_target_properties");
 
       --  NOT carried over: upstream also overrides "unwind-sjlj-cert.c",

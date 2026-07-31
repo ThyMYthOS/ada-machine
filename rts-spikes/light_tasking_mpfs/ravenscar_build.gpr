@@ -59,17 +59,20 @@ project Ravenscar_Build is
    --  installed gnat_riscv64_elf 15.1.2 toolchain).
    ------------------------------------------------------------------
 
+   --  Runtime-only switches, as in runtime_build.gpr. GNARL_ADAFLAGS
+   --  already carries the ISA (target_options.gpr), so it is not
+   --  appended again here.
+   RTS_GNARL_ADAFLAGS :=
+     Target_Options.GNARL_ADAFLAGS & ("-gnatg", "-nostdinc");
+
    package Compiler is
-      for Default_Switches ("Ada") use
-        Target_Options.GNARL_ADAFLAGS & Runtime_Build.ISA_Switches;
-      for Default_Switches ("Asm_Cpp") use
-        Target_Options.ASMFLAGS & Runtime_Build.ISA_Switches;
+      for Default_Switches ("Ada") use RTS_GNARL_ADAFLAGS;
+      for Default_Switches ("Asm_Cpp") use Target_Options.ALL_ASMFLAGS;
 
       --  Always build System.BB.CPU_Primitives at -O2: some targets rely
       --  on specific compiler behaviour for inline asm operand loading
       --  that is not reliable at -O0 (upstream comment, preserved).
-      for Switches ("s-bbcppr.adb") use
-        Target_Options.GNARL_ADAFLAGS & Runtime_Build.ISA_Switches & ("-O2");
+      for Switches ("s-bbcppr.adb") use RTS_GNARL_ADAFLAGS & ("-O2");
    end Compiler;
 
 end Ravenscar_Build;

@@ -163,13 +163,19 @@ successfully with the pinned default `Harts => "1"`).
 | `Secondary_Stack_Size` | Integer | `2048` |
 | `MPFS_PARTITION` | String | `""` |
 
-`Hart_Class` and `MPFS_ARCH`/`MPFS_ABI` (the `external()`s in
-`runtime.xml`/`runtime_build.gpr`, CONTRACT.md §3.6) are two independent
-knobs, per CONTRACT.md's own design — the ISA switches are not derived
-from `Hart_Class` automatically. A `Hart_Class => e51` build needs
-`-XMPFS_ARCH=rv64imac_zicsr -XMPFS_ABI=lp64` set explicitly
-(RTS-POLARFIRE.md §1.1: bare `rv64imac` cannot even assemble the startup
-code, the E51 string is `rv64imac_zicsr`).
+`Harts_Mask` is the only ISA knob. It derives `Hart_Class`, which derives
+`ISA_Switches`, in `target_options.gpr` — once, with no `external()` able
+to override it (CONTRACT.md §3.6/§7.10). No `-XMPFS_ARCH`/`-XMPFS_ABI` is
+needed or read; an E51 build (`Harts_Mask = 1`) gets
+`rv64imac_zicsr_zifencei`/`lp64` automatically (RTS-POLARFIRE.md §1.1:
+bare `rv64imac` cannot even assemble the startup code).
+
+This leaf is where that mattered most: it previously assigned
+`ISA_Switches` a **second** time, hardcoded to `rv64imafdc`/`lp64d`, which
+silently overrode the derived value and made every build hard-float
+regardless of `Harts_Mask`. Applications rename the exported `Builder`
+package (`package Builder renames Target_Options.Builder;`); forgetting to
+is now a link error rather than a wrong binary.
 
 `Secondary_Stack_Size` is declared (CONTRACT.md §3.2 pins the name) but
 not yet consumed by any switch or spec in this leaf — the shipped

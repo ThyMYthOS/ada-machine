@@ -1,4 +1,5 @@
 with "runtime_build.gpr";
+with "target_options.gpr";
 with "config/hello_mpfs_config.gpr";
 
 project Hello_MPFS is
@@ -12,15 +13,11 @@ project Hello_MPFS is
    for Exec_Dir use "bin";
    for Main use ("hello_mpfs.adb");
 
-   --  runtime.xml is INERT when the runtime is reached through a withed
-   --  library project: neither Compiler'Leading_Required_Switches nor
-   --  Linker'Required_Switches apply (RTS.md A.8/A.9). Without this the image
-   --  silently takes the compiler's DEFAULT riscv64-elf ISA. Only the ROOT
-   --  project can set Builder'Global_Compilation_Switches.
-   package Builder is
-      for Global_Compilation_Switches ("Ada")     use Runtime_Build.ISA_Switches;
-      for Global_Compilation_Switches ("Asm_Cpp") use Runtime_Build.ISA_Switches;
-   end Builder;
+   --  The ABI comes from the runtime crate, which derives it from the hart
+   --  mask. Renaming rather than restating means the application cannot
+   --  disagree with the runtime about it (avrada_rts's pattern; only the
+   --  ROOT project's Builder is honoured, hence the rename here).
+   package Builder renames Target_Options.Builder;
 
    package Linker is
       for Switches ("Ada") use

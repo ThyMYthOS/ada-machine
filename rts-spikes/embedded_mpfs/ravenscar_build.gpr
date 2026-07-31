@@ -62,9 +62,16 @@ project Ravenscar_Build is
          null;
    end case;
 
+   --  Runtime-only switches, as in runtime_build.gpr. GNARL_ADAFLAGS
+   --  already carries the ISA (target_options.gpr), so it is not
+   --  appended again here.
+   RTS_GNARL_ADAFLAGS :=
+     Target_Options.GNARL_ADAFLAGS & ("-gnatg", "-nostdinc");
+   RTS_ADAFLAGS := Target_Options.ALL_ADAFLAGS & ("-gnatg", "-nostdinc");
+
    package Compiler is
-      for Default_Switches ("Ada")     use Target_Options.GNARL_ADAFLAGS;
-      for Default_Switches ("Asm_Cpp") use Target_Options.ASMFLAGS;
+      for Default_Switches ("Ada")     use RTS_GNARL_ADAFLAGS;
+      for Default_Switches ("Asm_Cpp") use Target_Options.ALL_ASMFLAGS;
 
       --  Carried over from the upstream embedded-polarfiresoc
       --  ravenscar_build.gpr (same rationale as runtime_build.gpr: RTS.md
@@ -75,11 +82,11 @@ project Ravenscar_Build is
       --  may make use of inline assembly that relies on specific
       --  compiler behaviour to load constants that are not enabled at
       --  -O0.
-      for Switches ("s-bbcppr.adb") use Target_Options.GNARL_ADAFLAGS & ("-O2");
+      for Switches ("s-bbcppr.adb") use RTS_GNARL_ADAFLAGS & ("-O2");
 
       --  Some runtime files need to be compiled with debug info, so that
       --  gdb is not blind.
-      for Switches ("s-tasdeb.adb") use Target_Options.ALL_ADAFLAGS
+      for Switches ("s-tasdeb.adb") use RTS_ADAFLAGS
         & ("-g", "-O0");
    end Compiler;
 
