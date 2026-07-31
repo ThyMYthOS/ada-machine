@@ -3,9 +3,13 @@
 --  to the corresponding variables there. Target configurations may
 --  their own version of this file.
 --
---  Copied verbatim from the installed gnat_riscv64_elf 15.1.2
---  light-polarfiresoc runtime (byte-identical across light,
---  light-tasking and embedded for this toolchain version).
+--  Derived from the installed gnat_riscv64_elf 15.1.2 light-polarfiresoc
+--  runtime, then extended along the lines of avrada_rts's
+--  avr_tool_options.gpr: this project, not runtime.xml, is the single
+--  place the target ISA is decided, and it exports a Builder package for
+--  applications to rename. See CONTRACT.md §3.6.
+
+with "gnat_user/light_mpfs_config.gpr";
 
 abstract project Target_Options is
 
@@ -24,8 +28,11 @@ abstract project Target_Options is
   COMGNARLFLAGS := ("");
   COMDEBUGFLAGS := ("-g");
 
-  --  Per language flags (COMFLAGS will be added later)
-  ADAFLAGS := ("-gnatg", "-nostdinc", "-fno-delete-null-pointer-checks");
+  --  Per language flags (COMFLAGS will be added later).
+  --  -gnatg/-nostdinc are NOT here: they are runtime-only, and this
+  --  project's ALL_ADAFLAGS is referenced by applications too (the
+  --  avrada_rts split). runtime_build.gpr adds them itself.
+  ADAFLAGS := ("-fno-delete-null-pointer-checks");
   ASMFLAGS := ("");
   CFLAGS := ("-DIN_RTS",
         "-Dinhibit_libc",
@@ -67,10 +74,72 @@ abstract project Target_Options is
         LOPTIONS := LOPTIONS & ("");
   end case;
 
+  ------------------------------------------------------------------
+  --  The ISA axis (CONTRACT.md §3.6/§3.7).
+  --
+  --  Hart_Class is IMPLIED by the hart mask: bit 0 is the E51, bits
+  --  1..4 the U54s. It is derived HERE, once, so that the runtime
+  --  library, the application and any third crate in the closure
+  --  cannot disagree about the ABI. runtime.xml used to carry a
+  --  second, independent copy of this decision via external(); that
+  --  file is gone (CONTRACT.md §7.10).
+  ------------------------------------------------------------------
+
+  type U54_Mask_Kind is ("1", "2", "4", "8", "16");
+  U54_Hart_Mask : U54_Mask_Kind := Light_Mpfs_Config.Harts_Mask;
+
+  type Hart_Class_Kind is ("e51", "u54");
+  Hart_Class : Hart_Class_Kind := "u54";
+  case U54_Hart_Mask is
+     when "1"    => Hart_Class := "e51";
+     when others => Hart_Class := "u54";
+  end case;
+
+  --  zifencei is included because application code that copies into
+  --  ITIM or DTIM must issue fence.i before executing it.
+  Arch := "rv64imafdc_zicsr_zifencei";
+  Abi  := "lp64d";
+  case Hart_Class is
+     when "e51" =>
+        Arch := "rv64imac_zicsr_zifencei";   --  no FPU on the E51
+        Abi  := "lp64";
+     when "u54" =>
+        Arch := "rv64imafdc_zicsr_zifencei";
+        Abi  := "lp64d";
+  end case;
+
+  ISA_Switches := ("-march=" & Arch, "-mabi=" & Abi);
+
+  --  Switches that must reach EVERY unit in the closure, runtime and
+  --  application alike -- the job runtime.xml's
+  --  Compiler'Leading_Required_Switches used to do.
+  --
+  --  -fno-tree-loop-distribute-patterns is not optional: without it GCC
+  --  may rewrite a loop into a memcpy/memset call that a bare-metal
+  --  runtime does not provide. Losing it was the one real regression
+  --  from deleting runtime.xml (CONTRACT.md §7.10).
+  Global_Ada_Switches := ISA_Switches & ("-fno-tree-loop-distribute-patterns");
+
   --  Concatenate with common flags
-  ALL_ADAFLAGS := ADAFLAGS & COMFLAGS;
-  ALL_CFLAGS := CFLAGS & COMFLAGS;
+  ALL_ADAFLAGS := ADAFLAGS & COMFLAGS & ISA_Switches;
+  ALL_CFLAGS := CFLAGS & COMFLAGS & ISA_Switches;
+  ALL_ASMFLAGS := ASMFLAGS & ISA_Switches;
   GNARL_ADAFLAGS := ALL_ADAFLAGS & COMGNARLFLAGS;
   GNARL_CFLAGS := ALL_CFLAGS & COMGNARLFLAGS;
+
+  ------------------------------------------------------------------
+  --  Applications rename this package (avrada_rts's pattern):
+  --
+  --     package Builder renames Target_Options.Builder;
+  --
+  --  Global_Compilation_Switches applies to EVERY project in the
+  --  closure, so a HAL or driver crate cannot be compiled with the
+  --  wrong ABI either. Only the root project's Builder is honoured,
+  --  which is why the application has to do the renaming.
+  ------------------------------------------------------------------
+  package Builder is
+     for Global_Compilation_Switches ("Ada")     use Global_Ada_Switches;
+     for Global_Compilation_Switches ("Asm_Cpp") use ISA_Switches;
+  end Builder;
 
 end Target_Options;

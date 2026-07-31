@@ -38,11 +38,9 @@ light_mpfs.Memory_Profile    = "lim"
 light_mpfs.DTIM_Ways         = 1
 light_mpfs.Console           = "mmuart0"
 
-#  runtime.xml drives COMPILATION via Leading_Required_Switches, and it is a
-#  gprconfig configuration project: it cannot see Alire's crate configuration,
-#  only GPR externals. So Harts_Mask alone cannot steer the ISA -- the external
-#  has to be set, and Alire's [environment] is how a crate does that.
-#  (CONTRACT.md 7.9; the two knobs are still separate, this keeps them agreed.)
-[environment]
-MPFS_ARCH = { set = "rv64imac_zicsr_zifencei" }
-MPFS_ABI  = { set = "lp64" }
+#  No [environment] MPFS_ARCH/MPFS_ABI here any more. Those existed because
+#  runtime.xml, being a gprconfig configuration project, could not see Alire's
+#  crate configuration and needed the ISA passed as a GPR external. runtime.xml
+#  is gone (CONTRACT.md 3.6/7.10): target_options.gpr derives the soft-float E51
+#  ABI from Harts_Mask = 1 above, so setting it a second time here would be the
+#  very "two knobs" hazard that change removed.

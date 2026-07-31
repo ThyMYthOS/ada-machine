@@ -1,5 +1,6 @@
 with "runtime_build.gpr";
 with "ravenscar_build.gpr";
+with "target_options.gpr";
 with "config/embedded_app_config.gpr";
 
 project Embedded_App is
@@ -10,12 +11,11 @@ project Embedded_App is
    for Exec_Dir use "bin";
    for Main use ("embedded_app.adb");
 
-   --  Only the ROOT project can apply the ISA (CONTRACT.md §7.10).
-   package Builder is
-      for Global_Compilation_Switches ("Ada")     use Runtime_Build.ISA_Switches;
-      for Global_Compilation_Switches ("Asm_Cpp") use Runtime_Build.ISA_Switches;
-      for Global_Compilation_Switches ("C")       use Runtime_Build.ISA_Switches;
-   end Builder;
+   --  The ABI comes from the runtime crate, derived once from the hart
+   --  mask, and covers Ada, Asm_Cpp and C. Renaming rather than restating
+   --  keeps every unit in the closure on one decision (avrada_rts's
+   --  pattern; only the ROOT project's Builder is honoured).
+   package Builder renames Target_Options.Builder;
 
    package Linker is
       for Switches ("Ada") use

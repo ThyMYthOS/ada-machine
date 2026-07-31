@@ -441,8 +441,8 @@ end Builder;
 
 Three consequences worth weighing before deleting the XML:
 
-1. **The runtime crate can no longer guarantee its own ABI.** With `runtime.xml`, the flags are `Leading_Required_Switches`: prepended to every compilation in the tree, unforgettable, and immune to per-file `Switches` overrides. In GPR the equivalent reach exists only in the root project, so every application must opt in. The mitigating argument is that this is an *extension of an existing convention* rather than a new burden — applications already have to restate `for Target use Runtime_Build'Target;` and `for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");` for the same underlying reason (gprbuild reads those only from the root project).
-2. **The failure mode is loud, but by luck rather than design.** An application that forgets the `Builder` package fails at the assembler on the runtime's own inline asm — `Error: selected processor does not support 'cpsid i' in ARM mode` (A.11). That is a good diagnostic, but it comes from the runtime happening to contain Cortex-M asm; the application's *own* units would have compiled to the wrong ABI silently. Mixed-ISA links do go through unnoticed: forcing `-mcpu=cortex-m3` on the Ada units while five runtime asm files hardcode `.cpu cortex-m4` produced a linked ELF with no diagnostic at all (A.7) — a source defect with its own fix (§4.2), but one that nothing in the toolchain reports.
+1. **The runtime crate can guarantee its own library, but not its dependents'.** With `runtime.xml`, the flags are `Leading_Required_Switches`: prepended to every compilation in the tree, unforgettable, and immune to per-file `Switches` overrides. In GPR that reach exists only in the root project, so every application must opt in — by renaming the crate's `Builder` package (`avrada_rts`'s pattern), which is an *extension of an existing convention* rather than a new burden: applications already restate `for Target use Runtime_Build'Target;` and `for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");` for the same underlying reason. What the crate *can* enforce unilaterally is the ABI of its own `libgnat`/`libgnarl`, by deriving the ISA in `target_options.gpr` and folding it into `ALL_ADAFLAGS`. That is what turns a forgetful application from a silent miscompile into a link error (§5.4).
+2. **The failure mode is loud where the ABI differs, silent where only the ISA does.** An application that forgets the `Builder` package fails at the assembler on the runtime's own inline asm — `Error: selected processor does not support 'cpsid i' in ARM mode` (A.11) — and on RISC-V, where the runtime library is built from its own derived ISA, `ld` refuses outright: `can't link soft-float modules with double-float modules`. Both are good diagnostics. Neither covers a pure *instruction-set* difference at the same float ABI: forcing `-mcpu=cortex-m3` on the Ada units while five runtime asm files hardcode `.cpu cortex-m4` produced a linked ELF with no diagnostic at all (A.7) — a source defect with its own fix (§4.2), but one nothing in the toolchain reports.
 3. **`Default_Switches` is not inherited by `Switches`.** The crate's project has seven per-file overrides (`a-except.adb`, `s-macres.adb`, `system.ads`, …). Adding the ISA flags to `Default_Switches` leaves every one of those units without them (A.11). Only the root-project `Global_Compilation_Switches` route avoids having to patch each override.
 
 **The substitution is per-profile, not one template.** Verified on all three profiles, each producing an artifact identical to its baseline — but only after two profile-specific corrections that a copy-paste migration would miss (A.14):
@@ -452,13 +452,35 @@ Three consequences worth weighing before deleting the XML:
 
 Each leaf's linker content therefore has to be transcribed individually — which is fine when leaves are generated (§6), but it is one more thing the generator must get right, and the failure mode is a wall of undefined references rather than a clear message.
 
-**Decision: do not use `runtime.xml` as the mechanism of record.** Building the seven-crate spike settled this, and not the way §5.4 originally guessed (A.22). In an architecture where the runtime is reached through a *withed library project* — which is what tier composition requires — `runtime.xml` is parsed but its `Compiler` and `Linker` packages do not take effect. It is therefore required to *exist* and not required to *work*, which is the worst of both.
+**Decision: do not use `runtime.xml`; follow `avrada_rts` and delete it.** Note carefully what this decision does *not* rest on. An earlier version of this section argued that `runtime.xml` is "parsed but ineffective" when the runtime is reached through a withed library project. **That was false** — the file under test was malformed XML, which gprconfig ignores silently, and the mechanism works exactly as documented once the file is valid (A.22, retracted in full). `Compiler'Leading_Required_Switches` reaches application units too, as [`embedded_rp2040`](https://github.com/damaki/community-bb-runtimes) demonstrates in production.
 
-Concretely: setting its ISA default literally to a soft-float string still produced a hard-float image, and its `-nostartfiles`/`-nolibc` never reached the link — while the same file in a *published* crate reached via gprconfig discovery was load-bearing (A.2). The two configurations disagree and the reason was not isolated.
+So the choice is between two mechanisms that both work, and it turns on fit rather than function:
 
-So put the switches in GPR: the leaf exports `ISA_Switches`, `Linker_Switches` and `Defsyms`; the application applies the first via `Builder'Global_Compilation_Switches` and the rest in its `Linker` package. Keep a minimal, valid `runtime.xml` only if the toolchain wants the file present. **Two sources of truth for the ISA is the real hazard**: in the spike, a leaf whose `Hart_Class => e51` and whose computed `ISA_Switches` were both correct still produced a hard-float E51 image for six build attempts, because a second independent default in `runtime.xml` was nominally in charge and silently was not.
+| | `runtime.xml` | pure GPR (`avrada_rts`) |
+|---|---|---|
+| Reach | every unit in the tree, unforgettable | root-project `Builder`, or each project's `Compiler` |
+| Driven by Alire configuration | **no** — `external()`/`-X` only | **yes**, via the generated config project |
+| Languages to maintain | two (XML wrapping GPR) | one |
+| Failure mode of a typo | **silently ignored entirely** | GPR syntax error, build stops |
 
-**There is no good mechanism, and that is a gap in GPR rather than a choice.** `Leading_Required_Switches` has exactly the right semantics — prepended to every compilation, unforgettable, immune to per-file `Switches` overrides — but is configuration-project-only, so reachable *only* through `runtime.xml`. `Builder'Global_Compilation_Switches` has the reach but is root-project-only, so a runtime crate cannot guarantee its own ABI; every application must opt in. What is missing is any way for a *withed* project to contribute required switches to its dependents. Until that exists, the residual risk is that a forgetting application gets a silently wrong ABI — undetectable for a target whose intended ISA coincides with the compiler default. A compile-time ABI *witness* in the runtime would close it; no way to observe the float ABI from Ada at compile time was found.
+The second row is decisive for an Alire-native design. A gprconfig `<config>` fragment cannot `with` the crate's generated configuration project, so every value in `runtime.xml` must arrive as an `external()` — which means an Alire configuration variable and the switch it is supposed to control are two independent facts that must be kept in step by hand. That is precisely the "two sources of truth" hazard: in this spike a leaf with a correct `Hart_Class => e51` still produced hard-float E51 images because a second, independent ISA default in `runtime.xml` was nominally in charge. The fourth row is what made that hazard so expensive to find.
+
+`avrada_rts` shows the alternative in production, and the spike now follows it exactly:
+
+- `target_options.gpr` derives `Hart_Class` from the hart mask **once**, computes `ISA_Switches` from it, and folds them into `ALL_ADAFLAGS`/`ALL_CFLAGS`, so the runtime library's own compilation is correct independently of anything the application does.
+- It exports a `Builder` package which each application **renames** — `package Builder renames Target_Options.Builder;` — rather than restating. `Global_Compilation_Switches` then reaches every project in the closure, including a third-party HAL.
+- `Linker_Switches` carries what `Linker'Required_Switches` used to: `-nostartfiles`, `-nolibc`, the ISA, and (for `embedded` only) the `--start-group` set.
+- `-gnatg`/`-nostdinc` stay out of the shared `ALL_ADAFLAGS`, since applications reference it; the two library projects add them.
+
+**Deleting the file costs one switch, and it is not optional.** `-fno-tree-loop-distribute-patterns` was carried by `Leading_Required_Switches` and so reached *applications*, not just the runtime; without it GCC may rewrite a loop into a `memcpy`/`memset` call that a bare-metal runtime does not provide. It has to be added to whatever replaces the file's global reach. A migration that transcribes only the ISA switches loses it silently.
+
+**The ABI-witness gap is closed, by construction rather than by a check.** The concern was that an application forgetting the `Builder` package would get a silently wrong ABI. That was true only while the ISA lived *solely* in the application's `Builder`: runtime and application then both fell back to the compiler default and agreed. Once `target_options.gpr` compiles the runtime library from its own derived ISA, a wrong application ABI cannot link — verified by removing the rename from the E51 application:
+
+```
+ld: libgnat.a(a-elchha.o): can't link soft-float modules with double-float modules
+```
+
+The residual exposure is narrower than stated before: it applies only where the intended ISA coincides with the compiler default *and* no float-ABI difference exists to disagree about — in which case the wrong build is also, by construction, the right one. What remains genuinely missing from GPR is any way for a *withed* project to contribute required switches to its dependents; the `Builder` rename is a convention, and a convention is still forgettable.
 
 ## 6. The proposed hierarchy
 
@@ -787,19 +809,28 @@ Three results worth recording:
 - **`system.ads` differs across all three profiles** (distinct MD5s), so it is genuinely leaf-owned rather than shared — it carries the profile's `Restrictions`.
 - **§6's tier-2 row was wrong.** Grepping the bare-board kernel for architecture markers (`riscv`, `mhartid`, CSR names, register numbers): `s-bbthre.adb`, `s-bbtime.adb`, `s-bbinte.adb`, `s-bbprot.adb` score **zero**, while `s-bbcppr.adb` scores 5. The kernel is portable Ada over the CPU-primitives seam, so it belongs to tier 1; tier 2 is `CPU_Primitives` plus context-switch asm and nothing else. → §6, §7.
 
-**A.22 — Is `runtime.xml` effective when the runtime is a withed library project?** Measured on the seven-crate PolarFire spike, where `runtime_build.gpr` declares `for Runtime ("Ada") use Project'Project_Dir` and the application `with`s it (the arrangement tier composition forces):
+**A.22 — Is `runtime.xml` effective when the runtime is a withed library project? — RETRACTED.** This experiment originally concluded "parsed but ineffective". **That conclusion was wrong, and the cause was a defect in the test fixture, not in gprbuild.** The claim survived a re-test by a stricter method and was falsified only when compared against a working third-party crate. Both the original wording and the correction are kept here, because the way it failed is the useful part.
+
+The original measurement: with `runtime_build.gpr` declaring `for Runtime ("Ada") use Project'Project_Dir` and the application `with`ing it, editing the ISA default in `runtime.xml` to a soft-float string changed nothing, and its `-nostartfiles`/`-nolibc` never reached the link.
+
+What was actually wrong: **`light_mpfs/runtime.xml` was not well-formed XML.** Its leading comment used `--` as an em-dash, and an XML comment may not contain a double hyphen. **gprconfig silently ignores an unparseable `runtime.xml`** — no warning, no error, at any verbosity. The file had been inert since it was written, and the comment explaining why runtime.xml could not be trusted was itself the reason it could not be trusted.
 
 | Test | Result |
 |---|---|
-| deliberate GPR syntax error inside its CDATA | build fails: `":=" expected`, `processing of configuration project ... failed` — so the file **is** parsed |
-| its ISA default edited literally to `rv64imac_zicsr`/`lp64`, root `Builder` package removed | image still **hard-float** — its `Compiler'Leading_Required_Switches` do **not** apply |
-| its `-nostartfiles`/`-nolibc` | never reach the link; the leaf must export them itself |
-| `-XMPFS_ARCH=...`, and Alire `[environment]` | neither overrides the ISA |
-| `Builder'Global_Compilation_Switches` in the **root** project | works — soft-float E51 image, no `f`/`d` in `Tag_RISCV_arch` |
+| `xml.dom.minidom` on `light_mpfs/runtime.xml` | **malformed**, line 4 col 72; `embedded_mpfs`'s likewise (line 8) |
+| same check on `light_tasking_mpfs/runtime.xml` | **well-formed** — and `tasking_mpfs.ali` had carried its `-fno-tree-loop-distribute-patterns` all along |
+| fix the comment only, rebuild `hello_mpfs` | `-fno-tree-loop-distribute-patterns` appears in the application's ALI — a switch present *only* in runtime.xml |
+| well-formed file, root `Builder` removed, `-XMPFS_ARCH=rv64imac_zicsr` | application unit compiles `-mabi=lp64`, `-march=rv64imac_zicsr_…` — **soft-float from runtime.xml alone** |
+| `alr get embedded_rp2040` (damaki), built per its documented usage | `-mcpu=cortex-m0plus -mthumb -mfloat-abi=soft` in the application's ALI, straight after `--RTS=` |
 
-Contrast A.2, where deleting `runtime.xml` from a *published* crate reached by gprconfig discovery broke the ISA outright. The two arrangements disagree and the cause was not isolated; the practical consequence is that `runtime.xml` cannot be relied on in a tier-composed runtime. → §5.4.
+So `Compiler'Leading_Required_Switches` **does** apply to a runtime reached through a withed library project, provided the root project also sets `for Runtime ("Ada") use <the crate dir>` — which the spike already did. There is no disagreement with A.2 to explain.
 
-Cost of getting this wrong, for the record: the E51 image came out hard-float across six attempts while `Hart_Class => e51` sat correctly in the generated config, because two independent ISA defaults existed and the ineffective one looked authoritative.
+Two methodological faults produced the wrong answer, and only the second was mine to catch:
+
+1. **The original test read the application ELF's `Tag_RISCV_arch`**, which `ld` merges across all input objects, so hard-float application objects could mask a soft-float runtime. Re-running per-unit against the `.ali` (which records switches verbatim) removed that hazard — and still returned "ineffective", because the file was broken either way. **A better method applied to a broken fixture reproduces the same wrong answer with more confidence.**
+2. **The chosen "different" test value canonicalized to the compiler's own default.** For the u54 profile, `rv64imafdc_zicsr_zifencei` expands to exactly what `riscv64-elf-gcc` emits with no `-march` at all, so a silently-ignored runtime.xml and a working one produced byte-identical output. The `Builder'Global_Compilation_Switches` workaround then removed the last observable symptom.
+
+The general lesson, and the reason this is kept: **a negative result about a mechanism is only as good as the proof that the fixture exercising it is valid.** Comparing against a known-working implementation of the same mechanism — here, a published crate — found in one build what two rounds of internal experiment did not. → §5.4.
 
 **A.23 — Can tier 1 be a flat union of every profile's units?** No. `Source_List_File` restricts what is compiled **into** the library; it does not restrict *visibility*, and GNAT's configurable-runtime logic decides which language features exist from what it can see on the source path.
 

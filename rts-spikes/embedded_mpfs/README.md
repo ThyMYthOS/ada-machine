@@ -88,7 +88,7 @@ would be (same `Compiler` package, same ISA-switch mechanism); the
 
 | Variable | Type | Default | Notes |
 |---|---|---|---|
-| `Hart_Class` | Enum (`e51`, `u54`) | `u54` | drives the *source-selection* half of ISA/ABI (this crate's `ISA_Switches`, `Max_Number_Of_CPUs`'s domain); see "Two knobs, not one" below |
+| `Harts_Mask` | Integer 1..31 | 6 | bit N = hart N, bit 0 the E51. **Derives** `Hart_Class`, and through it `ISA_Switches`, `Max_Number_Of_CPUs`'s domain and ITIM/DTIM ownership; see "One knob" below. There is no separate `Hart_Class` variable |
 | `Harts` | String | `"1"` | hart set owned by this partition; drives `Max_Number_Of_CPUs` (`src/s-bbpara.ads`) and the ITIM `Defsyms` |
 | `Privilege` | Enum (`m_mode`, `s_mode`) | `m_mode` | not yet consumed by this leaf's own project files (S-mode support is RTS-POLARFIRE.md §8 item 7, deferred) |
 | `Memory_Profile` | Enum, 6 values | `lim` | selects the `-T` placement script (see "Cross-crate dependency" below) |
@@ -148,44 +148,40 @@ instead (verified: GPR's `case` works directly on a plain, untyped
 catch-all; no locally-declared enumeration type is required, unlike
 what a first reading of the GPR reference suggests).
 
-### Two knobs, not one -- a known gap
+### One knob -- the gap is closed
 
-`Hart_Class` (Alire configuration, driving *source selection*) and
-`runtime.xml`'s `MPFS_ARCH`/`MPFS_ABI` (plain GPR `external()`,
-CONTRACT.md §3.6, driving the *actual compiler switches*) are **two
-independent mechanisms that happen to share the same u54 defaults.**
-A `gprconfig` `<config>` fragment cannot `with` this project's
-generated `embedded_mpfs_config.gpr`, so `runtime.xml` cannot read
-`Hart_Class` directly -- there is no GPR mechanism available to make
-one drive the other.
+This section used to describe `Hart_Class` and `runtime.xml`'s
+`MPFS_ARCH`/`MPFS_ABI` as "two knobs, not one": two independent
+mechanisms sharing the same u54 defaults, which an E51 application had
+to keep in step by also passing `-XMPFS_ARCH=rv64imac_zicsr
+-XMPFS_ABI=lp64`. Nothing detected a mismatch.
 
-`runtime_build.gpr`'s exported `ISA_Switches` therefore reads the
-**same** `external("MPFS_ARCH", ...)`/`external("MPFS_ABI", ...)` as
-`runtime.xml`, not `Hart_Class` -- so `ISA_Switches` is always a
-truthful mirror of what the compiler actually received, never a
-derivation that could disagree with it (`light_mpfs` converged on the
-same fix independently). But this only relocates the gap, it does not
-close it:
+**That is no longer the case, and the reason it existed was a mistake.**
+The gap was blamed on a `gprconfig` `<config>` fragment being unable to
+`with` a generated configuration project -- which is true, but the
+conclusion drawn from it (that `runtime.xml` had to stay the source of
+the ISA, read through externals) was not forced. `runtime.xml` is now
+deleted, following `avrada_rts`; `target_options.gpr` derives
+`Hart_Class` from `Harts_Mask` and computes `ISA_Switches` from it, once,
+with no `external()` able to override it. See CONTRACT.md 3.6 / 7.10 and
+RTS.md A.22.
 
-- Setting `Hart_Class => e51` (via `[configuration.values]`) changes
-  *source selection* only: `Max_Number_Of_CPUs`'s reachable domain
-  (`src/s-bbpara.ads`), `Single_Hart`/DTIM ownership below, and (once
-  tier-3 implements it) the float-source-variant selection.
-- It does **not**, by itself, change what the compiler receives --
-  that is `runtime.xml`'s `Leading_Required_Switches`, sourced from the
-  `MPFS_ARCH`/`MPFS_ABI` externals, which are set independently.
-- An application targeting the E51 must **also** pass
-  `-XMPFS_ARCH=rv64imac_zicsr -XMPFS_ABI=lp64` on the command line for
-  `Hart_Class` and the actual ISA to agree. Nothing currently detects
-  the mismatch if it forgets to -- `ISA_Switches` being truthful means
-  it would *report* the disagreement (it would show `rv64imafdc`/
-  `lp64d` while `Max_Number_Of_CPUs`/source selection assumed E51), not
-  prevent it.
+Consequences for this crate:
 
-This is inherent to `gprconfig`'s `<config>` CDATA being evaluated
-separately from ordinary project files (RTS.md §5.4), not a bug in one
-file; CONTRACT.md §3.6 pins `runtime.xml`'s external()-based form as
-given. Flagged here rather than silently worked around.
+- `Harts_Mask` alone decides both source selection
+  (`Max_Number_Of_CPUs`, `Single_Hart`/DTIM ownership) and the compiler
+  switches. A disagreeing pair is unrepresentable, so the
+  `Hart_Class = e51` + hard-float check CONTRACT.md 5 asked for is
+  unnecessary rather than unimplementable.
+- There is no `Hart_Class` configuration variable any more; it is
+  derived. The table above is corrected accordingly.
+- An application no longer passes any `-X` for the ISA. It renames the
+  exported `Builder` package instead:
+  `package Builder renames Target_Options.Builder;`
+- Forgetting that rename is now a **link error**
+  (`can't link soft-float modules with double-float modules`), because
+  this crate's `libgnat`/`libgnarl` are built from the derived ISA
+  regardless of what the application does.
 
 ### Cross-crate dependency on `rts_support_mpfs`
 

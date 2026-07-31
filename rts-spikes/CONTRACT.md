@@ -170,35 +170,62 @@ src
 
 (tasking/embedded append `gnarl_user` and `../rts_sources_gcc15/libgnarl`.) `ada_object_path` is one line: `adalib`. A published crate would generate these — see RTS.md §8 item 1.
 
-### 3.6 `runtime.xml`
+### 3.6 No `runtime.xml` — `target_options.gpr` owns the ISA
 
-ISA switches come from `external()` so the E51/U54 split is a knob (RTS-POLARFIRE §4.2, verified A.16/§9):
+There is **no `runtime.xml` in any leaf**, following `avrada_rts`. See §7.10 for
+why (and for the retraction of the earlier, wrong reason). `target_options.gpr`
+is the single derivation site:
 
+```ada
+with "gnat_user/<leaf>_config.gpr";
+
+abstract project Target_Options is
+   --  Hart_Class is IMPLIED by the mask: bit 0 is the E51, bits 1..4 the U54s.
+   type Hart_Mask_Kind is ("1", "2", "4", "6", "8", "16", "30");
+   Hart_Mask : Hart_Mask_Kind := <Leaf>_Config.Harts_Mask;
+
+   type Hart_Class_Kind is ("e51", "u54");
+   Hart_Class : Hart_Class_Kind := "u54";
+   case Hart_Mask is
+      when "1"    => Hart_Class := "e51";
+      when others => Hart_Class := "u54";
+   end case;
+
+   Arch := "rv64imafdc_zicsr_zifencei";
+   Abi  := "lp64d";
+   case Hart_Class is
+      when "e51" => Arch := "rv64imac_zicsr_zifencei";  --  no FPU
+                    Abi  := "lp64";
+      when "u54" => null;
+   end case;
+
+   ISA_Switches := ("-march=" & Arch, "-mabi=" & Abi);
+
+   --  Must reach applications too, not just the runtime.
+   Global_Ada_Switches := ISA_Switches & ("-fno-tree-loop-distribute-patterns");
+
+   ALL_ADAFLAGS := ADAFLAGS & COMFLAGS & ISA_Switches;
+
+   package Builder is
+      for Global_Compilation_Switches ("Ada")     use Global_Ada_Switches;
+      for Global_Compilation_Switches ("Asm_Cpp") use ISA_Switches;
+      --  embedded_mpfs also: ("C") use Global_Ada_Switches;
+   end Builder;
+end Target_Options;
 ```
-type Loaders is ("RAM", "USER");
-Loader : Loaders := external("LOADER", "RAM");
-MPFS_ARCH := external("MPFS_ARCH", "rv64imafdc");
-MPFS_ABI  := external("MPFS_ABI",  "lp64d");
 
-package Compiler is
-   Common_Required_Switches := ("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI,
-                                "-fno-tree-loop-distribute-patterns");
-   for Leading_Required_Switches ("Ada") use
-      Compiler'Leading_Required_Switches ("Ada") & Common_Required_Switches;
-   --  ... same for C, C++, Asm, Asm2, Asm_Cpp
-end Compiler;
+Rules that follow from this:
 
-package Linker is
-   for Required_Switches use Linker'Required_Switches &
-     ("-Wl,-L${RUNTIME_DIR(Ada)}/adalib", "-nostartfiles", "-nolibc",
-      "-L${RUNTIME_DIR(ada)}/ld_user", "-L${RUNTIME_DIR(ada)}/ld")
-     & Compiler.Common_Required_Switches;
-end Linker;
-```
-
-`embedded_mpfs` **must** add `"-Wl,--start-group,-lgnarl,-lgnat,-lc,-lgcc,--end-group"` to the Linker switches — without it the link fails with ~30 undefined `memcpy`/`memset` references (RTS.md A.14).
-
-Note `-march=rv64imac` alone fails to assemble the startup: the E51 string is **`rv64imac_zicsr`** (RTS-POLARFIRE §1.1).
+- No other project may assign `ISA_Switches`; they re-export
+  `Target_Options.ISA_Switches`. §7.10 records the leaf that broke this.
+- `-gnatg`/`-nostdinc` are **not** in `ALL_ADAFLAGS` (applications reference it);
+  each library project adds them as `RTS_ADAFLAGS`/`RTS_GNARL_ADAFLAGS`.
+- `embedded_mpfs` **must** add
+  `"-Wl,--start-group,-lgnarl,-lgnat,-lc,-lgcc,--end-group"` to
+  `Linker_Switches` — without it the link fails with ~30 undefined
+  `memcpy`/`memset` references (RTS.md A.14).
+- `-march=rv64imac` alone fails to assemble the startup: the E51 string is
+  **`rv64imac_zicsr`** (RTS-POLARFIRE §1.1).
 
 ### 3.7 Exported GPR variables — the app's interface
 
@@ -206,7 +233,7 @@ Every leaf exports these from `runtime_build.gpr`:
 
 | Variable | Contents |
 |---|---|
-| `ISA_Switches` | `("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI)` |
+| `ISA_Switches` | re-exported from `Target_Options`, derived from `Harts_Mask` (§3.6). Must not be reassigned here |
 | `Linker_Switches` | `-T`/`-L` for the selected `Memory_Profile`, plus `Defsyms` |
 | `Defsyms` | the `-Wl,--defsym=` list of §4 below |
 
@@ -362,35 +389,68 @@ pragma Compile_Time_Error (<unrecognised>, "unrecognised Harts spelling");
 
 ### 7.9 The `e51` + hard-float check of §5 is not implementable as specified
 
-§5 requires "`Hart_Class = e51` with a hard-float ABI → error". There is no ABI field in `MPFS_Runtime_Config`: the ABI arrives via `external("MPFS_ABI", ...)`, read by `runtime.xml` and the leaf's `ISA_Switches`, and is invisible to Ada. So the two knobs are independent and unsynchronised — setting `Hart_Class => e51` alone still compiles `rv64imafdc`/`lp64d`, missing the `_zicsr` the E51's startup needs (RTS-POLARFIRE §1.1).
+§5 requires "`Hart_Class = e51` with a hard-float ABI → error". As specified it is
+unimplementable: there is no ABI field in `MPFS_Runtime_Config`, so the ABI is
+invisible to Ada and no `pragma Compile_Time_Error` can see it.
+
+**The check is no longer needed, because the state it guarded against is now
+unrepresentable.** The ABI used to arrive through a separate
+`external("MPFS_ABI", ...)` read independently by `runtime.xml` and by the leaf's
+`ISA_Switches`, so `Hart_Class => e51` could sit correctly in the generated
+config while the compiler received `rv64imafdc`/`lp64d`. Since §3.6/§7.10 there
+is exactly one derivation — `Harts_Mask` → `Hart_Class` → `ISA_Switches`, in
+`target_options.gpr` — and no `external()` overriding it. A disagreeing pair
+cannot be expressed, which is a stronger guarantee than a diagnostic.
 
 Implement it as a documented non-check rather than a pragma that can never fire. The real fix is for `Hart_Class` to *derive* `MPFS_ARCH`/`MPFS_ABI` rather than sit beside them — recorded here as a design gap for RTS-POLARFIRE §5.3.
 
-### 7.10 `runtime.xml` is a stub; the application carries the ISA
+### 7.10 There is no `runtime.xml`; `target_options.gpr` owns the ISA
 
-Settled by building the spike (RTS.md A.22). With the runtime reached through a
-withed library project, `runtime.xml` is **parsed but ineffective**: editing its
-ISA default literally still produced a hard-float image, and its
-`-nostartfiles`/`-nolibc` never reached the link. It must remain syntactically
-valid — a deliberate error in its CDATA fails the build — but it must not be
-treated as the source of the ISA.
+**This entry previously said the opposite, and was wrong.** It claimed
+`runtime.xml` is "parsed but ineffective" when the runtime is reached through a
+withed library project. The real cause was that `light_mpfs/runtime.xml` was
+**malformed XML** — a `--` used as an em-dash inside an XML comment, which is
+illegal — and **gprconfig silently ignores an unparseable `runtime.xml`**. The
+mechanism works fine when the file is valid; `light_tasking_mpfs`'s was valid
+all along and its switches were in effect. Full retraction in RTS.md A.22.
 
-Every leaf therefore exports `ISA_Switches`, and **every application must apply
-them**, because `Builder'Global_Compilation_Switches` is read only from the root
-project:
+The files are now **deleted**, following
+[`avrada_rts`](https://github.com/RREE/AVRAda_RTS), which ships no `runtime.xml`
+at all. The reason is fit, not function: a gprconfig `<config>` fragment cannot
+`with` a crate's generated configuration project, so everything in it must
+arrive as an `external()`/`-X` — a second source of truth alongside the Alire
+configuration variable it duplicates. That is what produced §7.9.
+
+The contract:
+
+- `target_options.gpr` derives `Hart_Class` from `Harts_Mask` **once**, computes
+  `ISA_Switches`, and folds them into `ALL_ADAFLAGS`/`ALL_CFLAGS`. Neither
+  `runtime_build.gpr` nor `ravenscar_build.gpr` may redefine `ISA_Switches` —
+  `light_tasking_mpfs` did, hardcoded to `rv64imafdc`/`lp64d`, which overrode
+  the derived value and made that leaf hard-float for every hart mask.
+- `target_options.gpr` exports a `Builder` package. Applications **rename** it,
+  never restate it:
 
 ```ada
-package Builder is
-   for Global_Compilation_Switches ("Ada")     use Runtime_Build.ISA_Switches;
-   for Global_Compilation_Switches ("Asm_Cpp") use Runtime_Build.ISA_Switches;
-end Builder;
+package Builder renames Target_Options.Builder;
 ```
 
-Omitting it does not fail — the image silently takes the compiler's default
-riscv64-elf ISA, which for a U54 is indistinguishable from correct. That is how
-the E51 image stayed hard-float across six attempts. `ISA_Switches` now derives
-from `Hart_Class` (§7.9), so the leaf and the application cannot disagree once
-the application applies it.
+- `Linker_Switches` carries `-nostartfiles`, `-nolibc`, the ISA, and — for
+  `embedded_mpfs` only — the `--start-group` set. Deleting
+  `light_tasking_mpfs/runtime.xml` broke its link with `cannot find crt0.o` and
+  `cannot find -lgloss` until these were restated, proof that its
+  `Linker'Required_Switches` had been load-bearing.
+- `-gnatg`/`-nostdinc` stay **out** of `ALL_ADAFLAGS`, because applications
+  reference it; each library project adds them as `RTS_ADAFLAGS`.
+- `-fno-tree-loop-distribute-patterns` must reach applications too, so it lives
+  in `Global_Ada_Switches` (the `Builder` package), not in the runtime's own
+  switches. Without it GCC may emit a `memcpy`/`memset` call that does not exist
+  here. Losing it was the one real regression from deleting the file.
+
+Forgetting the rename is now a **link error**, not a silent miscompile, because
+the runtime library's own ABI no longer depends on the application:
+`ld: can't link soft-float modules with double-float modules`. Verified by
+removing the rename from `clock_switch_e51`.
 
 ### 7.11 Per-configuration output directories
 
@@ -407,9 +467,10 @@ light_mpfs/adalib-u54-1-m_mode-mmuart0-8192-2048-1-15-0-2-1
 Link-only values (`Memory_Profile`, `DDR_*`, `Main_Stack_Size`,
 `Switch_Code_Bytes`) are excluded deliberately — they change the linker
 invocation, not the library. Two notes: `Config_Tag` must be declared *after*
-`MPFS_ARCH`/`MPFS_ABI` if the ABI is in the tag, and `ada_object_path` may keep
-naming plain `adalib` — a stale entry is tolerated because the withed library
-project is authoritative (§1.1).
+`Hart_Class` (it starts with it), and `ada_object_path` may keep naming plain
+`adalib` even though `Library_Dir` is `adalib-<tag>` — a stale entry is
+tolerated because the withed library project is authoritative (§1.1). The link
+line does show a harmless `-L …/adalib/` for the directory that does not exist.
 
 ### 7.12 A new unit must be added to the membership lists or it is dead code
 
