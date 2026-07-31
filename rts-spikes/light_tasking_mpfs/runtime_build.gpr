@@ -1,12 +1,12 @@
 --  Leaf (CONTRACT.md §3.4): the light-tasking (Ravenscar/Jorvik) libgnat
 --  half. Composes tier 1/2/3 source-only crates plus this crate's own
---  leaf-owned units ("src") and configuration ("gnat_user"). Produces --
+--  leaf-owned units ("src") and configuration ("gnat_config"). Produces --
 --  does not ship -- adalib/libgnat.a. See ravenscar_build.gpr for libgnarl.
 
 with "rts_sources_gcc15.gpr";
 with "rts_core_riscv64.gpr";
 with "rts_support_mpfs.gpr";
-with "gnat_user/light_tasking_mpfs_config.gpr";
+with "gnat_config/light_tasking_mpfs_config.gpr";
 with "target_options.gpr";
 
 project Runtime_Build is
@@ -52,7 +52,7 @@ project Runtime_Build is
    for Object_Dir use "obj-" & Config_Tag;
 
    --  ORDER IS LOAD-BEARING (RTS.md §2.1): board (tier 3) shadows core
-   --  (tier 2) shadows shared (tier 1); "gnat_user"/"src" (this leaf)
+   --  (tier 2) shadows shared (tier 1); "gnat_config"/"src" (this leaf)
    --  shadow everything. No Gnarl_Dir here -- this project's Source_List_
    --  File (below) already names only this project's own members, so
    --  there is nothing to reach for in the other tier-1 half and nothing
@@ -64,7 +64,7 @@ project Runtime_Build is
    --  for both library projects at once: "unit ... cannot belong to
    --  several projects").
    for Source_Dirs use
-     ("gnat_user", "src",
+     ("gnat_config", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
       Rts_Sources_Gcc15.Gnat_Light_Tasking_Dir,

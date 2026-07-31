@@ -9,8 +9,9 @@ tier 3 (`rts_support_mpfs`) source-only crates, adding only:
 - the leaf-owned units in `src/` (20 files — see below),
 - the configuration variables and renaming shim,
 - the two library projects and the metadata files a runtime directory
-  needs (`runtime.xml`, `ada_source_path`, `ada_object_path`,
-  `target_options.gpr`).
+  needs (`ada_source_path`, `ada_object_path`, `target_options.gpr`).
+  There is no `runtime.xml`: `target_options.gpr` owns the ISA and the
+  exported `Builder` package (CONTRACT.md §3.6/§7.10).
 
 It produces — does not ship — `adalib/libgnat.a` and `adalib/libgnarl.a`.
 
@@ -53,7 +54,8 @@ version of this crate hit (self-derived exclude-lists, since replaced).
 
 Each project's `Source_Dirs` therefore lists only its **own** tier-1
 directory (`Rts_Sources_Gcc15.Gnat_Dir` for `Runtime_Build`,
-`.Gnarl_Dir` for `Ravenscar_Build`), plus `gnat_user`/`gnarl_user`,
+`.Gnarl_Dir` for `Ravenscar_Build`), plus `gnat_config` (libgnat side
+only — there is no gnarl-side configuration directory),
 `src`, and both tier 2/tier 3 directories (shared, since some tier 2/3
 units belong to one project and some to the other — `Source_List_File`
 alone decides which, `Source_Dirs` only decides where to look).
@@ -107,7 +109,7 @@ compiler (`gnat_riscv64_elf` 15.1.2), each reproduced twice:
    the exact form suggested mid-task —
    `(if MPFS_Runtime_Config.Harts = "1" then 1 elsif ... = "1..4" then 4
    ... )` — reproduced verbatim through the real
-   `gnat_user/mpfs_runtime_config.ads` shim:
+   `src/mpfs_runtime_config.ads` shim:
    `error: non-static expression used in number declaration`.
    This is *not* the same claim as (1) — RM 4.9 does not obviously
    forbid string equality — but it is what this compiler does with it,
@@ -229,8 +231,8 @@ precise fix needed in `rts_support_mpfs`/`rts_sources_gcc15`.
 Given this, `adalib/libgnat.a` and `adalib/libgnarl.a` were **not**
 produced, and the tasking application did not link. Nothing in this
 crate's own files was the cause: every one of this crate's own
-compilations (the 20 leaf units, both `runtime.xml`/`target_options.gpr`
-switches, both `Source_List_File`s) succeeded.
+compilations (the 20 leaf units, the `target_options.gpr` switches,
+both `Source_List_File`s) succeeded.
 
 ## Known gaps / `UNVERIFIED` items
 

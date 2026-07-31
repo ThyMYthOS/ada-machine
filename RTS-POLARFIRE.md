@@ -518,3 +518,109 @@ A useful property of this order: each phase's milestone is checkable on hardware
 
 11. **Who owns HSS.** This plan assumes HSS stays responsible for DDR training and optionally L2 configuration. Replacing it with Ada is a much larger project and explicitly out of scope.
 12. **PMP/U-mode is deferred to P5** but the data exists in `pmp_h0…h4` (§4.2), so `System_Map` should carry per-hart PMP regions from the start — that keeps P5 a decoding exercise rather than a schema change.
+
+---
+
+## 12. Duplicate-code measurement of the spike
+
+Every number below comes from `wc`, `diff -u`, `shasum -a 256`, `comm` and `git ls-files` run directly against `rts-spikes/` as it stands on disk (2026-07-31), never estimated. The counts were first taken while a concurrent rename was in flight (`gnat_user/` → `gnat_config/`, with the `mpfs_runtime_config.ads` shim moving to `src/`) and have since been re-measured against the settled tree; every changed-line figure below is the post-rename value. Five axes, matching §3's crate boundaries.
+
+### 12.1 Provenance: tracked vs vendored
+
+| | Tracked (`git ls-files`) | On disk now (`find -type f`) |
+|---|---|---|
+| all of `rts-spikes/` | 119 | 12,516 |
+
+The gap is almost entirely build output (`obj*/`, `adalib*/`, `bin/`, `alire/`, `config/` — all gitignored) plus the vendored tier-1 snapshot. `rts-spikes/.gitignore` excludes `rts_sources_gcc15/libgnat*/` and `libgnarl*/` outright, and excludes `*/src/*.ad[bs]` wholesale, re-admitting only nine explicitly un-ignored hand-written files (five in `rts_support_mpfs/src`, two `s-bbpara.ads`, and the three `mpfs_runtime_config.ads` shims). The shims needed adding to that list: they moved into `src/` during the `gnat_config` rename and were covered by the blanket pattern, staying tracked only because `git mv` keeps an already-indexed file tracked regardless of `.gitignore` — a new leaf's shim would have been silently dropped. **A fresh clone has none of the tier-1/3 source counts below until `populate.sh` runs** against an installed `gnat_riscv64_elf_15.1.2` toolchain (CONTRACT.md §1); every count in §12.4 is therefore a vendored-working-tree number, not a repository fact.
+
+### 12.2 Axis 1 — the three leaves' hand-maintained scaffolding
+
+| File | `light_mpfs` | `light_tasking_mpfs` | `embedded_mpfs` | changed lines, LM↔LT / LM↔E / LT↔E | identical text, all 3 |
+|---|---|---|---|---|---|
+| `target_options.gpr` | 145 | 121 | 143 | 230 / 252 / 56 | 4 |
+| `runtime_build.gpr` | 240 | 256 | 333 | 354 / 439 / 439 | 40 |
+| `README.md` | 104 | 263 | 306 | 331 / 360 / 493 | 3 |
+| `alire.toml` | 130 | 70 | 158 | 150 / 212 / 190 | 17 |
+| `ravenscar_build.gpr` | — | 78 | 93 | — / — / 97 | (2 files) 30 |
+
+("changed lines" = `diff -u | grep -c '^[+-]'`, header stripped — i.e. lines added plus removed, not a percentage.)
+
+These are **not literal copies** — as few as 3 lines of `README.md` are word-for-word identical across all three — but they are near-copies in *structure*: same comment blocks, same `case Build is` skeleton, same ISA-derivation shape, reworded per leaf. `light_mpfs/target_options.gpr` is the visible outlier: it is the only one of the three still at 2-space indentation, still carrying the dead `Lib_Type`/`LOPTIONS` dynamic-library machinery the other two dropped, and still defaulting `GNAT_VERSION` to `"26"` where the others use `"15"` or nothing — a leftover from an earlier edit that was never propagated sideways. The shape of the divergence is what identifies it as drift rather than designed variation: `light_tasking_mpfs` and `embedded_mpfs` differ from each other by only **56** changed lines, while each differs from `light_mpfs` by **230** and **252**. Two of the three files converged on the newer three-space-indented, crate-prefixed-`external()` shape and the third was left behind — the opposite of what deliberate per-profile variation would look like, which would put the two *tasking* profiles together and `light_mpfs` nowhere in particular. §12.7 has the concrete cost of this pattern.
+
+`runtime_build.gpr`'s 352–437 changed lines per pair are mostly genuine: `Config_Tag`, `Source_Dirs`, `Source_List_File` and the exported §3.7 variables differ by construction because each leaf lists a different tier-1 overlay and a different unit count. But the 40 lines identical across all three are the load-bearing derivation skeleton (`type Hart_Mask_Kind`, the `Hart_Class` case, the `ISA_Switches := Target_Options.ISA_Switches` restatement) — exactly the block CONTRACT.md §7.10 records as duplicated *and once wrongly re-derived*: `light_tasking_mpfs/runtime_build.gpr` used to assign `ISA_Switches` a second time, hardcoded to `rv64imafdc`/`lp64d`, silently overriding the `Hart_Class`-derived value and making that leaf hard-float for every hart mask. It survived because nobody was diffing these three files against each other; the fix (commit `4d9d4b9`, "delete runtime.xml, follow avrada_rts's pure-GPR pattern") moved the derivation into `target_options.gpr` as the single site and left a comment in `runtime_build.gpr` forbidding reassignment — a convention, not a structural guard.
+
+### 12.3 Axis 2 — leaf-owned `src/` units
+
+| Leaf | Files in `src/` | Tracked in git |
+|---|---|---|
+| `light_mpfs` | 14 | 1 (`mpfs_runtime_config.ads`) |
+| `light_tasking_mpfs` | 21 | 2 (`mpfs_runtime_config.ads`, `s-bbpara.ads`) |
+| `embedded_mpfs` | 21 | 2 (`mpfs_runtime_config.ads`, `s-bbpara.ads`) |
+| **total** | **56** | **5** |
+
+`shasum -a 256` over all 56 files, `sort \| uniq -c` on the digest: **43 distinct contents**, meaning **13 files are byte-for-byte duplicates of a file already counted** (26 of the 56 file-instances participate in a duplicate pair). Every duplicate pair is (`light_mpfs`, `light_tasking_mpfs`) or (`light_tasking_mpfs`, `embedded_mpfs`) — `a-except.{ads,adb}`, `a-strsup.{ads,adb}`, `a-tags.{ads,adb}`, `a-elchha.{ads,adb}`, `s-memory.{ads,adb}`, `s-parame.ads`/`.adb`, `s-assert.adb`, `s-bbpara.ads` — **none is identical across all three simultaneously**, and `mpfs_runtime_config.ads` (the one file present in all three) is genuinely distinct in each, as CONTRACT.md §3.3 intends for a per-leaf shim.
+
+This is the leaf-level analogue of the tier-1 overlay problem in §12.4, at a tenth of the scale — and it is the more exposed one, because `populate.sh`'s prune step (CONTRACT.md, comment in the script) deliberately does **not** touch leaf `src/` dirs, "they hold hand-authored files... that no list names." That exemption is correct for the handful of genuinely edited files, but it means these 13 duplicated-but-unedited files sit in three copies with nothing checking they stay byte-identical — structurally the same blind spot that let the `runtime_build.gpr` ISA bug (§12.2) go undetected.
+
+### 12.4 Axis 3 — tier-1/tier-3 overlays (`rts_sources_gcc15/`)
+
+| Directory | Files | Tracked |
+|---|---|---|
+| `libgnat` (common) | 479 | 0 |
+| `libgnat-light` | 11 | 0 |
+| `libgnat-light-tasking` | 11 | 0 |
+| `libgnat-embedded` | 462 | 0 |
+| `libgnarl` (common) | 69 | 0 |
+| `libgnarl-light-tasking` | 3 | 0 |
+| `libgnarl-embedded` | 9 | 0 |
+
+Same-basename comparison, common dir vs each overlay: **zero collisions in every case** — 0 identical, 0 differing, every overlay filename is absent from its common directory. `libgnat.lst`/`libgnarl.lst` now genuinely exclude every profile-variant unit (as CONTRACT.md §7.15's fix requires), so the tier-1 split is a clean partition, not padding.
+
+But `libgnat-light` and `libgnat-light-tasking` are **100% duplicates of each other**: all 11 files, byte-identical by `cmp`, same 11 basenames. Two physical copies of one snapshot exist for no content reason — they exist because `light_mpfs` and `light_tasking_mpfs` are separate leaves, each needing its own directory on its own source path, and GNAT's configurable-runtime logic keys off *visibility* of a directory, not the identity of its contents (RTS.md A.23, CONTRACT.md §7.15). `libgnarl-light-tasking` (3 files) and `libgnarl-embedded` (9 files) share no filenames at all, so this doubling is confined to the `libgnat-light*` pair — it is the one place in the whole tier-1/3 layer where inherent (visibility-driven) duplication and *coincidentally* identical content overlap, and it is the cleanest illustration in this codebase of "duplication that is unavoidable, not sloppy": no `Source_Dirs` trick lets `light_tasking_mpfs` borrow `light_mpfs`'s overlay directory without also inheriting light's visibility set, so the copy is the price of the correct build, per RTS.md A.23 / CONTRACT.md §7.15.
+
+`rts_core_riscv64/src` (tier 2) has exactly **6 files, 855 lines** — matching RTS.md §7's own count precisely — against tier 1's 479/462-file overlays; `rts_support_mpfs/src` (tier 3) has 15 files (5 tracked), 1,660 lines. Both confirm §7's scale claim directly on this spike rather than by analogy.
+
+### 12.5 Axis 4 — linker scripts (`rts_support_mpfs/ld/`)
+
+| File | Lines |
+|---|---|
+| `mpfs-memory.ld` | 73 |
+| `place-envm.ld` | 201 |
+| `place-envm-lma-scratchpad-vma.ld` | 199 |
+| `place-lim-lma-scratchpad-vma.ld` | 199 |
+| `place-ddr-by-bootloader.ld` | 192 |
+| `place-lim.ld` | 193 |
+| `app-sections.ld` | 3 |
+
+Pairwise changed lines among the five `place-*.ld` range from 28 (`envm-lma-scratchpad-vma` ↔ `lim-lma-scratchpad-vma`, the two LMA≠VMA variants, which differ mainly in target region name) to 82 (`envm-lma-scratchpad-vma` ↔ `envm`, and `envm` ↔ `lim-lma-scratchpad-vma`). The line-set intersection across **all five** files at once — text identical regardless of order — is **122 lines**, roughly 62% of an average 197-line file. Reading what those 122 lines actually are: almost entirely the `SECTIONS` boilerplate (`.text`/`.data`/`.bss`/the full `.debug_*` block/stack and heap symbol arithmetic), not the memory map. The `MEMORY` block itself is **not duplicated at all** — every `place-*.ld` pulls it in with a single `INCLUDE mpfs-memory.ld` (§6.1), so the one part of the file that must stay byte-identical across profiles never has a chance to drift, because there is only one copy of it. `app-sections.ld` is a deliberately empty 3-line extension point, also `INCLUDE`d by every profile, so an application's own `-L` can override it without touching any of the five.
+
+What differs between the five is exactly what should: which `MEMORY` region each output section targets (`> l2lim` vs `> envm` vs `> ddr_cached`), and, for the two `*-lma-scratchpad-vma` variants, an `AT>` load-address split for `.data` because code executing in place from eNVM cannot also hold writable `.data` there. That is genuine placement variation, not copy-paste residue — confirmed by inspection of the `place-lim.ld`/`place-envm.ld` diff, where every changed line is a region name or an added `AT>` clause, never a rewritten boilerplate rule.
+
+### 12.6 Axis 5 — application crates (`hello_mpfs`, `clock_switch_e51`, `tasking_mpfs`, `embedded_app`)
+
+| | `.gpr` lines | `alire.toml` lines |
+|---|---|---|
+| `hello_mpfs` | 30 | 26 |
+| `clock_switch_e51` | 28 | 46 |
+| `tasking_mpfs` | 25 | 28 |
+| `embedded_app` | 25 | 28 |
+
+Pairwise changed `.gpr` lines run 14–23 across all six pairs; changed `alire.toml` lines run 28–48. Text identical across **all four** `.gpr` files: **14 lines** — the `with "runtime_build.gpr"`/`with "target_options.gpr"` pair, the `for Target`/`for Runtime`/`for Source_Dirs`/`for Object_Dir`/`for Exec_Dir` restatement, `package Builder renames Target_Options.Builder;`, and the `package Linker is … Runtime_Build.Linker_Switches & Runtime_Build.Defsyms & ("-Wl,--gc-sections")` skeleton. Text identical across all four `alire.toml`: **11 lines** — `authors`, `licenses`, `maintainers`/`maintainers-logins`, `version`, and the bare `[[depends-on]]`/`[[pins]]`/`[configuration.values]` table headers.
+
+This scaffolding is thin (roughly half of each `.gpr`, a fifth to a third of each `alire.toml`) but **mandatory**, not laziness: `gprbuild` reads `Target`, `Runtime` and `Builder` only from the root project, never from a withed dependency, so every application that wants the runtime's derived ISA has to restate the first two and rename the third (avrada_rts's pattern, CONTRACT.md §7.10). The remainder — `[[depends-on]]` version pins, `[configuration.values]` (`Harts_Mask`, `Memory_Profile`, `DTIM_Ways`, …; `Hart_Class` is derived, never set) — differs because each application genuinely targets a different hart, memory profile or peripheral set; `clock_switch_e51`'s longer `alire.toml` (46 vs 26–28) is not extra configuration: it used to carry an `[environment]` block setting `MPFS_ARCH`/`MPFS_ABI`, which became dead when `runtime.xml` was deleted and was removed; what remains in its place is the comment explaining why a second ISA knob must not come back (CONTRACT.md §7.10).
+
+### 12.7 Inherent vs accidental — the verdict
+
+**Inherent dominates, and it dominates by a wide margin.** Three of the five axes are duplication the design cannot avoid without a mechanism GPR/`ld`/GNAT does not offer:
+
+- **Axis 3's `libgnat-light`/`libgnat-light-tasking` doubling** exists solely because GNAT decides feature availability from source-path *visibility*, not `Source_List_File` membership (RTS.md A.23, CONTRACT.md §7.15) — the crate must expose a per-profile overlay even when two profiles want identical content.
+- **Axis 4's 122 shared `SECTIONS` lines** are boilerplate that could in principle be factored further, but the `MEMORY` block — the part that must never drift between profiles — already isn't duplicated at all (one `INCLUDE`d `mpfs-memory.ld`); what remains genuinely different is the placement, which is the entire point of having five files (RTS.md §5.3).
+- **Axis 5's 14/11-line application skeleton** is forced by `gprbuild` reading `Target`/`Runtime`/`Builder` only from the root project.
+
+**Axis 1 and axis 2 are where accidental duplication actually lives, and axis 1 already produced a real, shipped defect.** `light_tasking_mpfs/runtime_build.gpr`'s now-fixed second `ISA_Switches` assignment (hardcoded `rv64imafdc`/`lp64d`, silently overriding the `Hart_Class`-derived value, CONTRACT.md §7.10) is the textbook case: it survived precisely because the three leaves' `target_options.gpr`/`runtime_build.gpr` are close enough in shape (40 identical lines out of ~250 in `runtime_build.gpr`, only 4 out of ~140 in `target_options.gpr`, per §12.2) that nobody was diffing them line-for-line, and different enough (352–437 changed lines) that a casual read did not surface the redefinition. Axis 2's 13 byte-identical `src/` file pairs (§12.3) are the same failure mode *not yet* triggered: nothing but discipline keeps `light_tasking_mpfs/src/s-memory.adb` and `light_mpfs/src/s-memory.adb` in sync, and `populate.sh` explicitly does not prune leaf `src/` dirs, so a future edit to one copy alone would be invisible until a build broke or (worse) silently produced a working but subtly wrong image, exactly as the ISA bug did before §7.10 caught it.
+
+### 12.8 Against §3 and RTS.md §7
+
+**This does not undermine §3's seven-crate split.** The tier-1/tier-3 boundary is exactly as clean as RTS.md §7 predicted: zero basename collisions between common and overlay directories (§12.4), tier 2 at 6 files/855 lines against tier 1's 400+-file overlays — the same "6 files against ~1050" ratio RTS.md §7 states, confirmed here rather than merely asserted. It also does not undermine RTS.md §7's "tier 2 barely pays" conclusion; if anything it reinforces it, since this spike still keeps `rts_core_riscv64` as its own crate (§3 item 2) with the escape hatch "or folded into (1) per RTS.md §7" un-exercised, and nothing measured here gives a reason not to take that fold.
+
+**What the measurement adds that §7 does not cover at all: the leaf layer itself.** RTS.md §7's "honest assessment" is framed entirely in terms of tiers 1–3; it says nothing about the three leaf crates' own scaffolding, because in the general design the leaf is meant to be "thin and generated" (RTS.md §7, closing line). On this spike the leaves are not generated — they are three hand-written `target_options.gpr`/`runtime_build.gpr`/`README.md`/`alire.toml` sets plus 56 hand-populated `src/` files — and axis 1/2 show that layer carrying exactly the kind of near-copy duplication §7 warns about for tiers, with one instance (§7.10) having already caused a real hard-float defect. That is a gap in RTS.md §7's boundary accounting, not a refutation of it: the fix is not to redraw the seven-crate boundary, but to extend the same discipline that already fixed the ISA duplication — single derivation, sibling renaming (`target_options.gpr`'s `Builder` export, CONTRACT.md §3.6) — to `runtime_build.gpr`'s `Config_Tag` block and the 13 duplicated `src/` files, rather than leaving three leaves to hand-copy them and trust that nobody edits only one.

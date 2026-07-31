@@ -31,7 +31,7 @@ rts_core_riscv64 = "*"
 rts_support_mpfs = "*"
 
 [configuration]
-output_dir = "gnat_user"
+output_dir = "gnat_config"
 generate_c = false
 
 [configuration.variables]

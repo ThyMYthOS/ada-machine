@@ -86,7 +86,7 @@ licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
 project-files = ["runtime_build.gpr"]   # + "ravenscar_build.gpr" for tasking/embedded
 
 [configuration]
-output_dir = "gnat_user"
+output_dir = "gnat_config"
 generate_c = false
 ```
 
@@ -113,7 +113,7 @@ Only `light_tasking_mpfs` and `embedded_mpfs` also declare `Max_CPUs`-affecting 
 
 ### 3.3 The renaming shim
 
-Alire generates `gnat_user/<crate>_config.ads`, whose name embeds the profile. Shared sources cannot `with` a varying name, so **every leaf commits** `gnat_user/mpfs_runtime_config.ads`:
+Alire generates `gnat_config/<crate>_config.ads`, whose name embeds the profile. Shared sources cannot `with` a varying name, so **every leaf commits** `src/mpfs_runtime_config.ads`:
 
 ```ada
 pragma Restrictions (No_Elaboration_Code);
@@ -124,13 +124,17 @@ package MPFS_Runtime_Config renames Light_Mpfs_Config;
 
 Tier-3 sources `with MPFS_Runtime_Config` and nothing else. The stable name is `MPFS_Runtime_Config` in all three leaves.
 
+It lives in `src/`, not in `gnat_config/`, so generated and hand-written files are never mixed in one directory: `gnat_config/` is wholly Alire's output and wholly gitignored. It is named in the **gnat-side** `Source_List_File` only — the libgnarl project reaches it through `ada_source_path` as an ordinary cross-library reference. That is why there is no gnarl-side configuration directory: the earlier `gnarl_user/` held a byte-identical copy of this file that no `Source_List_File` ever named, so it was never a member of anything. Verified after removal: `mpfs_runtime_config.ali` appears once, under the libgnat object directory, while `s-bbpara.ads` still compiles on the gnarl side.
+
+**On the old names.** These directories were `gnat_user/` and `gnarl_user/` until they were renamed. That spelling came from the runtimes GNAT ships, where `gnat_user`/`gnarl_user`/`ld_user` are hooks for *users* to drop in their own overriding sources. Nothing user-authored goes here — it is generated configuration plus one rename — so the old name asserted the opposite of the truth. The `gnat`/`gnarl` half is kept because it is load-bearing: it says which library project claims the units, and a unit cannot belong to two projects.
+
 ### 3.4 `runtime_build.gpr`
 
 ```ada
 with "rts_sources_gcc15.gpr";
 with "rts_core_riscv64.gpr";
 with "rts_support_mpfs.gpr";
-with "gnat_user/light_mpfs_config.gpr";
+with "gnat_config/light_mpfs_config.gpr";
 
 project Runtime_Build is
    for Languages use ("Ada", "Asm_Cpp");      --  + "C" for embedded_mpfs
@@ -143,7 +147,7 @@ project Runtime_Build is
 
    --  ORDER IS LOAD-BEARING: board shadows core shadows shared (RTS.md §2.1)
    for Source_Dirs use
-     ("gnat_user", "src",
+     ("gnat_config", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
@@ -154,21 +158,21 @@ end Runtime_Build;
 
 `src/` holds the leaf-owned units: `system.ads`, `s-parame.ads` (+ `s-parame.adb`, `s-bbpara.ads` for tasking/embedded). Copy them from the corresponding installed runtime; `s-bbpara.ads` must derive `Max_Number_Of_CPUs` from `MPFS_Runtime_Config.Harts`.
 
-`ravenscar_build.gpr` (tasking/embedded only): `Library_Name "gnarl"`, same `Library_Dir "adalib"`, `Source_Dirs` = `("gnarl_user", Rts_Support_Mpfs.Src_Dir, Rts_Core_Riscv64.Src_Dir, Rts_Sources_Gcc15.Gnarl_Dir)`, and it `with`s `runtime_build.gpr`.
+`ravenscar_build.gpr` (tasking/embedded only): `Library_Name "gnarl"`, same `Library_Dir "adalib"`, `Source_Dirs` = `("src", Rts_Support_Mpfs.Src_Dir, Rts_Core_Riscv64.Src_Dir, Rts_Sources_Gcc15.Gnarl_Dir)`, and it `with`s `runtime_build.gpr`.
 
 ### 3.5 Metadata files — committed, relative paths
 
 Sibling path pins make relative entries stable (verified, RTS.md A.4). `ada_source_path`:
 
 ```
-gnat_user
+gnat_config
 src
 ../rts_support_mpfs/src
 ../rts_core_riscv64/src
 ../rts_sources_gcc15/libgnat
 ```
 
-(tasking/embedded append `gnarl_user` and `../rts_sources_gcc15/libgnarl`.) `ada_object_path` is one line: `adalib`. A published crate would generate these — see RTS.md §8 item 1.
+(tasking/embedded append `../rts_sources_gcc15/libgnarl` — and **not** a gnarl-side configuration directory: there is none.) `ada_object_path` is one line: `adalib`. A published crate would generate these — see RTS.md §8 item 1.
 
 ### 3.6 No `runtime.xml` — `target_options.gpr` owns the ISA
 
@@ -177,7 +181,7 @@ why (and for the retraction of the earlier, wrong reason). `target_options.gpr`
 is the single derivation site:
 
 ```ada
-with "gnat_user/<leaf>_config.gpr";
+with "gnat_config/<leaf>_config.gpr";
 
 abstract project Target_Options is
    --  Hart_Class is IMPLIED by the mask: bit 0 is the E51, bits 1..4 the U54s.

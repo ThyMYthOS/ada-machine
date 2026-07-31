@@ -21,7 +21,7 @@ project Ravenscar_Build is
    for Object_Dir  use "obj-gnarl-" & Runtime_Build.Config_Tag;
 
    --  ORDER IS LOAD-BEARING (RTS.md §2.1), mirroring runtime_build.gpr:
-   --  "gnarl_user" (config shim) then "src" (this leaf -- see below) then
+   --  "src" (this leaf -- see below) then
    --  tier 3 then tier 2 then this project's own tier-1 half
    --  (Gnarl_Dir). No Gnat_Dir here, for the same reason runtime_build.gpr
    --  has no Gnarl_Dir: this project's Source_List_File (below) already
@@ -41,7 +41,7 @@ project Ravenscar_Build is
    --  own Source_Dirs (not merely reachable through ada_source_path,
    --  which is for cross-*library* references only).
    for Source_Dirs use
-     ("gnarl_user", "src",
+     ("src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
       Rts_Sources_Gcc15.Gnarl_Light_Tasking_Dir,

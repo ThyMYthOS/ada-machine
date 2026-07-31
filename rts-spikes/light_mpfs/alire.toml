@@ -6,7 +6,7 @@ no-tasking Ada runtime for Microchip PolarFire SoC, riscv64-elf. Owns
 `for Runtime ("Ada") use Project'Project_Dir;` and produces
 adalib/libgnat.a from the shared tier-1..3 source crates
 (rts_sources_gcc15, rts_core_riscv64, rts_support_mpfs) plus its own
-gnat_user/ (configuration renaming shim) and src/ (system.ads,
+gnat_config/ (configuration renaming shim) and src/ (system.ads,
 s-parame.ads, populated -- not vendored -- from the installed
 gnat_riscv64_elf toolchain by ../populate.sh; `make populate` is a
 prerequisite for any build). It is this spike's critical-path leaf: the
@@ -37,7 +37,7 @@ rts_core_riscv64 = { path = "../rts_core_riscv64" }
 rts_support_mpfs = { path = "../rts_support_mpfs" }
 
 [configuration]
-output_dir = "gnat_user"
+output_dir = "gnat_config"
 generate_c = false
 
 #  CONTRACT.md §3.2 -- names, types and defaults are pinned.

@@ -2,7 +2,7 @@ with "rts_sources_gcc15.gpr";
 with "rts_core_riscv64.gpr";
 with "rts_support_mpfs.gpr";
 with "target_options.gpr";
-with "gnat_user/embedded_mpfs_config.gpr";
+with "gnat_config/embedded_mpfs_config.gpr";
 
 --  CONTRACT.md §3.4. This is the `embedded` leaf: the one profile in this
 --  spike that compiles C (the unwinder, raise-gcc.c) as well as Ada and
@@ -56,7 +56,7 @@ project Runtime_Build is
    --  must precede the tier crates that would otherwise supply
    --  same-named units.
    for Source_Dirs use
-     ("gnat_user", "src",
+     ("gnat_config", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
       Rts_Sources_Gcc15.Gnat_Embedded_Dir,

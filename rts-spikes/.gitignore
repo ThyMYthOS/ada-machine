@@ -7,13 +7,13 @@ rts_sources_gcc15/libgnarl/
 */alire/
 */config/
 
-# Alire-generates these from [configuration.variables] on every build; only the
-# hand-written mpfs_runtime_config.ads shim (CONTRACT.md §3.3) is committed.
-*/gnat_user/light_mpfs_config.*
-*/gnat_user/light_tasking_mpfs_config.*
-*/gnat_user/embedded_mpfs_config.*
-*/gnarl_user/light_tasking_mpfs_config.*
-*/gnarl_user/embedded_mpfs_config.*
+# gnat_config/ holds ONLY Alire-generated output, regenerated from
+# [configuration.variables] on every build. The hand-written
+# mpfs_runtime_config.ads shim lives in src/ precisely so that generated and
+# authored files are not mixed in one directory (CONTRACT.md §3.3).
+*/gnat_config/light_mpfs_config.*
+*/gnat_config/light_tasking_mpfs_config.*
+*/gnat_config/embedded_mpfs_config.*
 
 # Reference copies made by populate.sh from the installed toolchain
 *.upstream
@@ -40,6 +40,16 @@ embedded_mpfs/src/*.ad[bs]
 !rts_support_mpfs/src/s-textio.ads
 !light_tasking_mpfs/src/s-bbpara.ads
 !embedded_mpfs/src/s-bbpara.ads
+
+# The renaming shim (CONTRACT.md §3.3) is hand-written and MUST be committed.
+# It needs an explicit negation now that it lives in src/: the patterns above
+# ignore src/*.ad[bs] wholesale. The three existing shims happen to stay
+# tracked because `git mv` kept them in the index -- git ignores .gitignore for
+# already-tracked files -- so without these lines a NEW leaf's shim would be
+# silently dropped instead of committed.
+!light_mpfs/src/mpfs_runtime_config.ads
+!light_tasking_mpfs/src/mpfs_runtime_config.ads
+!embedded_mpfs/src/mpfs_runtime_config.ads
 
 # Per-configuration runtime build outputs (CONTRACT.md 7.11)
 */adalib-*/

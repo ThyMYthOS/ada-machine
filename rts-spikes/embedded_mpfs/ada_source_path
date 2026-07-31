@@ -1,9 +1,8 @@
-gnat_user
+gnat_config
 src
 ../rts_support_mpfs/src
 ../rts_core_riscv64/src
 ../rts_sources_gcc15/libgnat-embedded
 ../rts_sources_gcc15/libgnat
-gnarl_user
 ../rts_sources_gcc15/libgnarl-embedded
 ../rts_sources_gcc15/libgnarl
