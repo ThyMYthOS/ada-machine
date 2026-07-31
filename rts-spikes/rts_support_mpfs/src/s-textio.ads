@@ -32,11 +32,8 @@
 --  This package defines the console I/O interface for the simplified version
 --  of ``Ada.Text_IO`` used in embedded systems with limited I/O capabilities.
 
---  Cascade from System.BB.Board_Parameters (CONTRACT 7.3): that unit withs
---  the renamed config shim and so cannot carry No_Elaboration_Code_All, and
---  this unit withs it in turn.
-
 package System.Text_IO is
+   pragma No_Elaboration_Code_All;
    pragma Preelaborate;
 
    --  The interface uses two subprograms for each direction: one for the ready

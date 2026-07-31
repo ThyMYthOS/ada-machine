@@ -134,7 +134,7 @@ The reason this rule is worth stating rather than deriving case by case: it is v
 | Runtime profile (`light` / `light-tasking` / `embedded`) | **crate** | Solver test: an application must be able to require tasking. Also changes the exported unit set (`libgnarl`, full `a-except`) and the `System` restrictions. Matches ecosystem practice |
 | ISA / ABI within one architecture generation (`m3` / `m4` / `m4f`) | **variable** | `runtime.xml` is not static — its CDATA is GPR source and already uses `external()` with a `case`. One crate builds consistent hard-float M4 and soft-float M3 binaries from one source tree (A.16). See §4.2 |
 | Architecture generation (ARMv6-M ↔ ARMv7-M ↔ ARMv8-M) | **variable** selecting source variants, or a crate | Not a switch axis: ARMv6-M rejects the Thumb-2 wide instructions in the ARMv7-M sources (A.16). Expressible in one crate via `Excluded_Source_Files` over `s-bbcppr__*`/`s-bbbosu__*` variants; a crate split is a packaging choice, not a requirement (§4.2) |
-| `libgnat`/`libgnarl` source snapshot | **crate** | Version test: versioned strictly against the compiler, licence `GPL-…-or-later WITH GCC-exception-3.1`, and identical for every target on earth. This is the largest single duplication in the ecosystem today |
+| `libgnat`/`libgnarl` source snapshot | **crate**, but *not* a flat union | Version test: versioned strictly against the compiler, licence `GPL-…-or-later WITH GCC-exception-3.1`, and the largest single duplication in the ecosystem today. It is **not** identical for every target: GNAT decides feature availability from what is *visible* on the source path, so the crate must expose a common set plus per-profile overlays (A.23) |
 | Architecture core sources (`System.BB.CPU_Primitives`, context switch, threads, time) | **crate** (tier 2), or a subdirectory of the snapshot crate | This is *where the per-generation variants live*, not a second leaf-splitting axis. Version test, weakly — see §7, the boundary that pays least |
 | Device-support family (`System.BB.Board_Support`, startup, vectors, register subset) | **crate** per family | Version test: generated from vendor register data with its own cadence. One crate carries *every* device, board and ISA in the family — see §4.1 |
 | Device within a family | **variable** | `MCU_Sub_Family` + memory-size selector; picks interrupt names, memory map, peripheral set (§4.1) |
@@ -546,7 +546,7 @@ That is the whole assembly step: not a copy of 400 files, but the emission of a 
 
 Not all four tiers earn their complexity, and the scheme should not be sold as if they do.
 
-**Tier 1 pays clearly.** Roughly 400 `libgnat`/`libgnarl` units are currently vendored into every published runtime crate — tens of copies of the same snapshot across an installation and across the index. It has exactly one version axis (the compiler), one licence, one provenance. This is the boundary the version test was written for.
+**Tier 1 pays clearly, but it is not one flat directory.** A.23 shows the crate must expose a common set plus per-profile overlays, because unit *visibility* — not just library membership — changes what GNAT compiles. Roughly 400 `libgnat`/`libgnarl` units are currently vendored into every published runtime crate — tens of copies of the same snapshot across an installation and across the index. It has exactly one version axis (the compiler), one licence, one provenance. This is the boundary the version test was written for.
 
 **Tier 3 pays.** Family support code has its own cadence: it is generated from vendor register data, gets fixes when that data gets fixes, and is shared across the three profiles of one family. Independent versioning is a real benefit. Note the granularity §4.1 and §4.2 argue for — one crate per family, not per device, board or ISA. On the current index that folds `light_nrf52832`/`833`/`840` into one, and the eleven chip-agnostic `light-cortex-m*` runtimes into one crate with two knobs.
 
@@ -800,3 +800,22 @@ Three results worth recording:
 Contrast A.2, where deleting `runtime.xml` from a *published* crate reached by gprconfig discovery broke the ISA outright. The two arrangements disagree and the cause was not isolated; the practical consequence is that `runtime.xml` cannot be relied on in a tier-composed runtime. → §5.4.
 
 Cost of getting this wrong, for the record: the E51 image came out hard-float across six attempts while `Hart_Class => e51` sat correctly in the generated config, because two independent ISA defaults existed and the ineffective one looked authoritative.
+
+**A.23 — Can tier 1 be a flat union of every profile's units?** No. `Source_List_File` restricts what is compiled **into** the library; it does not restrict *visibility*, and GNAT's configurable-runtime logic decides which language features exist from what it can see on the source path.
+
+A `light-tasking` runtime built over a union tier 1 compiled all ~600 units of both libraries and then failed to bind, demanding `a-sttebu`, `a-stuten` and `s-putima` in turn — the Ada 2022 `Put_Image` chain that profile excludes. `a-strsup` had compiled with `Put_Image` enabled purely because the machinery was *visible*.
+
+Established by elimination rather than inference:
+
+| Check | Result |
+|---|---|
+| our `a-strsup.ali` switches vs upstream's | **identical** but for `--RTS=` (`-O2 -gnatA -gnatg -gnatp -gnatn2 -march=…`) |
+| leaf's `a-strsup` source vs upstream's | identical MD5 — correct profile variant |
+| upstream's `a-strsup.ali` dependency on `a-sttebu` | none |
+| hide `s-putima`/`a-sttebu`/`a-stuten` from the source path | entire cascade disappears |
+
+Switches and sources being identical leaves the source path as the only variable. (An earlier guess that Alire's *development* build profile was leaking `-g -gnata -O0` was wrong — Alire builds dependencies as Release, and the ALI proves the switches matched.)
+
+Structure that works, measured on the three PolarFire profiles: a common `libgnat` of **479** units plus overlays of **11** (light), **11** (light-tasking) and **462** (embedded — its exception and image machinery); `libgnarl` **69** common plus **3** and **9**. Each leaf lists its overlay *before* the common directory, in both `Source_Dirs` and `ada_source_path`.
+
+Corollary: a populate step must **prune**, not merely copy. A file left from an earlier layout stays visible, so copying alone is not idempotent. → §4, §7.

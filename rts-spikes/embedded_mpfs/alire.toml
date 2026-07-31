@@ -30,14 +30,21 @@ generate_c = false
 
 # CONTRACT.md section 3.2 -- names and defaults are pinned.
 
-[configuration.variables.Hart_Class]
-type = "Enum"
-values = ["e51", "u54"]
-default = "u54"
 
-[configuration.variables.Harts]
-type = "String"
-default = "1"
+
+[configuration.variables.Harts_Mask]
+#  Hart bitmask: bit N = hart N, bit 0 the E51. Integer so every
+#  derived value is static (CONTRACT.md 7.8).
+type = "Integer"
+first = 1
+last = 31
+default = 6
+
+[configuration.variables.Main_Stack_Size]
+#  Placement scripts otherwise default to a 2 MB stack.
+type = "Integer"
+first = 4096
+default = 65536
 
 [configuration.variables.Privilege]
 type = "Enum"

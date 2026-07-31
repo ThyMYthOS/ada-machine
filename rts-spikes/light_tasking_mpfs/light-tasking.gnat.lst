@@ -40,7 +40,6 @@ a-uncdea.ads
 ada.ads
 g-debuti.adb
 g-debuti.ads
-g-io-put.adb
 g-io.adb
 g-io.ads
 g-sestin.ads
@@ -56,8 +55,10 @@ i-cstrin.ads
 i-fe310-plic.ads
 i-fe310.ads
 interfac.ads
+light_tasking_mpfs_config.ads
 machcode.ads
 mpfs_config_checks.ads
+mpfs_runtime_config.ads
 s-addope.adb
 s-addope.ads
 s-aridou.adb
@@ -104,7 +105,6 @@ s-caun32.adb
 s-caun32.ads
 s-caun64.adb
 s-caun64.ads
-s-dorepr.adb
 s-dourea.adb
 s-dourea.ads
 s-exnflt.ads

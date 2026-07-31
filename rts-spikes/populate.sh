@@ -9,6 +9,19 @@ here=$(cd "$(dirname "$0")" && pwd)
 copy() {   # copy <list> <dest> <src-dir>...
   list=$1; dest=$2; shift 2
   mkdir -p "$dest"
+  # PRUNE, but only the tier-1 copies. A file left from an earlier layout stays
+  # VISIBLE on the source path, and GNAT decides feature availability from
+  # visibility -- a stale embedded-only unit silently re-enables Put_Image in a
+  # light build (CONTRACT.md 7.15), so copying alone is not idempotent.
+  # Leaf and tier-3 src/ dirs are NOT pruned: they hold hand-authored files
+  # (mpfs_config_checks.ads, the edited s-bbbopa) that no list names.
+  case "$dest" in
+    */libgnat|*/libgnat-*|*/libgnarl|*/libgnarl-*)
+      for existing in "$dest"/*; do
+        [ -e "$existing" ] || continue
+        grep -qxF "$(basename "$existing")" "$list" || rm -f "$existing"
+      done ;;
+  esac
   n=0; miss=0
   while read -r f; do
     [ -n "$f" ] || continue
@@ -29,6 +42,14 @@ echo "rts_sources_gcc15"
 # widest-first because embedded ships units the narrower profiles omit.
 copy "$here/rts_sources_gcc15/libgnat.lst"  "$here/rts_sources_gcc15/libgnat"  "$E/gnat"  "$LT/gnat"  "$L/gnat"
 copy "$here/rts_sources_gcc15/libgnarl.lst" "$here/rts_sources_gcc15/libgnarl" "$E/gnarl" "$LT/gnarl"
+# CONTRACT.md 7.15: tier 1 is NOT a flat union. GNAT's configurable-runtime
+# logic keys off which units are VISIBLE on the source path, so a light-profile
+# build must not see embedded's units. Common set plus per-profile overlays.
+copy "$here/rts_sources_gcc15/libgnat-light.lst"          "$here/rts_sources_gcc15/libgnat-light"          "$L/gnat"
+copy "$here/rts_sources_gcc15/libgnat-light-tasking.lst"  "$here/rts_sources_gcc15/libgnat-light-tasking"  "$LT/gnat"
+copy "$here/rts_sources_gcc15/libgnat-embedded.lst"       "$here/rts_sources_gcc15/libgnat-embedded"       "$E/gnat"
+copy "$here/rts_sources_gcc15/libgnarl-light-tasking.lst" "$here/rts_sources_gcc15/libgnarl-light-tasking" "$LT/gnarl"
+copy "$here/rts_sources_gcc15/libgnarl-embedded.lst"      "$here/rts_sources_gcc15/libgnarl-embedded"      "$E/gnarl"
 echo "rts_core_riscv64"
 copy "$here/rts_core_riscv64/src.lst" "$here/rts_core_riscv64/src" "$LT/gnarl" "$E/gnarl" "$L/gnat" "$LT/gnat"
 echo "rts_support_mpfs"

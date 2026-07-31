@@ -1,0 +1,28 @@
+name = "tasking_mpfs"
+description = "Example: Ravenscar tasking on PolarFire SoC U54"
+long-description = """
+Exercises light_tasking_mpfs: a library-level task, a protected object and
+`delay until`. Jorvik forbids local tasks and protected objects, so both
+live in a package rather than in the main subprogram's declarative part.
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+executables = ["tasking_mpfs"]
+
+[[depends-on]]
+light_tasking_mpfs = "*"
+
+[[pins]]
+light_tasking_mpfs = { path = "../light_tasking_mpfs" }
+
+[configuration.values]
+light_tasking_mpfs.Harts_Mask     = 2
+light_tasking_mpfs.Memory_Profile = "lim"
+light_tasking_mpfs.Main_Stack_Size = 16384
+light_tasking_mpfs.Interrupt_Stack_Size = 4096
+light_tasking_mpfs.ITIM_Ways      = 0
+light_tasking_mpfs.DTIM_Ways      = 0
+

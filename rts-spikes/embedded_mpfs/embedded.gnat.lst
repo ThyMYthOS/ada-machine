@@ -2,7 +2,6 @@ a-assert.adb
 a-assert.ads
 a-btgbso.adb
 a-btgbso.ads
-a-calclo.adb
 a-calcon.adb
 a-calcon.ads
 a-calend.adb
@@ -106,15 +105,10 @@ a-einuoc.adb
 a-einuoc.ads
 a-elchha.adb
 a-elchha.ads
-a-excach.adb
 a-except.adb
 a-except.ads
 a-exctra.adb
 a-exctra.ads
-a-exexda.adb
-a-exexpr.adb
-a-exextr.adb
-a-exstat.adb
 a-finali.adb
 a-finali.ads
 a-ioexce.ads
@@ -296,6 +290,7 @@ a-zchuni.adb
 a-zchuni.ads
 ada.ads
 adaint-xi.c
+embedded_mpfs_config.ads
 g-arrspl.adb
 g-arrspl.ads
 g-bubsor.adb
@@ -332,7 +327,6 @@ g-hesorg.adb
 g-hesorg.ads
 g-htable.adb
 g-htable.ads
-g-io-put.adb
 g-io.adb
 g-io.ads
 g-md5.adb
@@ -386,6 +380,7 @@ interfac.ads
 ioexcept.ads
 machcode.ads
 mpfs_config_checks.ads
+mpfs_runtime_config.ads
 newlib-bb.c
 raise-gcc.c
 s-addima.adb
@@ -439,7 +434,6 @@ s-caun64.ads
 s-chepoo.ads
 s-crc32.adb
 s-crc32.ads
-s-dorepr.adb
 s-dourea.adb
 s-dourea.ads
 s-excdeb.adb

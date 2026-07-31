@@ -18,11 +18,6 @@ a-taside.adb
 a-taside.ads
 a-taster.adb
 a-taster.ads
-g-boubuf.adb
-g-boubuf.ads
-g-boumai.ads
-g-semaph.adb
-g-semaph.ads
 s-bbexti.adb
 s-bbexti.ads
 s-bbinte.adb
@@ -41,8 +36,6 @@ s-bbtime.adb
 s-bbtime.ads
 s-bcprmu.adb
 s-bcprmu.ads
-s-btstch.adb
-s-btstch.ads
 s-interr.adb
 s-interr.ads
 s-mufalo.adb
@@ -52,13 +45,8 @@ s-multip.ads
 s-musplo.adb
 s-musplo.ads
 s-osinte.ads
-s-putaim.adb
-s-putaim.ads
 s-reldel.adb
 s-reldel.ads
-s-restri.adb
-s-restri.ads
-s-rident.ads
 s-taprob.adb
 s-taprob.ads
 s-taprop.adb

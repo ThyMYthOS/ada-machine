@@ -14,4 +14,14 @@ abstract project Rts_Sources_Gcc15 is
    Gnat_Dir  := Project'Project_Dir & "libgnat";
    Gnarl_Dir := Project'Project_Dir & "libgnarl";
 
+   --  Per-profile overlays. Tier 1 is NOT a flat union: GNAT decides which
+   --  language features are available from what it can SEE on the source
+   --  path, so a light-profile build able to see embedded's Put_Image
+   --  machinery would enable it and then fail to link (CONTRACT.md 7.15).
+   Gnat_Light_Dir          := Project'Project_Dir & "libgnat-light";
+   Gnat_Light_Tasking_Dir  := Project'Project_Dir & "libgnat-light-tasking";
+   Gnat_Embedded_Dir       := Project'Project_Dir & "libgnat-embedded";
+   Gnarl_Light_Tasking_Dir := Project'Project_Dir & "libgnarl-light-tasking";
+   Gnarl_Embedded_Dir      := Project'Project_Dir & "libgnarl-embedded";
+
 end Rts_Sources_Gcc15;

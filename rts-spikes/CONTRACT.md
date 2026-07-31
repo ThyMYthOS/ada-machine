@@ -499,3 +499,47 @@ region, the two-region DTIM split with its `ld` arithmetic, and the silent
 region-overlap hazard that split created — it no longer has anything to overlap.
 `Switch_Code_Bytes` and `MPFS_SWITCH_CODE_LENGTH` are gone entirely rather than
 merely relocated.
+
+### 7.15 Tier 1 is NOT a flat union — GNAT keys off *visibility*
+
+The single most consequential finding of the spike. `Source_List_File` controls
+what gets compiled **into** the library; it does **not** control which units are
+*visible on the source path*, and GNAT's configurable-runtime logic decides which
+language features are available from **visibility**.
+
+Symptom: `light_tasking_mpfs` compiled all ~600 units of both libraries and then
+failed to bind, wanting `a-sttebu`, then `a-stuten`, then `s-putima` — the Ada
+2022 `Put_Image` chain that the `light-tasking` profile deliberately excludes.
+
+Proved by elimination. Reading the switches from our own generated `a-strsup.ali`
+and upstream's showed them **identical** apart from the `--RTS=` path (same
+`-O2 -gnatA -gnatg -gnatp -gnatn2 -march=…`) — Alire already builds dependencies
+as Release, so an earlier guess about a "development profile leak" was wrong. With
+switches and sources identical, the only remaining variable was the source path.
+Hiding `s-putima`, `a-sttebu` and `a-stuten` made the entire cascade vanish.
+
+**Structure.** Tier 1 ships the units *common to all profiles* plus a per-profile
+overlay, and a leaf lists its overlay **before** the common directory:
+
+| Directory | Units |
+|---|---|
+| `libgnat` | 479 (common) |
+| `libgnat-light`, `libgnat-light-tasking` | 11 each |
+| `libgnat-embedded` | 462 — exception propagation and the image machinery |
+| `libgnarl` | 69 (common) |
+| `libgnarl-light-tasking`, `libgnarl-embedded` | 3, 9 |
+
+`ada_source_path` needs the same ordering. Duplication stays small: the embedded
+overlay is large because that profile genuinely has far more units, not because
+anything is copied twice.
+
+**Corollary: `populate.sh` must PRUNE, not just copy.** A file left behind from an
+earlier layout stays *visible*, so copying alone is not idempotent — a stale
+embedded-only unit silently re-enables `Put_Image` in a light build. Pruning is
+restricted to the tier-1 directories: leaf and tier-3 `src/` dirs hold
+hand-authored files no list names, and an unrestricted prune deleted
+`mpfs_config_checks.ads`.
+
+**This qualifies RTS.md's tier-1 claim.** The snapshot is *not* "identical for
+every target on earth": it has a second axis — the runtime profile — for
+visibility as well as for the 18 content-variant units of §7.6.

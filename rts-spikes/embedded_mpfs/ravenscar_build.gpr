@@ -17,8 +17,8 @@ project Ravenscar_Build is
 
    for Library_Name use "gnarl";
    for Library_Kind use "static";
-   for Library_Dir use "adalib";
-   for Object_Dir use "obj";
+   for Library_Dir use "adalib-" & Runtime_Build.Config_Tag;
+   for Object_Dir  use "obj-gnarl-" & Runtime_Build.Config_Tag;
 
    --  Tier 2 (rts_core_riscv64) holds only the CPU-primitives layer
    --  (System.BB.CPU_Primitives / CPU_Specific, the context-switch asm);
@@ -41,6 +41,7 @@ project Ravenscar_Build is
      ("gnarl_user", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnarl_Embedded_Dir,
       Rts_Sources_Gcc15.Gnarl_Dir);
 
    --  embedded.gnarl.lst -- the 94-unit libgnarl complement of
