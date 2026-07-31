@@ -1,3 +1,4 @@
+with MPFS_Runtime_Config;
 ------------------------------------------------------------------------------
 --                                                                          --
 --                  GNAT RUN-TIME LIBRARY (GNARL) COMPONENTS                --
@@ -37,36 +38,55 @@
 --  This package defines basic parameters used by the low level tasking system
 
 with System.BB.Board_Parameters;
-with MPFS_Runtime_Config;
 
 package System.BB.Parameters is
    pragma Pure;
 
-   ------------------------------------------------------------------
-   --  CHANGED from upstream's `Max_Number_Of_CPUs : constant := 1;`.
-   --  Derived from MPFS_Runtime_Config.Harts_Mask, an Integer bitmask, so
-   --  the popcount below is STATIC -- which it must be, because
-   --  System.Multiprocessors declares
-   --    type CPU_Range is range 0 .. System.BB.Parameters.Max_Number_Of_CPUs;
-   --  and a scalar range bound is required to be static (RM 3.5.4).
-   --  The earlier String form could not satisfy that: indexing a string
-   --  constant is never static (RM 4.9), and length arithmetic could not
-   --  distinguish which harts were selected, only how many characters.
-   ------------------------------------------------------------------
+   --------------------
+   -- Hardware clock --
+   --------------------
 
-   Mask : constant := MPFS_Runtime_Config.Harts_Mask;
+   Ticks_Per_Second : constant := Board_Parameters.Clock_Frequency;
+   --  Frequency of the system clock
+
+   ----------------
+   -- Interrupts --
+   ----------------
+
+   --  These definitions are in this package in order to isolate target
+   --  dependencies.
+
+   subtype Interrupt_Range is Natural range 1 .. 186;
+
+   ------------
+   -- Stacks --
+   ------------
+
+   Interrupt_Stack_Size : constant := 8 * 1024;
+   --  Size of each of the interrupt stacks in bytes
+
+   Interrupt_Sec_Stack_Size : constant := 1024;
+   --  Size of the secondary stack for interrupt handlers
+
+   ----------
+   -- CPUS --
+   ----------
+
+   --  CHANGED from upstream's `Max_Number_Of_CPUs : constant := 1;`.
+   --  Derived from MPFS_Runtime_Config.Harts_Mask, an Integer bitmask, so the
+   --  popcount is STATIC -- required, because System.Multiprocessors declares
+   --    type CPU_Range is range 0 .. System.BB.Parameters.Max_Number_Of_CPUs;
+   --  and a scalar range bound must be static (RM 3.5.4). The earlier String
+   --  form could not satisfy that (RM 4.9: indexing is never static).
+   Harts_Mask_Value : constant := MPFS_Runtime_Config.Harts_Mask;
 
    Max_Number_Of_CPUs : constant :=
-     (if (Mask / 1)  mod 2 = 1 then 1 else 0)
-   + (if (Mask / 2)  mod 2 = 1 then 1 else 0)
-   + (if (Mask / 4)  mod 2 = 1 then 1 else 0)
-   + (if (Mask / 8)  mod 2 = 1 then 1 else 0)
-   + (if (Mask / 16) mod 2 = 1 then 1 else 0);
-
-   pragma Compile_Time_Error
-     (MPFS_Runtime_Config.Harts_Mask not in 1 .. 31,
-      "Harts_Mask must select from harts 0 .. 4");
-   --  Maximum number of CPUs, derived from Harts (see above)
+     (if (Harts_Mask_Value / 1)  mod 2 = 1 then 1 else 0)
+   + (if (Harts_Mask_Value / 2)  mod 2 = 1 then 1 else 0)
+   + (if (Harts_Mask_Value / 4)  mod 2 = 1 then 1 else 0)
+   + (if (Harts_Mask_Value / 8)  mod 2 = 1 then 1 else 0)
+   + (if (Harts_Mask_Value / 16) mod 2 = 1 then 1 else 0);
+   --  Maximum number of CPUs
 
    Multiprocessor : constant Boolean := Max_Number_Of_CPUs /= 1;
    --  Are we on a multiprocessor board?

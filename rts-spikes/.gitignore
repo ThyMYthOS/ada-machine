@@ -44,3 +44,6 @@ embedded_mpfs/src/*.ad[bs]
 # Per-configuration runtime build outputs (CONTRACT.md 7.11)
 */adalib-*/
 */obj-*/
+
+rts_sources_gcc15/libgnat-*/
+rts_sources_gcc15/libgnarl-*/

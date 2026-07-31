@@ -17,8 +17,8 @@ project Ravenscar_Build is
 
    for Library_Name use "gnarl";
    for Library_Kind use "static";
-   for Library_Dir use "adalib";
-   for Object_Dir use "obj";
+   for Library_Dir use "adalib-" & Runtime_Build.Config_Tag;
+   for Object_Dir  use "obj-gnarl-" & Runtime_Build.Config_Tag;
 
    --  ORDER IS LOAD-BEARING (RTS.md §2.1), mirroring runtime_build.gpr:
    --  "gnarl_user" (config shim) then "src" (this leaf -- see below) then
@@ -44,6 +44,7 @@ project Ravenscar_Build is
      ("gnarl_user", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnarl_Light_Tasking_Dir,
       Rts_Sources_Gcc15.Gnarl_Dir);
 
    --  This project's own membership (88 units): a disjoint partition of

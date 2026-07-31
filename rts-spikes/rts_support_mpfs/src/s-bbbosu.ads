@@ -38,6 +38,7 @@
 --  available in the target board that are needed by the target-independent
 --  part of the run time.
 
+pragma Restrictions (No_Elaboration_Code);
 
 with System.Multiprocessors;
 with System.BB.Interrupts;

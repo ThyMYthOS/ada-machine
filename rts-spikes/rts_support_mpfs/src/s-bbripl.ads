@@ -37,6 +37,7 @@
 --
 --  The specifications follow the Privileged Architecture Version 1.10.
 
+pragma Restrictions (No_Elaboration_Code);
 
 with System.BB.Interrupts;
 

@@ -10,13 +10,59 @@ with "gnat_user/embedded_mpfs_config.gpr";
 
 project Runtime_Build is
 
+   --  Ported from light_mpfs, the reference leaf. Declarations first: both
+   --  Config_Tag and the ISA derivation below use them (GPR needs
+   --  declaration before use, and has no conditional expression).
+   type Hart_Mask_Kind is ("1", "2", "4", "6", "8", "16", "30");
+   Hart_Mask : Hart_Mask_Kind := Embedded_Mpfs_Config.Harts_Mask;
+
+   --  Hart_Class is IMPLIED by the mask: bit 0 is the E51, bits 1..4 the U54s
+   --  (CONTRACT.md §7.13).
+   type Hart_Class_Kind is ("e51", "u54");
+   Hart_Class : Hart_Class_Kind := "u54";
+   case Hart_Mask is
+      when "1"    => Hart_Class := "e51";
+      when others => Hart_Class := "u54";
+   end case;
+
+   --  ISA defaults follow Hart_Class rather than sitting beside it
+   --  (CONTRACT.md §7.9). zifencei because an application copying into
+   --  ITIM/DTIM must fence.i before executing.
+   Default_Arch := "rv64imafdc_zicsr_zifencei";
+   Default_Abi  := "lp64d";
+   case Hart_Class is
+      when "e51" => Default_Arch := "rv64imac_zicsr_zifencei";
+                    Default_Abi  := "lp64";
+      when "u54" => null;
+   end case;
+
+   MPFS_ARCH := external ("MPFS_ARCH", Default_Arch);
+   MPFS_ABI  := external ("MPFS_ABI",  Default_Abi);
+   ISA_Switches := ("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI);
+
+   --  Per-configuration output dirs so applications with different
+   --  [configuration.values] coexist instead of overwriting one adalib
+   --  (CONTRACT.md §7.11).
+   Config_Tag := Hart_Class
+     & "-" & Embedded_Mpfs_Config.Harts_Mask
+     & "-" & Embedded_Mpfs_Config.Privilege
+     & "-" & Embedded_Mpfs_Config.Console
+     & "-" & Embedded_Mpfs_Config.Interrupt_Stack_Size
+     & "-" & Embedded_Mpfs_Config.Secondary_Stack_Size
+     & "-" & Embedded_Mpfs_Config.L2_Cache_Ways
+     & "-" & Embedded_Mpfs_Config.L2_LIM_Ways
+     & "-" & Embedded_Mpfs_Config.L2_Scratchpad_Ways
+     & "-" & Embedded_Mpfs_Config.ITIM_Ways
+     & "-" & Embedded_Mpfs_Config.DTIM_Ways;
+
+
    for Languages use ("Ada", "Asm_Cpp", "C");
    for Target use "riscv64-elf";
    for Runtime ("Ada") use Project'Project_Dir;
    for Library_Name use "gnat";
    for Library_Kind use "static";
-   for Library_Dir use "adalib";
-   for Object_Dir use "obj";
+   for Library_Dir use "adalib-" & Config_Tag;
+   for Object_Dir use "obj-" & Config_Tag;
 
    --  ORDER IS LOAD-BEARING: board shadows core shadows shared
    --  (RTS.md §2.1). src/ holds this leaf's own units (20 files, not just
@@ -28,6 +74,7 @@ project Runtime_Build is
      ("gnat_user", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnat_Embedded_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
 
    --  embedded.lst (1053 units, headers stripped per CONTRACT.md §7.2) is
@@ -89,10 +136,7 @@ project Runtime_Build is
    --  application (light_mpfs converged on the same fix independently).
    ---------------------------------------------------------------------
 
-   MPFS_ARCH := external ("MPFS_ARCH", "rv64imafdc");
-   MPFS_ABI  := external ("MPFS_ABI",  "lp64d");
 
-   ISA_Switches := ("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI);
 
    --  Hart_Class (the Alire config Enum) still independently drives
    --  source selection below (Single_Hart / DTIM ownership) and
@@ -126,12 +170,12 @@ project Runtime_Build is
    --  multi-hart or unrecognized Harts value -- all five ITIM lengths
    --  are then correctly 0 regardless of which harts are actually named.
    Single_Hart := "none";
-   case Embedded_Mpfs_Config.Harts is
-      when "0" => Single_Hart := "e51";
-      when "1" => Single_Hart := "u54_1";
-      when "2" => Single_Hart := "u54_2";
-      when "3" => Single_Hart := "u54_3";
-      when "4" => Single_Hart := "u54_4";
+   case Hart_Mask is
+      when "1" => Single_Hart := "e51";
+      when "2" => Single_Hart := "u54_1";
+      when "4" => Single_Hart := "u54_2";
+      when "8" => Single_Hart := "u54_3";
+      when "16" => Single_Hart := "u54_4";
       when others => null;
    end case;
 
@@ -170,7 +214,7 @@ project Runtime_Build is
 
    --  DTIM: E51 only (RTS-POLARFIRE.md §1.4).
    DTIM_Len := "0";
-   case Embedded_Mpfs_Config.Hart_Class is
+   case Hart_Class is
       when "e51" =>
          DTIM_Len := Embedded_Mpfs_Config.DTIM_Ways & "*" & DTIM_Way_Size;
       when "u54" =>
@@ -210,6 +254,7 @@ project Runtime_Build is
       "-Wl,--defsym=MPFS_U54_4_ITIM_LENGTH=" & U54_4_ITIM_Len,
       "-Wl,--defsym=MPFS_LOCAL_ITIM_ORIGIN=" & Local_ITIM_Origin,
       "-Wl,--defsym=MPFS_LOCAL_ITIM_LENGTH=" & Local_ITIM_Len,
+      "-Wl,--defsym=__stack_size=" & Embedded_Mpfs_Config.Main_Stack_Size,
       "-Wl,--defsym=MPFS_LIM_LENGTH=" & LIM_Len,
       "-Wl,--defsym=MPFS_SCRATCHPAD_LENGTH=" & Scratchpad_Len,
       "-Wl,--defsym=MPFS_DDR_CACHED_LENGTH=" & DDR_Cached_Len,
@@ -250,7 +295,15 @@ project Runtime_Build is
 
    Linker_Switches :=
      ("-L", Rts_Support_Mpfs.Ld_Dir,
-      "-T", Placement_Script);
+      "-T", Placement_Script)
+     --  runtime.xml's Linker'Required_Switches do not apply to a runtime
+     --  reached through a withed library project (CONTRACT.md 7.10), so the
+     --  leaf must export these itself. The --start-group is embedded-only:
+     --  without it the link fails with ~30 undefined memcpy/memset
+     --  references (RTS.md A.14).
+     & ISA_Switches
+     & ("-nostartfiles", "-nolibc",
+        "-Wl,--start-group,-lgnarl,-lgnat,-lc,-lgcc,--end-group");
 
    package Compiler is
       for Default_Switches ("C")       use Target_Options.ALL_CFLAGS;

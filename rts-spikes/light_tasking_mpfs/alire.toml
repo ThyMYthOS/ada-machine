@@ -35,6 +35,10 @@ output_dir = "gnat_user"
 generate_c = false
 
 [configuration.variables]
+#  Main task stack, reserved by the placement script, which otherwise
+#  defaults to 2 MB -- more than a 1920 KB LIM can hold.
+Main_Stack_Size = { type = "Integer", first = 4096, default = 65536 }
+
 #  Hart bitmask: bit N = hart N. Bit 0 is the E51, bits 1..4 the U54s.
 #  An Integer, so every derived value (count, first hart, CLINT offset)
 #  is STATIC -- a String forces indexing, which RM 4.9 makes non-static
@@ -56,3 +60,11 @@ Console = { type = "Enum", values = ["mmuart0", "mmuart1", "mmuart2", "mmuart3",
 Interrupt_Stack_Size = { type = "Integer", default = 8192 }
 Secondary_Stack_Size = { type = "Integer", default = 2048 }
 MPFS_PARTITION = { type = "String", default = "" }
+
+#  Tiers 1-3 are source-only siblings in this working tree, never published
+#  (CONTRACT.md 1) -- path-pinned rather than indexed. Required for the
+#  `with "rts_sources_gcc15.gpr"` in runtime_build.gpr to resolve (7.5).
+[[pins]]
+rts_sources_gcc15 = { path = "../rts_sources_gcc15" }
+rts_core_riscv64  = { path = "../rts_core_riscv64" }
+rts_support_mpfs  = { path = "../rts_support_mpfs" }

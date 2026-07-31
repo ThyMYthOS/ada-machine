@@ -11,14 +11,60 @@ with "target_options.gpr";
 
 project Runtime_Build is
 
+   --  Ported from light_mpfs, the reference leaf. Declarations first: both
+   --  Config_Tag and the ISA derivation below use them (GPR needs
+   --  declaration before use, and has no conditional expression).
+   type Hart_Mask_Kind is ("1", "2", "4", "6", "8", "16", "30");
+   Hart_Mask : Hart_Mask_Kind := Light_Tasking_Mpfs_Config.Harts_Mask;
+
+   --  Hart_Class is IMPLIED by the mask: bit 0 is the E51, bits 1..4 the U54s
+   --  (CONTRACT.md §7.13).
+   type Hart_Class_Kind is ("e51", "u54");
+   Hart_Class : Hart_Class_Kind := "u54";
+   case Hart_Mask is
+      when "1"    => Hart_Class := "e51";
+      when others => Hart_Class := "u54";
+   end case;
+
+   --  ISA defaults follow Hart_Class rather than sitting beside it
+   --  (CONTRACT.md §7.9). zifencei because an application copying into
+   --  ITIM/DTIM must fence.i before executing.
+   Default_Arch := "rv64imafdc_zicsr_zifencei";
+   Default_Abi  := "lp64d";
+   case Hart_Class is
+      when "e51" => Default_Arch := "rv64imac_zicsr_zifencei";
+                    Default_Abi  := "lp64";
+      when "u54" => null;
+   end case;
+
+   MPFS_ARCH := external ("MPFS_ARCH", Default_Arch);
+   MPFS_ABI  := external ("MPFS_ABI",  Default_Abi);
+   ISA_Switches := ("-march=" & MPFS_ARCH, "-mabi=" & MPFS_ABI);
+
+   --  Per-configuration output dirs so applications with different
+   --  [configuration.values] coexist instead of overwriting one adalib
+   --  (CONTRACT.md §7.11).
+   Config_Tag := Hart_Class
+     & "-" & Light_Tasking_Mpfs_Config.Harts_Mask
+     & "-" & Light_Tasking_Mpfs_Config.Privilege
+     & "-" & Light_Tasking_Mpfs_Config.Console
+     & "-" & Light_Tasking_Mpfs_Config.Interrupt_Stack_Size
+     & "-" & Light_Tasking_Mpfs_Config.Secondary_Stack_Size
+     & "-" & Light_Tasking_Mpfs_Config.L2_Cache_Ways
+     & "-" & Light_Tasking_Mpfs_Config.L2_LIM_Ways
+     & "-" & Light_Tasking_Mpfs_Config.L2_Scratchpad_Ways
+     & "-" & Light_Tasking_Mpfs_Config.ITIM_Ways
+     & "-" & Light_Tasking_Mpfs_Config.DTIM_Ways;
+
+
    for Languages use ("Ada", "Asm_Cpp");
    for Target use "riscv64-elf";
    for Runtime ("Ada") use Project'Project_Dir;
 
    for Library_Name use "gnat";
    for Library_Kind use "static";
-   for Library_Dir use "adalib";
-   for Object_Dir use "obj";
+   for Library_Dir use "adalib-" & Config_Tag;
+   for Object_Dir use "obj-" & Config_Tag;
 
    --  ORDER IS LOAD-BEARING (RTS.md §2.1): board (tier 3) shadows core
    --  (tier 2) shadows shared (tier 1); "gnat_user"/"src" (this leaf)
@@ -36,6 +82,7 @@ project Runtime_Build is
      ("gnat_user", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnat_Light_Tasking_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
 
    --  This project's own membership (513 units): a disjoint partition of
@@ -130,7 +177,7 @@ project Runtime_Build is
    Local_Itim_Origin := "0x01800000"; --  default: E51 window
    Local_Itim_Length := "0";
 
-   case Light_Tasking_Mpfs_Config.Hart_Class is
+   case Hart_Class is
       when "e51" =>
          Defsym_E51_Itim_Length :=
            "MPFS_E51_ITIM_LENGTH=(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
@@ -140,25 +187,25 @@ project Runtime_Build is
          null; --  neither E51 ITIM nor DTIM exist on this hart class; both left at 0
    end case;
 
-   case Light_Tasking_Mpfs_Config.Hart_Class is
+   case Hart_Class is
       when "e51" =>
          Local_Itim_Origin := "0x01800000";
          Local_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
       when "u54" =>
-         case Light_Tasking_Mpfs_Config.Harts is
-            when "1" =>
+         case Hart_Mask is
+            when "2" =>
                U54_1_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
                Local_Itim_Origin := "0x01808000";
                Local_Itim_Length := U54_1_Itim_Length;
-            when "2" =>
+            when "4" =>
                U54_2_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
                Local_Itim_Origin := "0x01810000";
                Local_Itim_Length := U54_2_Itim_Length;
-            when "3" =>
+            when "8" =>
                U54_3_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
                Local_Itim_Origin := "0x01818000";
                Local_Itim_Length := U54_3_Itim_Length;
-            when "4" =>
+            when "16" =>
                U54_4_Itim_Length := "(" & Light_Tasking_Mpfs_Config.ITIM_Ways & "*" & L1_I_Way_Size & ")";
                Local_Itim_Origin := "0x01820000";
                Local_Itim_Length := U54_4_Itim_Length;
@@ -167,7 +214,8 @@ project Runtime_Build is
          end case;
    end case;
 
-   Defsyms := ("-Wl,--defsym=" & Defsym_Envm_Length,
+   Defsyms := (
+      "-Wl,--defsym=__stack_size=" & Light_Tasking_Mpfs_Config.Main_Stack_Size,"-Wl,--defsym=" & Defsym_Envm_Length,
                "-Wl,--defsym=" & Defsym_Lim_Length,
                "-Wl,--defsym=" & Defsym_Scratchpad_Length,
                "-Wl,--defsym=" & Defsym_Ddr_Cached_Length,

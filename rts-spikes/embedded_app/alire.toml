@@ -1,0 +1,28 @@
+name = "embedded_app"
+description = "Example: exception propagation + tasking on PolarFire SoC"
+long-description = """
+Exercises embedded_mpfs, the fullest profile: a library-level task plus a
+propagating `raise ... with` caught by an `Ada.Exceptions` handler that reads
+the message. Resident in DDR, since the embedded runtime is far larger than
+1920 KB of LIM.
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+executables = ["embedded_app"]
+
+[[depends-on]]
+embedded_mpfs = "*"
+
+[[pins]]
+embedded_mpfs = { path = "../embedded_mpfs" }
+
+[configuration.values]
+embedded_mpfs.Harts_Mask      = 2
+embedded_mpfs.Memory_Profile  = "ddr_by_bootloader"
+embedded_mpfs.DDR_Present     = true
+embedded_mpfs.DDR_Cached_KB   = 262144
+embedded_mpfs.ITIM_Ways       = 0
+embedded_mpfs.DTIM_Ways       = 0

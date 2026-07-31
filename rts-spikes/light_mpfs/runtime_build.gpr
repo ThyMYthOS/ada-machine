@@ -60,6 +60,7 @@ project Runtime_Build is
      ("gnat_user", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
+      Rts_Sources_Gcc15.Gnat_Light_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
 
    --  Not in Languages (CONTRACT.md §3.4: "C" is embedded_mpfs-only) and
@@ -67,11 +68,6 @@ project Runtime_Build is
    --  for other profiles. See the task report: excluding them here does
    --  NOT stop gprbuild's naming scan from failing on them regardless
    --  ("language unknown for riscv_def.h") -- reported, not solved.
-   for Excluded_Source_Files use
-     ("riscv_def.h",
-      "unwind-dw2-fde.h", "tsystem.h", "unwind-pe.h", "adaint-xi.c",
-      "raise.h", "newlib-bb.c", "tconfig.h", "unwind-dw2-fde-bb.c",
-      "raise-gcc.c");
 
    for Source_List_File use "light.lst";
 
