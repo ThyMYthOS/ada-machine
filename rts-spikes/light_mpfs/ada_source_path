@@ -1,4 +1,4 @@
-gnat_user
+gnat_config
 src
 ../rts_support_mpfs/src
 ../rts_core_riscv64/src

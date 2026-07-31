@@ -8,8 +8,9 @@ and [../RTS-POLARFIRE.md](../RTS-POLARFIRE.md)): the buildable "light"
 
 `light_mpfs` owns `for Runtime ("Ada") use Project'Project_Dir;` and
 produces `adalib/libgnat.a` (RTS.md §1). It contributes no runtime
-sources of its own beyond `gnat_user/` (the configuration renaming
-shim, CONTRACT.md §3.3) and `src/system.ads` + `src/s-parame.ads`
+sources of its own beyond `src/mpfs_runtime_config.ads` (the
+configuration renaming shim, CONTRACT.md §3.3) and `src/system.ads` +
+`src/s-parame.ads`
 (leaf-owned, populated by `../populate.sh`); every other compiled unit
 comes from the three source-only tiers it depends on
 (`rts_sources_gcc15`, `rts_core_riscv64`, `rts_support_mpfs`).
@@ -19,7 +20,7 @@ one of the three that must build in the first milestone, because it has
 no tasking floor to clear (RTS.md §4, matching AVR's `light` floor). It
 must **not** declare `provides = ["gnat_rts_tasking=..."]`.
 
-`Source_Dirs` order is load-bearing (RTS.md §2.1): `gnat_user`/`src`
+`Source_Dirs` order is load-bearing (RTS.md §2.1): `gnat_config`/`src`
 (this leaf) shadow `rts_support_mpfs` (board) shadow `rts_core_riscv64`
 (core) shadow `rts_sources_gcc15` (shared). `Source_List_File =>
 "light.lst"` (513 units) is the reviewable membership manifest;

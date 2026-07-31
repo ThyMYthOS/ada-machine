@@ -38,7 +38,7 @@ project Ravenscar_Build is
    --  files, so this is safe even though "src" is also in
    --  runtime_build.gpr's Source_Dirs.
    for Source_Dirs use
-     ("gnarl_user", "src",
+     ("src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
       Rts_Sources_Gcc15.Gnarl_Embedded_Dir,

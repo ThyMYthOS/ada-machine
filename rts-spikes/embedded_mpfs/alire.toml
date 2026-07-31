@@ -25,7 +25,7 @@ project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
 provides = ["gnat_rts_tasking=0.1.0"]
 
 [configuration]
-output_dir = "gnat_user"
+output_dir = "gnat_config"
 generate_c = false
 
 # CONTRACT.md section 3.2 -- names and defaults are pinned.

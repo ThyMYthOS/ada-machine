@@ -1,5 +1,5 @@
 --  The renaming shim (CONTRACT.md §3.3). Alire generates
---  gnat_user/light_mpfs_config.ads, whose name embeds the profile;
+--  gnat_config/light_mpfs_config.ads, whose name embeds the profile;
 --  shared tier-2/tier-3 sources cannot `with` a name that varies per
 --  leaf, so every leaf commits this indirection under the one stable
 --  name, MPFS_Runtime_Config.

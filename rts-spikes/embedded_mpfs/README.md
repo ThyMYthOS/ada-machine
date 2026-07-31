@@ -65,7 +65,8 @@ meant to be hand-edited and committed (§3.4 explicitly requires editing
 unwinder (`raise-gcc.c`, compiled here with `-fexceptions`, see the
 per-unit switch overrides below).
 
-**(b) The link group.** `runtime.xml`'s `Linker` package **must** include:
+**(b) The link group.** `runtime_build.gpr`'s exported `Linker_Switches`
+**must** include:
 
 ```
 "-Wl,--start-group,-lgnarl,-lgnat,-lc,-lgcc,--end-group"
@@ -79,10 +80,11 @@ libc string functions calls into libgcc, and back), and a plain link
 order cannot resolve a cycle -- only a `--start-group`/`--end-group`
 lets `ld` keep re-scanning the named archives until nothing new
 resolves. `light_tasking_mpfs` needs no such group; do not add it there
-either (RTS.md A.14 measured that both ways). This crate's `runtime.xml`
-is otherwise byte-for-byte the same shape as a `light_tasking_mpfs`
-would be (same `Compiler` package, same ISA-switch mechanism); the
-`Linker` package's extra line is the one place they differ.
+either (RTS.md A.14 measured that both ways). This crate's link switches
+are otherwise the same shape as `light_tasking_mpfs`'s (same derived ISA
+from `target_options.gpr`, same `-nostartfiles`/`-nolibc`); the group is
+the one place they differ. It lives in GPR because there is no
+`runtime.xml` any more -- see the "One knob" section below.
 
 ## Configuration variables (CONTRACT.md §3.2 -- names and defaults pinned)
 
@@ -112,9 +114,17 @@ combines these, e.g.:
 ```ada
 with "runtime_build.gpr";
 with "ravenscar_build.gpr";
+with "target_options.gpr";
 project My_App is
    for Target use Runtime_Build'Target;
    for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+
+   --  Required, not optional: this is what puts the derived ISA on the
+   --  application's own units (CONTRACT.md §3.6). Omitting it links only
+   --  by luck -- for an E51 build it fails with "can't link soft-float
+   --  modules with double-float modules".
+   package Builder renames Target_Options.Builder;
+
    package Linker is
       for Switches ("Ada") use
         Runtime_Build.Linker_Switches & Runtime_Build.Defsyms;

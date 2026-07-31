@@ -19,7 +19,7 @@
 --  decided, and it exports a Builder package for applications to
 --  rename. See CONTRACT.md §3.6.
 
-with "gnat_user/embedded_mpfs_config.gpr";
+with "gnat_config/embedded_mpfs_config.gpr";
 
 abstract project Target_Options is
 

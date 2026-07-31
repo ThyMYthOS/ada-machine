@@ -306,10 +306,12 @@ This is the part that decides whether the scheme is pleasant or awful, and it is
 
 ```toml
 [configuration]
-output_dir = "gnat_user"
+output_dir = "gnat_config"
 ```
 
-`gnat_user` is listed in both `ada_source_path` and the build project's `Source_Dirs`, so Alire's generated `<crate>_config.ads` is an ordinary runtime unit that runtime sources may `with`. No templating, no substitution pass.
+The directory is listed in both `ada_source_path` and the build project's `Source_Dirs`, so Alire's generated `<crate>_config.ads` is an ordinary runtime unit that runtime sources may `with`. No templating, no substitution pass.
+
+**A note on the name.** Published crates point `output_dir` at **`gnat_user`** — `embedded_rp2040` does — and `avrada_rts` uses Alire's default `config`. `gnat_user`/`gnarl_user`/`ld_user` are the directories the runtimes GNAT ships reserve for *users* to drop in their own overriding sources, so pointing generated configuration at one is a pun on a hook that no longer serves its purpose. Prefer **`gnat_config`** (and `gnarl_config`, where a second library project needs one) for a new crate: the `gnat`/`gnarl` half is load-bearing — it says which library project claims the units, and a unit cannot belong to two — while `_user` describes nobody. Keep hand-written files such as the shim below out of it, in `src/`, so the generated directory can be wholly gitignored.
 
 One problem: the generated package is named after the crate, and the crate name embeds the profile — `light_rp2040_config` vs. `light_tasking_rp2040_config`. Shared sources cannot `with` a name that varies. The fix is a one-line renaming shim, the only per-leaf generated Ada in the whole design:
 
@@ -545,7 +547,7 @@ with "rts_sources.gpr";        --  found via Alire's GPR_PROJECT_PATH
 with "rts_support_stm32g4xx.gpr";
 ...
 --  Override order is load-bearing (§2.1): board shadows core shadows shared.
-for Source_Dirs use ("gnat_user", Rts_Support.Src_Dir, Rts_Sources.Src_Dir);
+for Source_Dirs use ("gnat_config", "src", Rts_Support.Src_Dir, Rts_Sources.Src_Dir);
 ```
 
 The exported-variable mechanism is verified end to end: a clean cross-build of a real Cortex-M4F ELF with the ~400 shared units living in a directory outside the runtime crate, reached only through an abstract project's `Project'Project_Dir`. The remaining step — that Alire puts a dependency's project directory on `GPR_PROJECT_PATH` so the bare `with "rts_sources.gpr"` resolves — is ordinary Alire behaviour but was exercised here with a relative `with` rather than a real dependency crate (A.5).

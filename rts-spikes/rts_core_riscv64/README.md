@@ -22,7 +22,7 @@ directory").
 
 Every leaf's `ravenscar_build.gpr` places this crate's `Src_Dir` between
 `rts_support_mpfs`'s (board) and `rts_sources_gcc15`'s (shared) —
-`("gnarl_user", Rts_Support_Mpfs.Src_Dir, Rts_Core_Riscv64.Src_Dir,
+`("src", Rts_Support_Mpfs.Src_Dir, Rts_Core_Riscv64.Src_Dir,
 Rts_Sources_Gcc15.Gnarl_Dir)`, CONTRACT.md §3.4 — matching RTS.md §6's
 load-bearing rule: **board shadows core shadows shared**. `light_mpfs`'s
 `runtime_build.gpr` also names this crate's `Src_Dir` (the template is
