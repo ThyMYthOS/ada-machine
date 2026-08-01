@@ -9,3 +9,13 @@ s-memset.ads
 s-memtyp.ads
 s-sssita.adb
 s-sssita.ads
+a-elchha.adb
+a-elchha.ads
+a-except.adb
+a-except.ads
+a-strsup.adb
+a-strsup.ads
+a-tags.adb
+a-tags.ads
+s-assert.adb
+s-memory.ads
