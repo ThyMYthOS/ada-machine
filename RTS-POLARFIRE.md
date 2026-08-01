@@ -204,6 +204,28 @@ A shared "umbrella" root crate — no sources, depending on the partition crates
 
 > **Each AMP partition whose runtime configuration differs is its own Alire root crate.** An umbrella root can pin versions and carry a shared dependency, but it cannot give two partitions different configurations of one runtime — which is exactly what an E51 monitor plus a U54 application partition need.
 
+**The orchestration is a Makefile, and it earns its place.** Each partition is
+its own Alire root, so something outside Alire has to drive N builds in order.
+A `Makefile` does that, and the division of labour is worth stating because it
+is easy to expect too much of it:
+
+| Layer | Responsibility |
+|---|---|
+| `Makefile` | ordering, N `alr build` invocations, one entry point, and checks across the **produced ELFs** |
+| `mpfs_system` crate | the *agreement* — hart ownership, memory windows, peripheral ownership — as generated data every partition depends on |
+| Alire | per-partition resolution and configuration |
+| `Config_Tag` / Alire's build cache | keeps a shared runtime crate's outputs apart ([CONTRACT.md §7.11](rts-spikes/CONTRACT.md)) |
+
+A Makefile cannot enforce agreement; it is a build driver. But it can do one
+thing no other layer can. `ld` never checks region overlap, and it certainly
+cannot see a collision between two *separately linked* partitions (§6.3) — while
+a Makefile holds both ELFs and can compare their `PT_LOAD` segments. `make amp`
+does exactly that, and on its first run it reported that this spike's two demo
+partitions overlap completely at `0x08000000`: both are `Memory_Profile => lim`,
+so both link at the LIM base. They are independent demos rather than a
+coexisting pair, and separating them needs the per-partition placement scripts
+of P4 — so the target fails today, on purpose.
+
 But partitions must agree on things no single partition can see: hart ownership, non-overlapping memory windows, which MMUART belongs to whom, the L2 way split, and where the IPC regions live. Configuration cannot carry that agreement — so it has to be **data, generated once, depended on by all partitions**.
 
 ### 4.1 Do not invent a system description — Microchip already ships two
@@ -393,7 +415,7 @@ This is the part worth being precise about, because the three mechanisms have ge
 | a section exceeds its region | `ld` region overflow | [§9](#9-what-has-already-been-verified) — `region 'ram' overflowed by 2096944 bytes` |
 | something placed in a region this partition does not own | `LENGTH = 0` → overflow | [§1.4](#14-itim-and-dtim-in-the-linker-script) |
 | two regions overlap **within one link** | — **nothing** | [§9](#9-what-has-already-been-verified) — 32 KB overlap drew no diagnostic |
-| two *partitions'* windows overlap | `pragma Compile_Time_Error` in `System_Map` | [§4.4](#44-what-mpfs_system-contains) |
+| two *partitions'* windows overlap | `pragma Compile_Time_Error` in `System_Map`, **plus a post-link check across the produced ELFs** (`make amp`) | [§4.4](#44-what-mpfs_system-contains); the ELF check found the two current demo partitions overlap completely at `0x08000000` |
 | a window exceeds the [§1.2](#12-memory-regions) hardware maximum | `pragma Compile_Time_Error` in `System_Map` | [§4.3](#43-the-decoding-risk-and-how-not-to-take-it) — the XML is designer *intent*, not ground truth |
 | way allocations sum correctly | `pragma Compile_Time_Error` on `L2_*_Ways` | [§5.3](#53-level-3--individual-knobs-and-what-checks-them) |
 
