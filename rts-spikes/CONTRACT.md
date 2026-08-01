@@ -456,7 +456,32 @@ the runtime library's own ABI no longer depends on the application:
 `ld: can't link soft-float modules with double-float modules`. Verified by
 removing the rename from `clock_switch_e51`.
 
-### 7.11 Per-configuration output directories
+### 7.11 Per-configuration output directories — a path-pin workaround only
+
+**Do not copy this into a published crate.** A crate Alire *fetches* needs none
+of it: Alire builds each release in its own hash-keyed directory under
+`~/.local/share/alire/builds/<crate>_<version>_<id>/<build-hash>/`, so two
+configurations are already in two places and plain `for Library_Dir use "adalib"`
+is correct. `embedded_rp2040` does exactly that.
+
+Verified: building one application against `embedded_rp2040`, then changing a
+single configuration value (`Max_CPUs` 2 → 1) and rebuilding, produced a second
+build directory beside the first —
+
+```
+ab1ed99f021b245db80a2a16df934fb845dd96497ee86d38db490c7ecee18d4e   Max_CPUs = 2
+95abe71e90e1ab318a96d93d582660046610678d37b5c3dd65909deda6393ff5   Max_CPUs = 1
+```
+
+— with the crate itself using plain `adalib`/`obj`.
+
+The three leaves here are **path-pinned** (`[[pins]]`), so Alire builds them *in
+tree* and that isolation does not apply. Everything below exists for that reason
+alone. It is also why the object-reuse defect in the next paragraphs was
+reachable at all: a pinned runtime crate under development gets weaker build
+isolation than its published users will get, which is a trap worth knowing for
+anyone iterating on a runtime locally.
+
 
 Two applications setting different `[configuration.values]` for the same
 path-pinned runtime crate shared one `adalib/` and overwrote each other's
