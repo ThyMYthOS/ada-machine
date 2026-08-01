@@ -149,12 +149,23 @@ For each non-abstract, non-aggregate project view, GPR scans every directory in 
 
 Two properties matter here:
 
-- **Selection is file-granular, both ways.** bb-runtimes' per-profile unit sets port over directly as `Source_List_File` contents; per-configuration body choices port over as `Excluded_Source_Files`. Nothing has to be rearranged into per-profile directories.
+- **Selection is file-granular, both ways.** bb-runtimes' per-profile unit sets port over directly as `Source_List_File` contents; per-configuration body choices port over as `Excluded_Source_Files`. No *filename* convention is needed to express a profile's unit set.
 - **Duplicate basenames resolve by `Source_Dirs` order.** Where the same basename appears under two different `Source_Dirs` values, *"the directory corresponding to the earlier value takes precedence; no error is reported."* (The exception: within a single recursive `"src/**"` value, a duplicate is an error, since ordering cannot resolve it.)
+- **But selection is not the whole story, and this is the one place directory layout is load-bearing.** Everything above describes what gprbuild compiles **into** the library. It says nothing about what the compiler can *see*, and GNAT's configurable-runtime logic decides which language features exist from what is visible on the source path — not from this project's member list. A directory holding every profile's units therefore enables features a narrow profile excludes, whatever `Source_List_File` says. The shared snapshot needs a common directory plus **per-profile overlay directories**; see [A.23](#a23) for the measurement and [§1.1](#11-which-tool-consumes-which-metadata-file) for why two consumers read the same tree differently.
 
 That precedence rule is a native replacement for mechanism 2 above. Order the directories board → architecture → shared, and a board-specific `s-bbbosu.adb` shadows the architecture-generic one with no filename suffixes and no exclusion lists. It makes a crate hierarchy *layered* rather than merely additive, which is what a family support layer wants to be.
 
-The hazard is the same sentence: *no error is reported*. Silent shadowing inside the one artifact a certification reader has to audit is the wrong failure mode. So use ordering for **variants of a unit** and an explicit `Source_List_File` for **membership**: the list makes the runtime's unit set a reviewable manifest, and a typo becomes a missing source rather than a quietly different one.
+The hazard is the same sentence: *no error is reported*. Silent shadowing inside the one artifact a certification reader has to audit is the wrong failure mode.
+
+So three mechanisms, each for one job, and they are not interchangeable:
+
+| Job | Mechanism | Granularity |
+|---|---|---|
+| which *variant* of a unit wins | `Source_Dirs` order | directory |
+| which units are compiled **into** the library | `Source_List_File` | file |
+| which units the compiler can **see**, and so which features it enables | which directories are on the source path at all | directory |
+
+The list makes the runtime's unit set a reviewable manifest, and a typo becomes a missing source rather than a quietly different one. The third row is the one that is easy to miss, because nothing in the GPR reference mentions it — it is a property of GNAT's front end, not of gprbuild — and getting it wrong produces a clean compile followed by an unresolved bind ([A.23](#a23)).
 
 ### 2.2 Alire
 
