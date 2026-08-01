@@ -565,23 +565,43 @@ region-overlap hazard that split created — it no longer has anything to overla
 `Switch_Code_Bytes` and `MPFS_SWITCH_CODE_LENGTH` are gone entirely rather than
 merely relocated.
 
-### 7.15 Tier 1 is NOT a flat union — GNAT keys off *visibility*
+### 7.15 Tier 1 is NOT a flat union — profiles need different *content*
 
-The single most consequential finding of the spike. `Source_List_File` controls
-what gets compiled **into** the library; it does **not** control which units are
-*visible on the source path*, and GNAT's configurable-runtime logic decides which
-language features are available from **visibility**.
+`Source_List_File` names basenames. It cannot choose between two different
+versions of the same basename, and **eighteen units differ in content between the
+three profiles**. One directory cannot serve all three.
 
 Symptom: `light_tasking_mpfs` compiled all ~600 units of both libraries and then
 failed to bind, wanting `a-sttebu`, then `a-stuten`, then `s-putima` — the Ada
 2022 `Put_Image` chain that the `light-tasking` profile deliberately excludes.
 
-Proved by elimination. Reading the switches from our own generated `a-strsup.ali`
-and upstream's showed them **identical** apart from the `--RTS=` path (same
-`-O2 -gnatA -gnatg -gnatp -gnatn2 -march=…`) — Alire already builds dependencies
-as Release, so an earlier guess about a "development profile leak" was wrong. With
-switches and sources identical, the only remaining variable was the source path.
-Hiding `s-putima`, `a-sttebu` and `a-stuten` made the entire cascade vanish.
+Cause: over a union directory, a non-embedded build compiles **embedded's**
+variant of a content-variant unit. `a-strsup` is the clearest case —
+
+| `a-strsup` variant | `Put_Image` mentions, `.ads` / `.adb` |
+|---|---|
+| `light`, `light-tasking` | 1 / **0** |
+| `embedded` | 2 / **4** |
+
+— so the embedded text genuinely uses `Put_Image`, the chain it needs is on the
+source path but not in the profile's `Source_List_File`, and the failure lands at
+bind time rather than at compile time.
+
+**What this is NOT: a visibility effect.** An earlier version of this entry
+claimed GNAT's configurable-runtime logic enables features from what is merely
+*visible* on the source path. Tested directly on a pristine tree —
+`libgnat-embedded` added to `light_mpfs`'s `Source_Dirs` **and**
+`ada_source_path`, `a-sttebu`/`a-stuten`/`s-putima` confirmed reachable and
+present nowhere else, rebuilt from an empty object directory — the build
+succeeded and produced a **byte-identical** binary (`text 1340, bss 65541`), with
+none of the three units in the ALI. With the right variant in place, another
+profile's units being visible costs nothing.
+
+The earlier diagnosis rested on "leaf's `a-strsup` md5 == upstream's, so the
+sources are not the variable". **That check is unsound in a union layout**:
+duplicate basenames resolve by `Source_Dirs` order and no error is reported
+([§3.4](#34-runtime_buildgpr)), so the file inspected need not be the file
+compiled. Verify the artifact — the `.ali` dependency list — not the candidate.
 
 **Structure.** Tier 1 ships the units *common to all profiles* plus a per-profile
 overlay, and a leaf lists its overlay **before** the common directory:
@@ -598,20 +618,22 @@ overlay, and a leaf lists its overlay **before** the common directory:
 overlay is large because that profile genuinely has far more units, not because
 anything is copied twice.
 
-**Corollary: `populate.sh` must PRUNE, not just copy.** A file left behind from an
-earlier layout stays *visible*, so copying alone is not idempotent — a stale
-embedded-only unit silently re-enables `Put_Image` in a light build. Pruning is
-restricted to the tier-1 directories: leaf and tier-3 `src/` dirs hold
-hand-authored files no list names, and an unrestricted prune deleted
+**Corollary: `populate.sh` must PRUNE, not just copy.** This survives the
+correction above, and is if anything more important under it: a file left from an
+earlier layout is a *wrong-variant* file sitting where the right one belongs, and
+`Source_Dirs` order will silently prefer whichever comes first. Copying alone is
+not idempotent. Pruning is restricted to lists: leaf and tier-3 `src/` dirs also
+hold hand-authored files no membership list names, which is why the leaf prune
+consults `lists/leaf-keep.lst` — an unrestricted prune once deleted
 `mpfs_config_checks.ads`.
 
 **This qualifies RTS.md's tier-1 claim.** The snapshot is *not* "identical for
-every target on earth": it has a second axis — the runtime profile — for
-visibility as well as for the 18 content-variant units of [§7.6](#76-the-source-partition-changed).
+every target on earth": it has a second axis, the runtime profile, for the 18
+content-variant units of [§7.6](#76-the-source-partition-changed).
 
 ### 7.16 Overlays are keyed by content, not by profile name
 
-[§7.15](#715-tier-1-is-not-a-flat-union--gnat-keys-off-visibility) requires per-profile overlays. It does **not** require one overlay *per
+[§7.15](#715-tier-1-is-not-a-flat-union--profiles-need-different-content) requires per-profile overlays. It does **not** require one overlay *per
 profile*: two profiles that agree on every unit they vary can mount the same
 directory. Measured on this toolchain, `light` and `light-tasking` agree on all
 of them, so `libgnat-light-tasking` held a second byte-identical copy of
@@ -647,7 +669,7 @@ Two guards make this safe rather than merely smaller, and both are in
 2. **Leaf `src/` is now pruned** against its own lists plus `lists/leaf-keep.lst`.
    This is what makes a move *take effect*: leaf `src/` precedes the overlay in
    `Source_Dirs`, so a left-behind copy still wins and the move would silently
-   do nothing — the leaf-level form of [§7.15](#715-tier-1-is-not-a-flat-union--gnat-keys-off-visibility)'s visibility hazard.
+   do nothing — the leaf-level form of [§7.15](#715-tier-1-is-not-a-flat-union--profiles-need-different-content)'s visibility hazard.
 
 **What deliberately stays duplicated.** `s-parame.ads`, `s-parame.adb` and
 `s-bbpara.ads` are identical in `light-tasking` and `embedded`. A shared

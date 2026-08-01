@@ -50,7 +50,7 @@ Only the leaf is built. It owns `for Runtime ("Ada") use Project'Project_Dir`, t
 - `ada_source_path` may point outside the crate, which is what makes tier composition possible ([A.4](#a4), [A.5](#a5)).
 - ISA/ABI is a configuration variable, on both ARM and RISC-V ([A.16](#a16), [A.18](#a18)).
 - `runtime.xml` works, and is still better deleted — for a reason that has nothing to do with whether it works ([§5.4](#54-can-runtimexml-be-eliminated-in-favour-of-pure-gpr)).
-- Tier 1 is not a flat union: GNAT decides feature availability from what is *visible* on the source path ([A.23](#a23)).
+- Tier 1 is not a flat union: eighteen units differ in *content* between profiles, so one directory cannot serve all three ([A.23](#a23)).
 
 **What is not settled.** [§8](#8-open-problems) lists the open problems. The two that would bite first: no way for a `with`ed project to force switches on its dependents, so an application must opt in by convention; and the shared snapshot needs a real versioning story against FSF GCC releases.
 
@@ -151,7 +151,7 @@ Two properties matter here:
 
 - **Selection is file-granular, both ways.** bb-runtimes' per-profile unit sets port over directly as `Source_List_File` contents; per-configuration body choices port over as `Excluded_Source_Files`. No *filename* convention is needed to express a profile's unit set.
 - **Duplicate basenames resolve by `Source_Dirs` order.** Where the same basename appears under two different `Source_Dirs` values, *"the directory corresponding to the earlier value takes precedence; no error is reported."* (The exception: within a single recursive `"src/**"` value, a duplicate is an error, since ordering cannot resolve it.)
-- **But selection is not the whole story, and this is the one place directory layout is load-bearing.** Everything above describes what gprbuild compiles **into** the library. It says nothing about what the compiler can *see*, and GNAT's configurable-runtime logic decides which language features exist from what is visible on the source path — not from this project's member list. A directory holding every profile's units therefore enables features a narrow profile excludes, whatever `Source_List_File` says. The shared snapshot needs a common directory plus **per-profile overlay directories**; see [A.23](#a23) for the measurement and [§1.1](#11-which-tool-consumes-which-metadata-file) for why two consumers read the same tree differently.
+- **But selection cannot express *content*, and that is where directory layout becomes load-bearing.** `Source_List_File` names basenames. When two profiles need genuinely *different text* under the same basename — eighteen units do, `a-strsup` and `a-except` among them — one directory cannot hold both, and no list can pick between them. The shared snapshot therefore needs a common directory plus **per-profile overlay directories**, ordered ahead of it. See [A.23](#a23), which also records what this is *not*: another profile's units merely being visible on the source path is harmless, measured.
 
 That precedence rule is a native replacement for mechanism 2 above. Order the directories board → architecture → shared, and a board-specific `s-bbbosu.adb` shadows the architecture-generic one with no filename suffixes and no exclusion lists. It makes a crate hierarchy *layered* rather than merely additive, which is what a family support layer wants to be.
 
@@ -161,11 +161,10 @@ So three mechanisms, each for one job, and they are not interchangeable:
 
 | Job | Mechanism | Granularity |
 |---|---|---|
-| which *variant* of a unit wins | `Source_Dirs` order | directory |
+| which *variant* of a unit wins | `Source_Dirs` order, or per-profile directories | directory |
 | which units are compiled **into** the library | `Source_List_File` | file |
-| which units the compiler can **see**, and so which features it enables | which directories are on the source path at all | directory |
 
-The list makes the runtime's unit set a reviewable manifest, and a typo becomes a missing source rather than a quietly different one. The third row is the one that is easy to miss, because nothing in the GPR reference mentions it — it is a property of GNAT's front end, not of gprbuild — and getting it wrong produces a clean compile followed by an unresolved bind ([A.23](#a23)).
+The list makes the runtime's unit set a reviewable manifest, and a typo becomes a missing source rather than a quietly different one. The first row is the one that bites, precisely because it is silent: get the order wrong, or leave a stale file where a variant should be, and you compile different text with no diagnostic at all ([A.23](#a23)). That is also why a populate step must **prune** rather than merely copy.
 
 ### 2.2 Alire
 
@@ -210,7 +209,7 @@ The reason this rule is worth stating rather than deriving case by case: it is v
 | Runtime profile (`light` / `light-tasking` / `embedded`) | **crate** | Solver test: an application must be able to require tasking. Also changes the exported unit set (`libgnarl`, full `a-except`) and the `System` restrictions. Matches ecosystem practice |
 | ISA / ABI within one architecture generation (`m3` / `m4` / `m4f`) | **variable** | `runtime.xml` is not static — its CDATA is GPR source and already uses `external()` with a `case`. One crate builds consistent hard-float M4 and soft-float M3 binaries from one source tree ([A.16](#a16)). See [§4.2](#42-the-isaabi-dimension--configuration-not-a-crate) |
 | Architecture generation (ARMv6-M ↔ ARMv7-M ↔ ARMv8-M) | **variable** selecting source variants, or a crate | Not a switch axis: ARMv6-M rejects the Thumb-2 wide instructions in the ARMv7-M sources ([A.16](#a16)). Expressible in one crate via `Excluded_Source_Files` over `s-bbcppr__*`/`s-bbbosu__*` variants; a crate split is a packaging choice, not a requirement ([§4.2](#42-the-isaabi-dimension--configuration-not-a-crate)) |
-| `libgnat`/`libgnarl` source snapshot | **crate**, but *not* a flat union | Version test: versioned strictly against the compiler, licence `GPL-…-or-later WITH GCC-exception-3.1`, and the largest single duplication in the ecosystem today. It is **not** identical for every target: GNAT decides feature availability from what is *visible* on the source path, so the crate must expose a common set plus per-profile overlays ([A.23](#a23)) |
+| `libgnat`/`libgnarl` source snapshot | **crate**, but *not* a flat union | Version test: versioned strictly against the compiler, licence `GPL-…-or-later WITH GCC-exception-3.1`, and the largest single duplication in the ecosystem today. It is **not** one directory: eighteen units differ in content between runtime profiles, so the crate must expose a common set plus per-profile overlays ([A.23](#a23)) |
 | Architecture core sources (`System.BB.CPU_Primitives`, context switch, threads, time) | **crate** (tier 2), or a subdirectory of the snapshot crate | This is *where the per-generation variants live*, not a second leaf-splitting axis. Version test, weakly — see [§7](#7-honest-assessment-which-boundaries-pay), the boundary that pays least |
 | Device-support family (`System.BB.Board_Support`, startup, vectors, register subset) | **crate** per family | Version test: generated from vendor register data with its own cadence. One crate carries *every* device, board and ISA in the family — see [§4.1](#41-the-device-and-board-dimension) |
 | Device within a family | **variable** | `MCU_Sub_Family` + memory-size selector; picks interrupt names, memory map, peripheral set ([§4.1](#41-the-device-and-board-dimension)) |
@@ -663,7 +662,7 @@ Not all four tiers earn their complexity, and the scheme should not be sold as i
 | 3 — family support | **pays** | its own cadence, generated from vendor data, shared across the three profiles |
 | leaf | **pays, and must stay thin** | the only buildable crate; the place every per-target decision lands |
 
-**Tier 1 pays clearly, but it is not one flat directory.** [A.23](#a23) shows the crate must expose a common set plus per-profile overlays, because unit *visibility* — not just library membership — changes what GNAT compiles. Roughly 400 `libgnat`/`libgnarl` units are currently vendored into every published runtime crate — tens of copies of the same snapshot across an installation and across the index. It has exactly one version axis (the compiler), one licence, one provenance. This is the boundary the version test was written for.
+**Tier 1 pays clearly, but it is not one flat directory.** [A.23](#a23) shows the crate must expose a common set plus per-profile overlays, because eighteen units differ in *content* between profiles and a list of basenames cannot choose between two versions of the same name. Roughly 400 `libgnat`/`libgnarl` units are currently vendored into every published runtime crate — tens of copies of the same snapshot across an installation and across the index. It has exactly one version axis (the compiler), one licence, one provenance. This is the boundary the version test was written for.
 
 **Tier 3 pays.** Family support code has its own cadence: it is generated from vendor register data, gets fixes when that data gets fixes, and is shared across the three profiles of one family. Independent versioning is a real benefit. Note the granularity [§4.1](#41-the-device-and-board-dimension) and [§4.2](#42-the-isaabi-dimension--configuration-not-a-crate) argue for — one crate per family, not per device, board or ISA. On the current index that folds `light_nrf52832`/`833`/`840` into one, and the eleven chip-agnostic `light-cortex-m*` runtimes into one crate with two knobs.
 
@@ -957,20 +956,22 @@ So `Compiler'Leading_Required_Switches` applies to a runtime reached through a w
 The rule behind both: **a negative result about a mechanism is only as good as the evidence that the fixture exercising it is valid.** The cheapest way to get that evidence is to run the same mechanism from a known-working implementation — a published crate — and compare. → [§5.4](#54-can-runtimexml-be-eliminated-in-favour-of-pure-gpr).
 
 <a id="a23"></a>
-**A.23 — Can tier 1 be a flat union of every profile's units?** No. `Source_List_File` restricts what is compiled **into** the library; it does not restrict *visibility*, and GNAT's configurable-runtime logic decides which language features exist from what it can see on the source path.
+**A.23 — Can tier 1 be a flat union of every profile's units?** **No — but for a simpler reason than "visibility", and the distinction matters when deciding what a populate step has to guarantee.**
 
-A `light-tasking` runtime built over a union tier 1 compiled all ~600 units of both libraries and then failed to bind, demanding `a-sttebu`, `a-stuten` and `s-putima` in turn — the Ada 2022 `Put_Image` chain that profile excludes. `a-strsup` had compiled with `Put_Image` enabled purely because the machinery was *visible*.
+The observation. A `light-tasking` runtime built over a union tier 1 compiled all ~600 units of both libraries and then failed to bind, demanding `a-sttebu`, `a-stuten` and `s-putima` in turn — the Ada 2022 `Put_Image` chain that profile excludes.
 
-Established by elimination rather than inference:
+The cause. **A union directory can hold only one copy of each unit, and eighteen units differ in content between profiles.** `a-strsup` is one of them:
 
-| Check | Result |
+| `a-strsup` variant | `Put_Image` mentions in `.ads` / `.adb` |
 |---|---|
-| our `a-strsup.ali` switches vs upstream's | **identical** but for `--RTS=` (`-O2 -gnatA -gnatg -gnatp -gnatn2 -march=…`) |
-| leaf's `a-strsup` source vs upstream's | identical MD5 — correct profile variant |
-| upstream's `a-strsup.ali` dependency on `a-sttebu` | none |
-| hide `s-putima`/`a-sttebu`/`a-stuten` from the source path | entire cascade disappears |
+| `light`, `light-tasking` | 1 / **0** |
+| `embedded` | 2 / **4** |
 
-Switches and sources being identical leaves the source path as the only variable. (An earlier guess that Alire's *development* build profile was leaking `-g -gnata -O0` was wrong — Alire builds dependencies as Release, and the ALI proves the switches matched.)
+A light build over a union therefore compiles *embedded's* `a-strsup`, whose source genuinely uses `Put_Image`; the chain it needs is on the source path but absent from the profile's `Source_List_File`, so the failure surfaces at bind rather than at compile.
+
+**The stronger claim — that mere visibility of `s-putima` is enough to enable the feature — does not reproduce.** Tested directly on a pristine tree: `libgnat-embedded` added to `light_mpfs`'s `Source_Dirs` *and* `ada_source_path`, with `a-sttebu`/`a-stuten`/`s-putima` confirmed reachable and present nowhere else on that path, then rebuilt from an empty object directory. The build succeeded and produced a **byte-identical** binary (`text 1340, bss 65541`), with none of the three units appearing in the ALI. With the correct profile variant in place, another profile's units being visible costs nothing.
+
+One caveat on the original diagnosis, worth keeping as a lesson: it recorded "leaf's `a-strsup` source vs upstream's — identical MD5", and concluded the sources could not be the variable. In a *union* layout that check is unsound — duplicate basenames resolve by `Source_Dirs` order and **no error is reported** ([§2.1](#21-gpr-source-resolution)), so the file inspected need not be the file compiled. **Verify the artifact, not the candidate:** read the `.ali`'s dependency list, or `gprbuild -vh`, to learn which source was actually used.
 
 Structure that works, measured on the three PolarFire profiles: a common `libgnat` of **479** units plus overlays of **11** (light), **11** (light-tasking) and **462** (embedded — its exception and image machinery); `libgnarl` **69** common plus **3** and **9**. Each leaf lists its overlay *before* the common directory, in both `Source_Dirs` and `ada_source_path`.
 
