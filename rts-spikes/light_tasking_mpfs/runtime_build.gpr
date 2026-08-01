@@ -39,7 +39,10 @@ project Runtime_Build is
      & "-" & Light_Tasking_Mpfs_Config.L2_LIM_Ways
      & "-" & Light_Tasking_Mpfs_Config.L2_Scratchpad_Ways
      & "-" & Light_Tasking_Mpfs_Config.ITIM_Ways
-     & "-" & Light_Tasking_Mpfs_Config.DTIM_Ways;
+     & "-" & Light_Tasking_Mpfs_Config.DTIM_Ways
+     & "-" & Light_Tasking_Mpfs_Config.DDR_Present
+     & "-" & Light_Tasking_Mpfs_Config.Memory_Profile
+     & "-" & Light_Tasking_Mpfs_Config.MPFS_PARTITION;
 
 
    for Languages use ("Ada", "Asm_Cpp");
