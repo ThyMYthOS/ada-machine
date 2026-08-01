@@ -27,7 +27,7 @@ rts-spikes/
 **The runtime sources are NOT committed.** Tier 1 alone is 963 + 86 units (~6 MB) of FSF/AdaCore code. Instead each source crate commits a **file list** and `populate.sh` copies the named files out of the installed toolchain. Consequences:
 
 - `make populate` is a prerequisite for any build. A fresh clone does not build.
-- The lists are the reviewable artifact — the same role RTS.md §2.1 gives `Source_List_File`.
+- The lists are the reviewable artifact — the same role [RTS.md §2.1](../RTS.md#21-gpr-source-resolution) gives `Source_List_File`.
 - A *published* crate would vendor the sources. This is a spike-only shortcut, and it must be stated in each source crate's `README.md`.
 
 Do not commit anything under `*/libgnat/`, `*/libgnarl/` or `*/src/` in the three source crates; `.gitignore` already excludes them.
@@ -90,7 +90,7 @@ output_dir = "gnat_config"
 generate_c = false
 ```
 
-Tasking leaves additionally declare `provides = ["gnat_rts_tasking=0.1.0"]`. `light_mpfs` must **not** — AVR-style, its floor excludes tasking (RTS.md §4).
+Tasking leaves additionally declare `provides = ["gnat_rts_tasking=0.1.0"]`. `light_mpfs` must **not** — AVR-style, its floor excludes tasking ([RTS.md §4](../RTS.md#4-where-each-axis-falls)).
 
 ### 3.2 Configuration variables — names pinned
 
@@ -162,7 +162,7 @@ end Runtime_Build;
 
 ### 3.5 Metadata files — committed, relative paths
 
-Sibling path pins make relative entries stable (verified, RTS.md A.4). `ada_source_path`:
+Sibling path pins make relative entries stable (verified, RTS.md [A.4](../RTS.md#a4)). `ada_source_path`:
 
 ```
 gnat_config
@@ -172,11 +172,11 @@ src
 ../rts_sources_gcc15/libgnat
 ```
 
-(tasking/embedded append `../rts_sources_gcc15/libgnarl` — and **not** a gnarl-side configuration directory: there is none.) `ada_object_path` is one line: `adalib`. A published crate would generate these — see RTS.md §8 item 1.
+(tasking/embedded append `../rts_sources_gcc15/libgnarl` — and **not** a gnarl-side configuration directory: there is none.) `ada_object_path` is one line: `adalib`. A published crate would generate these — see [RTS.md §8](../RTS.md#8-open-problems) item 1.
 
 ### 3.6 No `runtime.xml` — `target_options.gpr` owns the ISA
 
-There is **no `runtime.xml` in any leaf**, following `avrada_rts`. See §7.10 for
+There is **no `runtime.xml` in any leaf**, following `avrada_rts`. See [§7.10](#710-there-is-no-runtimexml-target_optionsgpr-owns-the-isa) for
 why (and for the retraction of the earlier, wrong reason). `target_options.gpr`
 is the single derivation site:
 
@@ -221,13 +221,13 @@ end Target_Options;
 Rules that follow from this:
 
 - No other project may assign `ISA_Switches`; they re-export
-  `Target_Options.ISA_Switches`. §7.10 records the leaf that broke this.
+  `Target_Options.ISA_Switches`. [§7.10](#710-there-is-no-runtimexml-target_optionsgpr-owns-the-isa) records the leaf that broke this.
 - `-gnatg`/`-nostdinc` are **not** in `ALL_ADAFLAGS` (applications reference it);
   each library project adds them as `RTS_ADAFLAGS`/`RTS_GNARL_ADAFLAGS`.
 - `embedded_mpfs` **must** add
   `"-Wl,--start-group,-lgnarl,-lgnat,-lc,-lgcc,--end-group"` to
   `Linker_Switches` — without it the link fails with ~30 undefined
-  `memcpy`/`memset` references (RTS.md A.14).
+  `memcpy`/`memset` references (RTS.md [A.14](../RTS.md#a14)).
 - `-march=rv64imac` alone fails to assemble the startup: the E51 string is
   **`rv64imac_zicsr`** (RTS-POLARFIRE §1.1).
 
@@ -237,15 +237,15 @@ Every leaf exports these from `runtime_build.gpr`:
 
 | Variable | Contents |
 |---|---|
-| `ISA_Switches` | re-exported from `Target_Options`, derived from `Harts_Mask` (§3.6). Must not be reassigned here |
+| `ISA_Switches` | re-exported from `Target_Options`, derived from `Harts_Mask` ([§3.6](#36-no-runtimexml--target_optionsgpr-owns-the-isa)). Must not be reassigned here |
 | `Linker_Switches` | `-T`/`-L` for the selected `Memory_Profile`, plus `Defsyms` |
-| `Defsyms` | the `-Wl,--defsym=` list of §4 below |
+| `Defsyms` | the `-Wl,--defsym=` list of [§4](#4---defsym-symbol-names--pinned) below |
 
 ---
 
 ## 4. `--defsym` symbol names — pinned
 
-`ld` accepts symbols for both `ORIGIN` and `LENGTH`, and enforces overflow (verified, RTS.md A.20). `rts_support_mpfs/ld/mpfs-memory.ld` declares literal bases and these symbolic lengths; each leaf computes them from configuration:
+`ld` accepts symbols for both `ORIGIN` and `LENGTH`, and enforces overflow (verified, RTS.md [A.20](../RTS.md#a20)). `rts_support_mpfs/ld/mpfs-memory.ld` declares literal bases and these symbolic lengths; each leaf computes them from configuration:
 
 | Symbol | From |
 |---|---|
@@ -264,7 +264,7 @@ Region bases (literal, from RTS-POLARFIRE §1.2): envm `0x20220100`, dtim `0x010
 
 ## 5. Validation — `pragma Compile_Time_Error`, not subtypes
 
-Subtypes only warn; the pragma is what enforces (RTS.md A.15). Put these in a tier-3 spec that reads `MPFS_Runtime_Config`:
+Subtypes only warn; the pragma is what enforces (RTS.md [A.15](../RTS.md#a15)). Put these in a tier-3 spec that reads `MPFS_Runtime_Config`:
 
 - `Hart_Class = e51` with a hard-float ABI → error (no FPU)
 - `Hart_Class = e51` and `Harts /= "0"` → error; `Hart_Class = u54` and hart 0 in the set → error
@@ -301,7 +301,7 @@ Every item here was measured. Apply the answer; do not re-derive it. Each cost a
 
 ### 7.3 `s-bbbopa.ads`: swap `No_Elaboration_Code_All` for `Restrictions (No_Elaboration_Code)`
 
-Upstream's `s-bbbopa.ads` carries `pragma No_Elaboration_Code_All`, which propagates **transitively**: every unit it `with`s must carry it too. The `MPFS_Runtime_Config` shim (§3.3) is a *renaming*, and a renaming cannot carry that pragma —
+Upstream's `s-bbbopa.ads` carries `pragma No_Elaboration_Code_All`, which propagates **transitively**: every unit it `with`s must carry it too. The `MPFS_Runtime_Config` shim ([§3.3](#33-the-renaming-shim)) is a *renaming*, and a renaming cannot carry that pragma —
 
 ```
 shim.ads:3:01: error: pragma "No_Elaboration_Code_All" not allowed for renamed package
@@ -327,7 +327,7 @@ So: **every quantity feeding a check must be a flat, independent named scalar co
 
 ### 7.5 Leaves need explicit dependencies and pins
 
-CONTRACT §3.1's snippet is illustrative, not complete. A leaf must also declare, or `with "rts_sources_gcc15.gpr"` will not resolve:
+CONTRACT [§3.1](#31-manifest)'s snippet is illustrative, not complete. A leaf must also declare, or `with "rts_sources_gcc15.gpr"` will not resolve:
 
 ```toml
 [[depends-on]]
@@ -354,7 +354,7 @@ A combined membership list cannot be the `Source_List_File` of two projects with
 | `light_tasking_mpfs` | `light-tasking.gnat.lst` (513) | `light-tasking.gnarl.lst` (88) |
 | `embedded_mpfs` | `embedded.gnat.lst` (959) | `embedded.gnarl.lst` (94) |
 
-The combined `*.lst` remains as provenance only. Correction to §3.4: `ravenscar_build.gpr` **must** include `"src"` in `Source_Dirs` — six GNARL-side leaf-owned units (`s-bbpara.ads`, `s-taskin.ads`, `s-tpobop.*`, `s-tposen.*`) exist only there.
+The combined `*.lst` remains as provenance only. Correction to [§3.4](#34-runtime_buildgpr): `ravenscar_build.gpr` **must** include `"src"` in `Source_Dirs` — six GNARL-side leaf-owned units (`s-bbpara.ads`, `s-taskin.ads`, `s-tpobop.*`, `s-tposen.*`) exist only there.
 
 ### 7.8 SUPERSEDED — `Harts` is now an Integer bitmask
 
@@ -389,11 +389,11 @@ Max_Number_Of_CPUs : constant :=
 pragma Compile_Time_Error (<unrecognised>, "unrecognised Harts spelling");
 ```
 
-**This is a flaw in §3.2, not just a workaround.** A hart *set* typed as `String` forces every consumer into literal-matching. A published crate should make `Harts` an `Enum` of the legal sets, so comparison is naturally static and a typo is rejected by Alire rather than by a hand-written pragma. Left as `String` here only because three crates already build against it.
+**This is a flaw in [§3.2](#32-configuration-variables--names-pinned), not just a workaround.** A hart *set* typed as `String` forces every consumer into literal-matching. A published crate should make `Harts` an `Enum` of the legal sets, so comparison is naturally static and a typo is rejected by Alire rather than by a hand-written pragma. Left as `String` here only because three crates already build against it.
 
 ### 7.9 The `e51` + hard-float check of §5 is not implementable as specified
 
-§5 requires "`Hart_Class = e51` with a hard-float ABI → error". As specified it is
+[§5](#5-validation--pragma-compile_time_error-not-subtypes) requires "`Hart_Class = e51` with a hard-float ABI → error". As specified it is
 unimplementable: there is no ABI field in `MPFS_Runtime_Config`, so the ABI is
 invisible to Ada and no `pragma Compile_Time_Error` can see it.
 
@@ -401,7 +401,7 @@ invisible to Ada and no `pragma Compile_Time_Error` can see it.
 unrepresentable.** The ABI used to arrive through a separate
 `external("MPFS_ABI", ...)` read independently by `runtime.xml` and by the leaf's
 `ISA_Switches`, so `Hart_Class => e51` could sit correctly in the generated
-config while the compiler received `rv64imafdc`/`lp64d`. Since §3.6/§7.10 there
+config while the compiler received `rv64imafdc`/`lp64d`. Since [§3.6](#36-no-runtimexml--target_optionsgpr-owns-the-isa)/[§7.10](#710-there-is-no-runtimexml-target_optionsgpr-owns-the-isa) there
 is exactly one derivation — `Harts_Mask` → `Hart_Class` → `ISA_Switches`, in
 `target_options.gpr` — and no `external()` overriding it. A disagreeing pair
 cannot be expressed, which is a stronger guarantee than a diagnostic.
@@ -416,14 +416,14 @@ withed library project. The real cause was that `light_mpfs/runtime.xml` was
 **malformed XML** — a `--` used as an em-dash inside an XML comment, which is
 illegal — and **gprconfig silently ignores an unparseable `runtime.xml`**. The
 mechanism works fine when the file is valid; `light_tasking_mpfs`'s was valid
-all along and its switches were in effect. Full retraction in RTS.md A.22.
+all along and its switches were in effect. Full retraction in RTS.md [A.22](../RTS.md#a22).
 
 The files are now **deleted**, following
 [`avrada_rts`](https://github.com/RREE/AVRAda_RTS), which ships no `runtime.xml`
 at all. The reason is fit, not function: a gprconfig `<config>` fragment cannot
 `with` a crate's generated configuration project, so everything in it must
 arrive as an `external()`/`-X` — a second source of truth alongside the Alire
-configuration variable it duplicates. That is what produced §7.9.
+configuration variable it duplicates. That is what produced [§7.9](#79-the-e51--hard-float-check-of-5-is-not-implementable-as-specified).
 
 The contract:
 
@@ -487,7 +487,7 @@ Adding it to each leaf's `Source_List_File` immediately caught a real
 misconfiguration that had been sitting in the tree — `hello_mpfs` carried
 `DTIM_Ways = 1` on a U54, and DTIM is E51-only.
 
-So the §7.4 rule needs a companion: proving a check fires is not only about the
+So the [§7.4](#74-pragma-compile_time_error-silently-no-ops-on-non-static-conditions) rule needs a companion: proving a check fires is not only about the
 condition being static, it is also about the unit being *compiled*. Verify by
 breaking the data and watching the message appear.
 
@@ -607,11 +607,11 @@ hand-authored files no list names, and an unrestricted prune deleted
 
 **This qualifies RTS.md's tier-1 claim.** The snapshot is *not* "identical for
 every target on earth": it has a second axis — the runtime profile — for
-visibility as well as for the 18 content-variant units of §7.6.
+visibility as well as for the 18 content-variant units of [§7.6](#76-the-source-partition-changed).
 
 ### 7.16 Overlays are keyed by content, not by profile name
 
-§7.15 requires per-profile overlays. It does **not** require one overlay *per
+[§7.15](#715-tier-1-is-not-a-flat-union--gnat-keys-off-visibility) requires per-profile overlays. It does **not** require one overlay *per
 profile*: two profiles that agree on every unit they vary can mount the same
 directory. Measured on this toolchain, `light` and `light-tasking` agree on all
 of them, so `libgnat-light-tasking` held a second byte-identical copy of
@@ -647,7 +647,7 @@ Two guards make this safe rather than merely smaller, and both are in
 2. **Leaf `src/` is now pruned** against its own lists plus `lists/leaf-keep.lst`.
    This is what makes a move *take effect*: leaf `src/` precedes the overlay in
    `Source_Dirs`, so a left-behind copy still wins and the move would silently
-   do nothing — the leaf-level form of §7.15's visibility hazard.
+   do nothing — the leaf-level form of [§7.15](#715-tier-1-is-not-a-flat-union--gnat-keys-off-visibility)'s visibility hazard.
 
 **What deliberately stays duplicated.** `s-parame.ads`, `s-parame.adb` and
 `s-bbpara.ads` are identical in `light-tasking` and `embedded`. A shared
