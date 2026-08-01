@@ -174,7 +174,7 @@ Upstream [bb-runtimes](https://github.com/AdaCore/bb-runtimes) does carry more t
 
 ## 3. Applying the boundary rule
 
-[RTS.md §4.1](RTS.md) gives: one crate per (target triple × runtime profile × device-support family); device, board and ISA/ABI are configuration. For MPFS the family is the SoC itself, so:
+[RTS.md §4.1](RTS.md) gives: one crate per (target × runtime profile × device-support family); device, board and ISA/ABI are configuration. For MPFS the family is the SoC itself, so:
 
 | # | Crate | Kind | Contents |
 |---|---|---|---|
