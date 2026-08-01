@@ -183,7 +183,16 @@ The list makes the runtime's unit set a reviewable manifest, and a typo becomes 
 Two limits shape everything downstream:
 
 - **A configuration variable cannot select a dependency.** Alire resolves the graph before configuration is applied, so there is no "one runtime crate whose `Architecture` variable pulls in a different compiler." Anything a *dependent* must be able to select on has to be expressed as a crate name or a `provides` alias.
-- **A multi-binary system has no common configuration root.** Configuration flows downward from *a* root, so two programs that must agree on something — a shared memory allocation, ownership of a peripheral, which CPU runs which image — have no crate that can carry the agreement. This bites on any AMP or multi-partition target, and the only answer is to move the agreement out of configuration and into *generated data* that every root depends on. [§10.4](#104-polarfire-soc--the-hard-case-planned-separately) is the worked case.
+- **Configuration values must be unanimous, which is what stops a multi-binary system sharing one root.** A source-less "umbrella" crate depending on several application crates is perfectly legal and does build — and `[configuration.values]` does flow down to shared dependencies. What it cannot do is give two programs *different* configurations of the same crate. Measured on a four-crate probe (root → two apps → one shared dependency):
+
+  | Setup | Result |
+  |---|---|
+  | umbrella root depending on two application crates | builds |
+  | both apps set the shared crate's variable to the **same** value | builds |
+  | the two apps set it **differently** | `ERROR: Conflicting value for configuration variable 'rtsdep.x' from 'appone' (1) and 'apptwo' (2).` |
+  | the **root** sets it differently from an app | same error — a root is a peer, not an authority, and cannot override its dependencies |
+
+  So an umbrella root works when the partitions agree — several SMP partitions on one core class, say — and is still worth having for version pinning and for depending on a shared generated-data crate. It cannot express the AMP case, where partitions need the same runtime crate at *different* ABIs. Independently of Alire, one `gprbuild` invocation carries one `Target`/`Runtime`/`Builder`, so differently-ABI'd partitions cannot be produced in a single pass either way. The agreement between partitions therefore has to live in *generated data* every root depends on, not in configuration. [§10.4](#104-polarfire-soc--the-hard-case-planned-separately) is the worked case.
 - **Configuration values have no command-line override.** Only a depending crate's `[configuration.values]` sets them. For runtimes this is benign — the application is exactly who should declare the clock tree — but it means no `alr build -XClock=48000000`. Where a knob genuinely needs command-line reach, it has to be a plain GPR `external()` alongside (or instead of) a configuration variable.
 
 ---

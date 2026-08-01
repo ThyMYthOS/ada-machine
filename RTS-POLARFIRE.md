@@ -198,9 +198,11 @@ Crate 7 is the new thing, and it exists because of AMP.
 
 This is the part the general design does not cover, and it needs stating plainly.
 
-An AMP system is **N independent binaries**. Each partition has its own runtime, its own ABI potentially, its own memory window and its own harts. Alire cannot hold two different configurations of one crate in a single solution, and configuration values flow *downward from a root*. Two partitions have no common root. Therefore:
+An AMP system is **N independent binaries**. Each partition has its own runtime, potentially its own ABI, its own memory window and its own harts.
 
-> **Each AMP partition is its own Alire root crate.** No amount of runtime configuration can express "these three programs form one system".
+A shared "umbrella" root crate — no sources, depending on the partition crates and pre-configuring them — is the obvious thing to try, and it is *half* possible. It builds, and `[configuration.values]` does reach shared dependencies. But **Alire requires configuration values to be unanimous**: two partitions setting the same variable of the same runtime crate to different values is a hard error (`Conflicting value for configuration variable ...`), and the root cannot override them — it is a peer, not an authority ([RTS.md §2.2](RTS.md#22-alire) has the measured matrix). Independently, one `gprbuild` invocation carries one `Target`/`Runtime`/`Builder`, so two partitions at different ABIs cannot be produced in one pass regardless of Alire.
+
+> **Each AMP partition whose runtime configuration differs is its own Alire root crate.** An umbrella root can pin versions and carry a shared dependency, but it cannot give two partitions different configurations of one runtime — which is exactly what an E51 monitor plus a U54 application partition need.
 
 But partitions must agree on things no single partition can see: hart ownership, non-overlapping memory windows, which MMUART belongs to whom, the L2 way split, and where the IPC regions live. Configuration cannot carry that agreement — so it has to be **data, generated once, depended on by all partitions**.
 
