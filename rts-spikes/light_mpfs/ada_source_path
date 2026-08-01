@@ -3,4 +3,6 @@ src
 ../rts_support_mpfs/src
 ../rts_core_riscv64/src
 ../rts_sources_gcc15/libgnat-light
+../rts_sources_gcc15/libgnat-64
+../rts_sources_gcc15/libgnat-textio
 ../rts_sources_gcc15/libgnat

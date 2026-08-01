@@ -63,6 +63,8 @@ project Runtime_Build is
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
       Rts_Sources_Gcc15.Gnat_Embedded_Dir,
+      Rts_Sources_Gcc15.Gnat_64_Dir,
+      Rts_Sources_Gcc15.Gnat_Textio_Dir,
       --  Gnat-side HERE, gnarl-side for light-tasking; one shared directory,
       --  membership decided per project (CONTRACT.md §7.17).
       Rts_Sources_Gcc15.Restrictions_Dir,

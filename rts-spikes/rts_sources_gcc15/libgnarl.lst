@@ -32,8 +32,9 @@ s-bbthre.adb
 s-bbthre.ads
 s-bbtiev.adb
 s-bbtiev.ads
-s-bbtime.adb
 s-bbtime.ads
+s-bcpcst.adb
+s-bcpcst.ads
 s-bcprmu.adb
 s-bcprmu.ads
 s-interr.adb

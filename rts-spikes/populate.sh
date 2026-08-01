@@ -4,6 +4,13 @@
 set -e
 T=$(ls -d "$HOME"/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_*/riscv64-elf/lib/gnat 2>/dev/null | head -1)
 [ -n "$T" ] || { echo "error: gnat_riscv64_elf 15.1.2 not installed"; exit 1; }
+#  Tier 1 serves both targets now (CONTRACT.md 7.19), so populating it in full
+#  needs BOTH toolchains. The ARM half is optional: without it the RISC-V leaves
+#  still build, because 122 of the 136 units only one target uses are 128-bit
+#  and packed-array support that no 32-bit list names anyway. A published crate
+#  would vendor the merged result and need neither toolchain.
+TA=$(ls -d "$HOME"/.local/share/alire/toolchains/gnat_arm_elf_15.1.2_*/arm-eabi/lib/gnat 2>/dev/null | head -1)
+[ -n "$TA" ] || echo "note: gnat_arm_elf not installed -- ARM-only tier-1 units will be reported MISSING"
 here=$(cd "$(dirname "$0")" && pwd)
 
 copy() {   # copy <list> <dest> <src-dir>...
@@ -69,8 +76,30 @@ echo "rts_sources_gcc15"
 # libgnat.lst now excludes every profile-variant unit (lists/profile-variant.lst),
 # so any profile is a valid source for the rest. Search order is still
 # widest-first because embedded ships units the narrower profiles omit.
-copy "$here/rts_sources_gcc15/libgnat.lst"  "$here/rts_sources_gcc15/libgnat"  "$E/gnat"  "$LT/gnat"  "$L/gnat"
-copy "$here/rts_sources_gcc15/libgnarl.lst" "$here/rts_sources_gcc15/libgnarl" "$E/gnarl" "$LT/gnarl"
+#  The ARM runtimes are searched LAST for the common directories: where both
+#  targets ship a unit the copies are byte-identical (measured), so order is
+#  immaterial there, and the ARM trees are what supply the units only arm-eabi
+#  has. AP/AE are the ARM sources; see the note above if they are absent.
+AP=${TA:+$TA/light-tasking-rpi-pico}; AE=${TA:+$TA/embedded-rpi-pico}
+copy "$here/rts_sources_gcc15/libgnat.lst"  "$here/rts_sources_gcc15/libgnat"  "$E/gnat"  "$LT/gnat"  "$L/gnat"  ${AE:+"$AE/gnat"} ${AP:+"$AP/gnat"}
+copy "$here/rts_sources_gcc15/libgnarl.lst" "$here/rts_sources_gcc15/libgnarl" "$E/gnarl" "$LT/gnarl" ${AE:+"$AE/gnarl"} ${AP:+"$AP/gnarl"}
+
+#  Content-disagreement overlay pairs (CONTRACT.md 7.19). A leaf mounts exactly
+#  one member of each pair, so the shared basenames between them are safe.
+copy "$here/rts_sources_gcc15/libgnat-64.lst"          "$here/rts_sources_gcc15/libgnat-64"          "$LT/gnat"
+copy "$here/rts_sources_gcc15/libgnat-textio.lst"      "$here/rts_sources_gcc15/libgnat-textio"      "$LT/gnat"
+copy "$here/rts_sources_gcc15/libgnarl-sp.lst"         "$here/rts_sources_gcc15/libgnarl-sp"         "$LT/gnarl"
+if [ -n "$TA" ]; then
+  copy "$here/rts_sources_gcc15/libgnat-32.lst"          "$here/rts_sources_gcc15/libgnat-32"          "$AP/gnat"
+  copy "$here/rts_sources_gcc15/libgnat-semihosting.lst" "$here/rts_sources_gcc15/libgnat-semihosting" "$AP/gnat"
+  copy "$here/rts_sources_gcc15/libgnarl-smp.lst"        "$here/rts_sources_gcc15/libgnarl-smp"        "$AP/gnarl"
+  assert_identical "$here/rts_sources_gcc15/libgnat.lst" "$LT/gnat" "$AP/gnat" riscv64 arm-eabi
+  #  The gnarl half needs the same guard. Omitting it let three board-support
+  #  units (a-intnam.ads, s-bbbosu.adb/.ads) sit in the common directory, so an
+  #  ARM build compiled PolarFire's Board_Support and failed on
+  #  "System.Bb.Riscv_Plic is not a predefined library unit".
+  assert_identical "$here/rts_sources_gcc15/libgnarl.lst" "$LT/gnarl" "$AP/gnarl" riscv64-gnarl arm-eabi-gnarl
+fi
 # CONTRACT.md 7.15: tier 1 is NOT a flat union. GNAT's configurable-runtime
 # logic keys off which units are VISIBLE on the source path, so a light-profile
 # build must not see embedded's units. Common set plus per-profile overlays.
