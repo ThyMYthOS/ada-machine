@@ -1,8 +1,62 @@
 # Composing GNAT Bare-Board Runtimes as a Hierarchy of Alire Crates
 
-- **Status:** Draft 1 — 2026-07-26
-- **Question:** GNAT runtimes for microcontrollers are generated today by [bb-runtimes](https://github.com/AdaCore/bb-runtimes), a Python build system over a monolithic source repository. Could a hierarchy of Alire crates produce the same set of variations instead? Where do the boundaries belong — what is a configuration variable, and what requires its own crate?
-- **Short answer:** Yes, and about a third of it already exists. The boundaries sit much further out than they first appear: only the target triple, the runtime profile, the device-support family, and the separately versioned source bodies are genuinely crates. Device, board, *and* ISA/ABI are all configuration variables — every claim here was checked by building real Cortex-M and RISC-V ELFs (Appendix A), and two of the document's own earlier verdicts were retracted that way. The hierarchy's payoff is in maintenance, not in the build.
+**The question.** GNAT runtimes for microcontrollers are generated today by [bb-runtimes](https://github.com/AdaCore/bb-runtimes), a Python build system over a monolithic source repository. Could a hierarchy of Alire crates produce the same set of variations instead? Where do the boundaries belong — what is a configuration variable, and what requires its own crate?
+
+**The answer.** Yes, and roughly a third of it already ships. The boundaries sit much further out than they first appear.
+
+---
+
+## In one page
+
+**The boundary rule.** Everything in this document follows from one test:
+
+> **Separate crate** when the variation changes the dependency graph or the exported API.
+> **Configuration variable** when it changes only numbers, addresses, or which sources are selected behind a fixed interface.
+
+**Where the axes fall.** Four things are crates. Everything else is configuration:
+
+| Crate | Configuration |
+|---|---|
+| target triple (`arm-eabi`, `riscv64-elf`) | device / MCU |
+| runtime profile (`light`, `light-tasking`, `embedded`) | board |
+| device-support family (one SoC or MCU series) | **ISA / ABI** — the surprise; see §4.2 |
+| the shared source snapshot | memory layout, clocks, stack sizes, console |
+
+**The shape.** Four tiers, one buildable crate at the bottom:
+
+```
+rts_sources_gcc15     tier 1   the libgnat/libgnarl snapshot        source-only
+rts_core_riscv64      tier 2   CPU primitives + context switch      source-only
+rts_support_<family>  tier 3   board support, startup, linker scripts  source-only
+light_<family>        leaf     manifest, config, metadata           BUILDABLE
+```
+
+Only the leaf is built. It owns `for Runtime ("Ada") use Project'Project_Dir`, the configuration variables, and the metadata files that make a directory a runtime directory. The application `with`s the leaf's library project, restates `Target`/`Runtime`, and renames the leaf's exported `Builder` package.
+
+**What is settled, with evidence.** Every claim here was checked by building real Cortex-M and RISC-V ELFs; Appendix A records each experiment and its command output.
+
+- A pure-source runtime is enough — no crate needs to ship `adalib` (A.1).
+- `ada_source_path` may point outside the crate, which is what makes tier composition possible (A.4, A.5).
+- ISA/ABI is a configuration variable, on both ARM and RISC-V (A.16, A.18).
+- `runtime.xml` works, and is still better deleted — for a reason that has nothing to do with whether it works (§5.4).
+- Tier 1 is not a flat union: GNAT decides feature availability from what is *visible* on the source path (A.23).
+
+**What is not settled.** §8 lists the open problems. The two that would bite first: no way for a `with`ed project to force switches on its dependents, so an application must opt in by convention; and the shared snapshot needs a real versioning story against FSF GCC releases.
+
+**Where the payoff is.** In maintenance, not in the build. The build gets slightly worse — a from-source runtime compiles on first use. What improves is that a board port stops being a patch to a Python generator and becomes a crate with a version number.
+
+---
+
+### How to read this
+
+| If you want | Read |
+|---|---|
+| the conclusion and nothing else | the page above |
+| to port a target | §3 (the rule), §6 (the hierarchy), §10 (per-target guidance) |
+| to challenge the reasoning | §2 (what the tools actually do), §4 (each axis), Appendix A (the evidence) |
+| to know what will hurt | §7 (which boundaries pay), §8 (open problems) |
+
+Sections 1–2 establish what has to be produced and what Alire and GPR provide. Sections 3–5 derive the boundary and the plumbing. Sections 6–8 give the design and its costs. Sections 9–10 cover prior art and adoption. Appendix A is the evidence base: every numbered experiment is reproducible, and the ones that overturned an assumption are marked.
 
 ---
 
@@ -219,7 +273,7 @@ Second, `MCU_Flash_Memory_Size = { type = "String", default = "E" }` is untyped 
 
 ### 4.2 The ISA/ABI dimension — configuration, not a crate
 
-An earlier draft of this document put ISA/ABI on the crate side, on the grounds that `runtime.xml` is a static file. **That premise is false, and the file itself disproves it**: its `<config>` CDATA is GPR source, and the stock version already declares `Loader : Loaders := external("LOADER", "ROM")` and switches on it. Anything GPR can compute, `runtime.xml` can compute — including the switch list.
+The intuitive objection is that ISA/ABI *must* be a crate, because `runtime.xml` is a static file and the switches live in it. **The file itself disproves the premise**: its `<config>` CDATA is GPR source, and the stock version already declares `Loader : Loaders := external("LOADER", "ROM")` and switches on it. Anything GPR can compute, `runtime.xml` can compute — including the switch list. (This document deletes `runtime.xml` anyway, for an unrelated reason — §5.4 — which moves the switches into GPR proper and makes the point stronger, not weaker.)
 
 Measured on one crate, one source tree, three switch sets (A.16):
 
@@ -454,9 +508,11 @@ Three consequences worth weighing before deleting the XML:
 
 Each leaf's linker content therefore has to be transcribed individually — which is fine when leaves are generated (§6), but it is one more thing the generator must get right, and the failure mode is a wall of undefined references rather than a clear message.
 
-**Decision: do not use `runtime.xml`; follow `avrada_rts` and delete it.** Note carefully what this decision does *not* rest on. An earlier version of this section argued that `runtime.xml` is "parsed but ineffective" when the runtime is reached through a withed library project. **That was false** — the file under test was malformed XML, which gprconfig ignores silently, and the mechanism works exactly as documented once the file is valid (A.22, retracted in full). `Compiler'Leading_Required_Switches` reaches application units too, as [`embedded_rp2040`](https://github.com/damaki/community-bb-runtimes) demonstrates in production.
+**Decision: do not use `runtime.xml`; follow `avrada_rts` and delete it.**
 
-So the choice is between two mechanisms that both work, and it turns on fit rather than function:
+Be clear about what this decision does *not* rest on. **`runtime.xml` works.** Point the root project's `Runtime` attribute at the crate directory and gprconfig reads the file; its `Compiler'Leading_Required_Switches` reach the application's own units, not merely the runtime's. [`embedded_rp2040`](https://github.com/damaki/community-bb-runtimes) relies on exactly this in production, and A.22 reproduces it. Any argument for deleting it has to survive that fact.
+
+The choice is therefore between two working mechanisms, and it turns on fit:
 
 | | `runtime.xml` | pure GPR (`avrada_rts`) |
 |---|---|---|
@@ -514,18 +570,26 @@ graph TD
 
 Everything that is per-(triple × profile × family) and nothing else:
 
-- **`runtime.xml`** — needs no templating, but not because the ISA is fixed: its CDATA is GPR source, so the ISA switches can be computed inside it from `external()`s or from the crate's configuration (§4.2, A.7, A.16). It may also be dropped entirely in favour of a root-project `Builder` package, with the trade-offs in §5.4.
+- **The compiler and linker switches** — the ISA/ABI, `-nostartfiles`/`-nolibc`, the `-T`/`-L` for the selected memory profile. Per §5.4 these live in GPR, in a `target_options.gpr` that derives them from the crate's configuration and exports a `Builder` package for the application to rename. A crate that keeps `runtime.xml` instead puts the same switches in its CDATA, which is GPR source and can compute them just as well (§4.2, A.7, A.16) — but see §5.4 before choosing that.
 - **`Source_Dirs` in override order** — board, then core, then shared. Load-bearing; comment it as such. On tasking profiles this is *two* lists, one per library project (`runtime_build.gpr` for `libgnat`, `ravenscar_build.gpr` for `libgnarl`), each naming only its own directories.
 - **`Source_List_File`** per profile — bb-runtimes' `profiles.py` closure, evaluated once at leaf-generation time and committed as a reviewable list.
 - **All configuration variables**, and the renaming shim over the generated config package. Variables go *only* here: a source-only crate's generated config unit is not in the compiled closure, and two config units would leave it genuinely ambiguous which one the runtime saw.
 - **`ada_target_properties`**, produced by compiling `system.ads` with `-gnatet=`, for GNATprove and CodePeer.
 - **`Externally_Built => True` under `GPR_TOOL=gnatprove`**, so applications proving their own code do not analyse the runtime.
-- **`for Runtime ("Ada") use Project'Project_Dir;`** — and a documented handshake for the application, which restates `Target` and `Runtime` because gprbuild's toolchain auto-configuration reads only the root project's attributes, not a `with`ed dependency's:
+- **`for Runtime ("Ada") use Project'Project_Dir;`** — and a documented handshake for the application. All three lines below are needed, and for one underlying reason: **gprbuild reads `Target`, `Runtime` and `Builder` only from the root project**, never from a `with`ed dependency.
 
 ```ada
+with "runtime_build.gpr";
+with "target_options.gpr";
+
 for Target use Runtime_Build'Target;
 for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+
+--  Renaming, not restating: the ABI is decided once, in the runtime crate.
+package Builder renames Target_Options.Builder;
 ```
+
+  Renaming rather than copying the switch list is what keeps the application from disagreeing with the runtime about the ABI. Omitting the rename is caught at link time — `ld: can't link soft-float modules with double-float modules` — but only when the two actually differ; see §8 for the residual case.
 
 ### Assembling the directory
 
@@ -570,11 +634,18 @@ That is the whole assembly step: not a copy of 400 files, but the emission of a 
 
 Not all four tiers earn their complexity, and the scheme should not be sold as if they do.
 
+| Tier | Verdict | Why |
+|---|---|---|
+| 1 — shared snapshot | **pays** | one version axis, one licence, one provenance; ~400 units otherwise copied per crate |
+| 2 — CPU primitives | **barely pays — fold into tier 1** | six files against tier 1's ~1050, and the same release cadence |
+| 3 — family support | **pays** | its own cadence, generated from vendor data, shared across the three profiles |
+| leaf | **pays, and must stay thin** | the only buildable crate; the place every per-target decision lands |
+
 **Tier 1 pays clearly, but it is not one flat directory.** A.23 shows the crate must expose a common set plus per-profile overlays, because unit *visibility* — not just library membership — changes what GNAT compiles. Roughly 400 `libgnat`/`libgnarl` units are currently vendored into every published runtime crate — tens of copies of the same snapshot across an installation and across the index. It has exactly one version axis (the compiler), one licence, one provenance. This is the boundary the version test was written for.
 
 **Tier 3 pays.** Family support code has its own cadence: it is generated from vendor register data, gets fixes when that data gets fixes, and is shared across the three profiles of one family. Independent versioning is a real benefit. Note the granularity §4.1 and §4.2 argue for — one crate per family, not per device, board or ISA. On the current index that folds `light_nrf52832`/`833`/`840` into one, and the eleven chip-agnostic `light-cortex-m*` runtimes into one crate with two knobs.
 
-**Tier 2 barely pays — and measurement makes that worse, not better.** Partitioning a real runtime (A.21) puts **six files** in tier 2 against tier 1's ~1050, and one of the six (`System.BB` itself) is an empty `pragma Pure` documentation package. The `Threads`/`Time`/`Interrupts`/protected-object units this document originally assigned to tier 2 turn out to contain no architecture-specific content at all — they call through the CPU-primitives seam — so they are shared-snapshot material. Tier 2's genuine content is `CPU_Primitives` plus the context-switch assembly. It also shares tier 1's release cadence (both are cut from the same compiler drop) and is consumed only by crates that already depend on tier 1. **Fold it into tier 1 as a subdirectory**; keep it separate only if an architecture set genuinely diverges in cadence.
+**Tier 2 barely pays — and measurement makes that worse, not better.** Partitioning a real runtime (A.21) puts **six files** in tier 2 against tier 1's ~1050, and one of the six (`System.BB` itself) is an empty `pragma Pure` documentation package. The `Threads`/`Time`/`Interrupts`/protected-object units that look like tier-2 material contain no architecture-specific content at all — they call through the CPU-primitives seam — so they are shared-snapshot material. Tier 2's genuine content is `CPU_Primitives` plus the context-switch assembly. It also shares tier 1's release cadence (both are cut from the same compiler drop) and is consumed only by crates that already depend on tier 1. **Fold it into tier 1 as a subdirectory**; keep it separate only if an architecture set genuinely diverges in cadence.
 
 **And there is a strong counterargument to the whole hierarchy.** The hierarchy buys nothing at *build* time — the compiled artifact is identical either way — only at *maintenance* time. Maintenance-time sharing can also be achieved without Alire at all, and currently is: [community-bb-runtimes](https://github.com/damaki/community-bb-runtimes) carries upstream bb-runtimes as a git submodule plus per-target overlay directories (`rp2040_src/`, `stm32g4_src/`, `common_src/`) and a `patch-runtime.py` that stamps out self-contained crates. The sharing happens *upstream* of the package manager, and every published crate is flat and independent. That is a perfectly defensible answer to the same problem, with one moving part instead of four.
 
@@ -584,7 +655,12 @@ What the crate hierarchy adds over that is narrower than it looks, but real:
 - **Independent version bumps.** A GCC upgrade becomes a dependency bump in each leaf's manifest rather than a regeneration of every published crate.
 - **Visible provenance.** `alr show --solve` reports which `libgnat` snapshot a runtime was built from — useful when the runtime is the artifact under audit.
 
-So the recommendation is **tier 1 + tier 3 + leaf**, with tier 2 folded into tier 1 unless it proves to need its own cadence, and the leaf remaining a thin, generated crate. That is a two-crate change to current practice, not a redesign.
+**The leaf is where this analysis is weakest, and it is the tier most likely to rot.** Everything above reasons about tiers 1–3, on the assumption that the leaf is thin and *generated*. Build the leaves by hand and that assumption fails immediately: three hand-written `target_options.gpr`/`runtime_build.gpr`/manifest sets are near-copies of each other, close enough that nobody diffs them and different enough that a divergence reads as intentional. In the PolarFire spike that produced a real defect — one leaf silently re-derived the ISA, hardcoded to hard-float, overriding the value its own configuration implied, and every build of that profile was wrong until the files were compared line by line. Two rules keep it from recurring, and both are cheap:
+
+- **Derive once.** One site computes the ISA; every other project re-exports it and is forbidden to reassign it.
+- **Share overlays by content, not by name.** Two profiles that agree on a unit mount one directory, with an automated check that they still agree — otherwise you are maintaining two copies and trusting discipline. Place the spec and the body independently: they do not have to vary together, and often only one of them does.
+
+So the recommendation is **tier 1 + tier 3 + leaf**, with tier 2 folded into tier 1 unless it proves to need its own cadence, and the leaf generated rather than hand-written. That is a two-crate change to current practice, not a redesign.
 
 ---
 
@@ -596,6 +672,9 @@ So the recommendation is **tier 1 + tier 3 + leaf**, with tier 2 folded into tie
 4. **Rebuild granularity.** Any configuration change alters Alire's build hash and rebuilds all ~400 units. Same cost as today, but newly visible as a penalty on a one-line clock-tree tweak.
 5. **Combinatorics of `provides`.** Only the runtime profile clearly warrants an alias (§4). If architecture or family were added too, the alias namespace would need a convention before it accumulates one ad-hoc name per axis.
 6. **Certification.** Silent basename shadowing (§2.1) and sources arriving from three separately versioned crates both complicate "show me exactly what is in this runtime." The `Source_List_File` manifest plus `alr show --solve` is the mitigation; whether that is sufficient evidence is a question for someone who has actually taken a runtime through qualification.
+7. **A `with`ed project cannot force switches on its dependents.** This is a gap in GPR, not a design choice. `Compiler'Leading_Required_Switches` has exactly the right semantics — prepended to every compilation, unforgettable, immune to per-file `Switches` overrides — but is configuration-project-only, reachable only through `runtime.xml`. `Builder'Global_Compilation_Switches` has the reach but is root-project-only. So the runtime crate can guarantee the ABI of its own `libgnat`/`libgnarl`, and must ask the application to opt in for its own units by renaming the exported `Builder` (§6).
+
+    The failure is loud where it matters: an application that skips the rename and genuinely needs a different ABI fails at link with `can't link soft-float modules with double-float modules`. It is silent in the one case where it is also harmless — when the intended ISA happens to equal the compiler's default, so the accidental build and the correct build are the same bytes. A compile-time ABI *witness* in the runtime would close even that; no way to observe the float ABI from Ada at compile time was found.
 
 ---
 
@@ -811,28 +890,27 @@ Three results worth recording:
 - **`system.ads` differs across all three profiles** (distinct MD5s), so it is genuinely leaf-owned rather than shared — it carries the profile's `Restrictions`.
 - **§6's tier-2 row was wrong.** Grepping the bare-board kernel for architecture markers (`riscv`, `mhartid`, CSR names, register numbers): `s-bbthre.adb`, `s-bbtime.adb`, `s-bbinte.adb`, `s-bbprot.adb` score **zero**, while `s-bbcppr.adb` scores 5. The kernel is portable Ada over the CPU-primitives seam, so it belongs to tier 1; tier 2 is `CPU_Primitives` plus context-switch asm and nothing else. → §6, §7.
 
-**A.22 — Is `runtime.xml` effective when the runtime is a withed library project? — RETRACTED.** This experiment originally concluded "parsed but ineffective". **That conclusion was wrong, and the cause was a defect in the test fixture, not in gprbuild.** The claim survived a re-test by a stricter method and was falsified only when compared against a working third-party crate. Both the original wording and the correction are kept here, because the way it failed is the useful part.
+**A.22 — Is `runtime.xml` effective when the runtime is a withed library project?** **Yes** — provided the root project also sets `for Runtime ("Ada")` to the crate directory. Its `Compiler'Leading_Required_Switches` then reach the application's own units, not only the runtime's.
 
-The original measurement: with `runtime_build.gpr` declaring `for Runtime ("Ada") use Project'Project_Dir` and the application `with`ing it, editing the ISA default in `runtime.xml` to a soft-float string changed nothing, and its `-nostartfiles`/`-nolibc` never reached the link.
+The trap that makes this worth an appendix entry: **gprconfig silently ignores a `runtime.xml` that is not well-formed XML** — no warning, no error, at any verbosity. A single `--` used as an em-dash inside an XML comment (illegal in XML) renders the whole file inert, and everything still builds, because the compiler simply falls back to its default ISA. On a target whose intended ISA happens to match that default, the result is byte-identical to a correct build.
 
-What was actually wrong: **`light_mpfs/runtime.xml` was not well-formed XML.** Its leading comment used `--` as an em-dash, and an XML comment may not contain a double hyphen. **gprconfig silently ignores an unparseable `runtime.xml`** — no warning, no error, at any verbosity. The file had been inert since it was written, and the comment explaining why runtime.xml could not be trusted was itself the reason it could not be trusted.
+Validate the file. `python3 -c "import xml.dom.minidom as m; m.parse('runtime.xml')"` is enough, and belongs in CI for any crate that ships one.
 
 | Test | Result |
 |---|---|
-| `xml.dom.minidom` on `light_mpfs/runtime.xml` | **malformed**, line 4 col 72; `embedded_mpfs`'s likewise (line 8) |
-| same check on `light_tasking_mpfs/runtime.xml` | **well-formed** — and `tasking_mpfs.ali` had carried its `-fno-tree-loop-distribute-patterns` all along |
-| fix the comment only, rebuild `hello_mpfs` | `-fno-tree-loop-distribute-patterns` appears in the application's ALI — a switch present *only* in runtime.xml |
-| well-formed file, root `Builder` removed, `-XMPFS_ARCH=rv64imac_zicsr` | application unit compiles `-mabi=lp64`, `-march=rv64imac_zicsr_…` — **soft-float from runtime.xml alone** |
+| malformed file (a `--` in an XML comment), any build | **no diagnostic**; every switch in the file silently absent from the ALI |
+| same file, comment fixed, nothing else changed | `-fno-tree-loop-distribute-patterns` — a switch present *only* in `runtime.xml` — appears in the **application's** ALI |
+| well-formed file, root `Builder` removed, `-XMPFS_ARCH=rv64imac_zicsr` | application unit compiles `-mabi=lp64`, `-march=rv64imac_zicsr_…` — **soft-float from `runtime.xml` alone** |
 | `alr get embedded_rp2040` (damaki), built per its documented usage | `-mcpu=cortex-m0plus -mthumb -mfloat-abi=soft` in the application's ALI, straight after `--RTS=` |
 
-So `Compiler'Leading_Required_Switches` **does** apply to a runtime reached through a withed library project, provided the root project also sets `for Runtime ("Ada") use <the crate dir>` — which the spike already did. There is no disagreement with A.2 to explain.
+So `Compiler'Leading_Required_Switches` applies to a runtime reached through a withed library project, and A.2 (where deleting the file from a gprconfig-discovered crate broke the ISA outright) describes the same mechanism, not a conflicting one.
 
-Two methodological faults produced the wrong answer, and only the second was mine to catch:
+**Two measurement rules follow, and both generalise well beyond `runtime.xml`.** Each one, ignored, makes a dead mechanism and a working one indistinguishable:
 
-1. **The original test read the application ELF's `Tag_RISCV_arch`**, which `ld` merges across all input objects, so hard-float application objects could mask a soft-float runtime. Re-running per-unit against the `.ali` (which records switches verbatim) removed that hazard — and still returned "ineffective", because the file was broken either way. **A better method applied to a broken fixture reproduces the same wrong answer with more confidence.**
-2. **The chosen "different" test value canonicalized to the compiler's own default.** For the u54 profile, `rv64imafdc_zicsr_zifencei` expands to exactly what `riscv64-elf-gcc` emits with no `-march` at all, so a silently-ignored runtime.xml and a working one produced byte-identical output. The `Builder'Global_Compilation_Switches` workaround then removed the last observable symptom.
+1. **Read switches from the `.ali`, never from the linked ELF.** An `.ali` records the exact switches its unit was compiled with, one per `A ` line. `ld` *merges* `Tag_RISCV_arch` across all input objects, so hard-float application objects mask a soft-float runtime and the ELF reports the union.
+2. **Choose a probe value that cannot coincide with the compiler's default.** For the u54 profile `rv64imafdc_zicsr_zifencei` canonicalises to exactly what `riscv64-elf-gcc` emits with no `-march` at all — so an ignored `runtime.xml` and a working one produce byte-identical output. Probe with something the default cannot produce (here, soft-float `rv64imac_zicsr`/`lp64`), and confirm separately that the compiler honours an explicit override at all.
 
-The general lesson, and the reason this is kept: **a negative result about a mechanism is only as good as the proof that the fixture exercising it is valid.** Comparing against a known-working implementation of the same mechanism — here, a published crate — found in one build what two rounds of internal experiment did not. → §5.4.
+The rule behind both: **a negative result about a mechanism is only as good as the evidence that the fixture exercising it is valid.** The cheapest way to get that evidence is to run the same mechanism from a known-working implementation — a published crate — and compare. → §5.4.
 
 **A.23 — Can tier 1 be a flat union of every profile's units?** No. `Source_List_File` restricts what is compiled **into** the library; it does not restrict *visibility*, and GNAT's configurable-runtime logic decides which language features exist from what it can see on the source path.
 
