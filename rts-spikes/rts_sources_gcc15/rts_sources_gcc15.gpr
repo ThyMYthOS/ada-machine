@@ -39,4 +39,44 @@ abstract project Rts_Sources_Gcc15 is
    Restrictions_Dir        := Project'Project_Dir & "librestrictions";
    Gnarl_Embedded_Dir      := Project'Project_Dir & "libgnarl-embedded";
 
+   ------------------------------------------------------------------
+   --  This crate serves MORE THAN ONE TARGET (CONTRACT.md 7.19).
+   --
+   --  arm-eabi and riscv64-elf were separate tier-1 crates until measurement
+   --  showed 339 of their 343 shared libgnat units, and 66 of 67 shared
+   --  libgnarl units, are byte-identical -- the snapshot is keyed to the GCC
+   --  release, not to the target. The common directories above hold the union
+   --  of both targets' target-independent units; each leaf's Source_List_File
+   --  selects its own subset, and a unit no list names is inert (7.17), so no
+   --  per-target directory is needed for units that merely differ in
+   --  MEMBERSHIP -- which is 122 of the 136 RISC-V-only units (128-bit integer
+   --  and packed-array support a 32-bit target cannot use).
+   --
+   --  What genuinely disagrees in CONTENT gets an overlay pair, and NEITHER
+   --  member of a pair sits in a common directory. Every axis below was
+   --  measured, not assumed:
+   --
+   --    word size   i-cexten.ads (128-bit types), s-atopri.ads ("only the
+   --                primitives available on 32 bit platforms"), s-dorepr.adb.
+   --                A second 64-bit target reuses Gnat_64_Dir unchanged, which
+   --                is why these are NOT in the per-target tier-2 crates.
+   --    console     a-textio.adb -- semihosting versus the System.Text_IO
+   --                backend. A console choice, not a target property.
+   --    SMP         s-bbtime.adb -- the multiprocessor variant carries
+   --                Fair_Locks. Neither version references a single
+   --                architecture register, so the tasking kernel stays
+   --                portable (RTS.md A.21); this is a support axis the
+   --                PolarFire spike never exercised.
+   --
+   --  A leaf mounts exactly ONE member of each pair. That is why the five
+   --  duplicate basenames across this crate's directories are safe, and why
+   --  the audit that finds them must be read per leaf rather than per crate.
+   ------------------------------------------------------------------
+   Gnat_32_Dir             := Project'Project_Dir & "libgnat-32";
+   Gnat_64_Dir             := Project'Project_Dir & "libgnat-64";
+   Gnat_Textio_Dir         := Project'Project_Dir & "libgnat-textio";
+   Gnat_Semihosting_Dir    := Project'Project_Dir & "libgnat-semihosting";
+   Gnarl_Sp_Dir            := Project'Project_Dir & "libgnarl-sp";
+   Gnarl_Smp_Dir           := Project'Project_Dir & "libgnarl-smp";
+
 end Rts_Sources_Gcc15;

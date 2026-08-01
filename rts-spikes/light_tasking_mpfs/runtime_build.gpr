@@ -73,6 +73,8 @@ project Runtime_Build is
       --  Shared with light_mpfs (CONTRACT.md §7.16): the units this profile
       --  varies are byte-identical to light's, so both mount one overlay.
       Rts_Sources_Gcc15.Gnat_Light_Dir,
+      Rts_Sources_Gcc15.Gnat_64_Dir,
+      Rts_Sources_Gcc15.Gnat_Textio_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
 
    --  This project's own membership (513 units): a disjoint partition of

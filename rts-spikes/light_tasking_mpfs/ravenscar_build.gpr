@@ -47,6 +47,7 @@ project Ravenscar_Build is
       --  Gnarl-side HERE, gnat-side for embedded; one shared directory,
       --  membership decided per project (CONTRACT.md §7.17).
       Rts_Sources_Gcc15.Restrictions_Dir,
+      Rts_Sources_Gcc15.Gnarl_Sp_Dir,
       Rts_Sources_Gcc15.Gnarl_Dir);
 
    --  This project's own membership (88 units): a disjoint partition of
