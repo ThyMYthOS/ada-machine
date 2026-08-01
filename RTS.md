@@ -17,7 +17,7 @@
 
 | Crate | Configuration |
 |---|---|
-| target triple (`arm-eabi`, `riscv64-elf`) | device / MCU |
+| the **target** — GNAT's `Target` attribute, e.g. `arm-eabi` | device / MCU |
 | runtime profile (`light`, `light-tasking`, `embedded`) | board |
 | device-support family (one SoC or MCU series) | **ISA / ABI** — the surprise; see §4.2 |
 | the shared source snapshot | memory layout, clocks, stack sizes, console |
@@ -89,7 +89,7 @@ The variation to be produced spans roughly:
 
 | Axis | Range in bb-runtimes today |
 |---|---|
-| Target triple | `arm-eabi`, `riscv64-elf`, `aarch64-elf`, `powerpc-elf`, `avr`, … |
+| Target | `arm-eabi`, `riscv64-elf`, `aarch64-elf`, `powerpc-elf`, `avr`, … — GNAT's own spelling, and what `for Target use` takes. These are contractions of the GNU triple (`arm-none-eabi`, `riscv64-unknown-elf`), so "target" is used throughout rather than "triple" |
 | Architecture / ISA | `cortex-m0`, `m0p`, `m1`, `m23`, `m3`, `m4`, `m4f`, `m7f`, `m7df`, `m33f`, Cortex-A/R, RV32/64 |
 | Runtime profile | `none`, `light`, `light-tasking`, `embedded`, `cert` — but only three are distinct crates; see §4 on `cert`/`none` |
 | SoC / board | ~40 boards under `arm/`, plus `riscv/`, `powerpc/`, … |
@@ -184,7 +184,7 @@ The reason this rule is worth stating rather than deriving case by case: it is v
 
 | Axis | Verdict | Reasoning |
 |---|---|---|
-| Target triple | **crate** (compiler) | `depends-on gnat_arm_elf` vs. `gnat_riscv64_elf`; solver test, decisively |
+| Target | **crate** (compiler) | `depends-on gnat_arm_elf` vs. `gnat_riscv64_elf`; solver test, decisively |
 | Runtime profile (`light` / `light-tasking` / `embedded`) | **crate** | Solver test: an application must be able to require tasking. Also changes the exported unit set (`libgnarl`, full `a-except`) and the `System` restrictions. Matches ecosystem practice |
 | ISA / ABI within one architecture generation (`m3` / `m4` / `m4f`) | **variable** | `runtime.xml` is not static — its CDATA is GPR source and already uses `external()` with a `case`. One crate builds consistent hard-float M4 and soft-float M3 binaries from one source tree (A.16). See §4.2 |
 | Architecture generation (ARMv6-M ↔ ARMv7-M ↔ ARMv8-M) | **variable** selecting source variants, or a crate | Not a switch axis: ARMv6-M rejects the Thumb-2 wide instructions in the ARMv7-M sources (A.16). Expressible in one crate via `Excluded_Source_Files` over `s-bbcppr__*`/`s-bbbosu__*` variants; a crate split is a packaging choice, not a requirement (§4.2) |
@@ -240,15 +240,15 @@ Both halves of this exist in production today: the STM32G4 crate does level 1 pl
 
 **Where a crate boundary *is* required.** Only three things:
 
-- **Target triple** — a different compiler crate.
+- **Target** — a different compiler crate.
 - **Runtime profile** — the solver test (§4).
-- **Device-support family** — not for any mechanical reason, but because the support code differs *in kind* between vendors. One crate spanning every MCU family for a triple would carry every vendor's registers, board support and startup, and every fix would churn every user. Family is where the blast radius is drawn.
+- **Device-support family** — not for any mechanical reason, but because the support code differs *in kind* between vendors. One crate spanning every MCU family for a target would carry every vendor's registers, board support and startup, and every fix would churn every user. Family is where the blast radius is drawn.
 
 Architecture generation is *not* on the list: the sources differ, but that is expressible as a source-selecting knob rather than a crate (§4.2).
 
-Everything else — device, memory size, board, clock tree, timer choice, flash chip, stack sizes, **and the ISA/ABI itself** — is a knob. So the rule is: **one crate per (target triple × runtime profile × device-support family); device, board and ISA inside that are configuration.**
+Everything else — device, memory size, board, clock tree, timer choice, flash chip, stack sizes, **and the ISA/ABI itself** — is a knob. So the rule is: **one crate per (target × runtime profile × device-support family); device, board and ISA inside that are configuration.**
 
-The degenerate case is instructive: a `light` runtime has no support code at all, so its family set is empty and the rule collapses to one crate per (triple × profile) — which is exactly the consolidation §4.2 identifies.
+The degenerate case is instructive: a `light` runtime has no support code at all, so its family set is empty and the rule collapses to one crate per (target × profile) — which is exactly the consolidation §4.2 identifies.
 
 **The current split does not follow that rule, and the evidence is in one repository.** `light_stm32g4xx` covers eight sub-families (G431 … G4A1) with a `MCU_Sub_Family` enum, five flash-size and three RAM-size linker-script directories, and the whole clock tree — one crate per profile for the entire family. Meanwhile `light_nrf52832`, `light_nrf52833` and `light_nrf52840` are three separate crates generated from a *single* `nrf52_src` overlay whose per-device content is `setup_board.adb`, `a-intnam.ads`, `handler.S`, a register subset, and a `memory-map_nrf52XXX.ld`. All three parts are Cortex-M4F. Every one of those differences is something the STM32G4 crate already handles as configuration within one crate. The nRF52 split is inherited from bb-runtimes' Python target table, not chosen — which is exactly the kind of accident a stated boundary rule prevents.
 
@@ -560,15 +560,15 @@ graph TD
 
 | Tier | Crate | Contents | Buildable | Varies by |
 |---|---|---|---|---|
-| 0 | `gnat_arm_elf`, `gnat_riscv64_elf`, `gnat_avr_elf` | cross compiler | binary origin | target triple |
+| 0 | `gnat_arm_elf`, `gnat_riscv64_elf`, `gnat_avr_elf` | cross compiler | binary origin | target |
 | 1 | `rts_sources_gcc15` | the ~400-unit `libgnat`/`libgnarl` snapshot from the GCC tree, flat | **no** | GCC version only |
 | 2 | `rts_core_armv7m`, `rts_core_riscv64`, … | `System.BB.CPU_Primitives` and the context-switch asm — **only these**. `Threads`, `Time`, `Interrupts` and protected-object support are architecture-*independent* and belong in tier 1 (A.21) | **no** | architecture generation — or fold into tier 1 and select the variants by knob (§4.2, §7) |
 | 3 | `rts_support_stm32g4xx`, `rts_support_rp2040`, … | `System.BB.Board_Support` body, `Board_Parameters`, `MCU_Parameters`, startup, vector table, `ld/` variants, private register subset, and the device/board tables for **every** part in the family | **no** | family, *not* device, board or ISA |
-| 4 | `light_tasking_stm32g4xx` (and siblings) | manifest, configuration variables, renaming shim, `runtime_build.gpr`, `runtime.xml`, the metadata files, per-profile `Source_List_File`. Produces — does not ship — `adalib/libgnat.a` | **yes** | triple × profile × family (§4.1) |
+| 4 | `light_tasking_stm32g4xx` (and siblings) | manifest, configuration variables, renaming shim, `runtime_build.gpr`, `runtime.xml`, the metadata files, per-profile `Source_List_File`. Produces — does not ship — `adalib/libgnat.a` | **yes** | target × profile × family (§4.1) |
 
 ### The leaf's responsibilities
 
-Everything that is per-(triple × profile × family) and nothing else:
+Everything that is per-(target × profile × family) and nothing else:
 
 - **The compiler and linker switches** — the ISA/ABI, `-nostartfiles`/`-nolibc`, the `-T`/`-L` for the selected memory profile. Per §5.4 these live in GPR, in a `target_options.gpr` that derives them from the crate's configuration and exports a `Builder` package for the application to rename. A crate that keeps `runtime.xml` instead puts the same switches in its CDATA, which is GPR source and can compute them just as well (§4.2, A.7, A.16) — but see §5.4 before choosing that.
 - **`Source_Dirs` in override order** — board, then core, then shared. Load-bearing; comment it as such. On tasking profiles this is *two* lists, one per library project (`runtime_build.gpr` for `libgnat`, `ravenscar_build.gpr` for `libgnarl`), each naming only its own directories.
