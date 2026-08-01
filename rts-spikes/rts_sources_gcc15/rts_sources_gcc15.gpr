@@ -14,10 +14,11 @@ abstract project Rts_Sources_Gcc15 is
    Gnat_Dir  := Project'Project_Dir & "libgnat";
    Gnarl_Dir := Project'Project_Dir & "libgnarl";
 
-   --  Per-profile overlays. Tier 1 is NOT a flat union: GNAT decides which
-   --  language features are available from what it can SEE on the source
-   --  path, so a light-profile build able to see embedded's Put_Image
-   --  machinery would enable it and then fail to link (CONTRACT.md 7.15).
+   --  Per-profile overlays. Tier 1 is NOT a flat union: 18 units differ in
+   --  CONTENT between the three profiles (a-strsup, a-except, a-tags, ...),
+   --  and a Source_List_File names basenames, so it cannot choose between two
+   --  versions of one name. One directory cannot serve all three
+   --  (CONTRACT.md 7.15).
    --
    --  Overlays are keyed by CONTENT, not by profile name: Gnat_Light_Dir is
    --  mounted by BOTH the light and light-tasking leaves, because every unit

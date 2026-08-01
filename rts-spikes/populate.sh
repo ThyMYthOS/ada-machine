@@ -9,10 +9,11 @@ here=$(cd "$(dirname "$0")" && pwd)
 copy() {   # copy <list> <dest> <src-dir>...
   list=$1; dest=$2; shift 2
   mkdir -p "$dest"
-  # PRUNE, but only the tier-1 copies. A file left from an earlier layout stays
-  # VISIBLE on the source path, and GNAT decides feature availability from
-  # visibility -- a stale embedded-only unit silently re-enables Put_Image in a
-  # light build (CONTRACT.md 7.15), so copying alone is not idempotent.
+  # PRUNE, but only the tier-1 copies. A file left from an earlier layout is a
+  # WRONG-VARIANT file sitting where the right one belongs: 18 units differ in
+  # content between profiles, Source_Dirs order silently prefers whichever comes
+  # first, and no diagnostic is issued (CONTRACT.md 7.15). Copying alone is
+  # therefore not idempotent.
   # Leaf and tier-3 src/ dirs are NOT pruned: they hold hand-authored files
   # (mpfs_config_checks.ads, the edited s-bbbopa) that no list names.
   case "$dest" in
@@ -98,8 +99,8 @@ for p in light:light_mpfs light-tasking:light_tasking_mpfs embedded:embedded_mpf
   # keep-list of hand-authored files no list names. This is what makes moving
   # a unit OUT of a leaf and into a tier-1 overlay actually take effect: leaf
   # src/ precedes the overlay in Source_Dirs, so a left-behind copy still WINS
-  # and the move would silently do nothing. It is the leaf-level form of the
-  # visibility hazard in CONTRACT.md 7.15.
+  # and the move would silently do nothing. Same shadowing rule as CONTRACT.md
+  # 7.15, one directory level down.
   for existing in "$here/$crate/src"/*; do
     [ -e "$existing" ] || continue
     b=$(basename "$existing"); named=
