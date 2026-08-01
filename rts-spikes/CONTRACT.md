@@ -606,13 +606,22 @@ compiled. Verify the artifact — the `.ali` dependency list — not the candida
 **Structure.** Tier 1 ships the units *common to all profiles* plus a per-profile
 overlay, and a leaf lists its overlay **before** the common directory:
 
-| Directory | Units |
-|---|---|
-| `libgnat` | 479 (common) |
-| `libgnat-light`, `libgnat-light-tasking` | 11 each |
-| `libgnat-embedded` | 462 — exception propagation and the image machinery |
-| `libgnarl` | 69 (common) |
-| `libgnarl-light-tasking`, `libgnarl-embedded` | 3, 9 |
+| Directory | Units | Mounted by |
+|---|---|---|
+| `libgnat` | 479 | all three |
+| `libgnat-light` | 21 | light **and** light-tasking (§7.16) |
+| `libgnat-embedded` | 462 — exception propagation and the image machinery | embedded |
+| `libgnarl` | 72 | light-tasking and embedded |
+| `libgnarl-embedded` | 9 | embedded |
+
+There is **no `libgnarl-light-tasking`**. Its three units — `s-restri.ads/.adb`,
+`s-rident.ads` — are not content variants: they are byte-identical to embedded's
+copies and differ only in *which library claims them*, gnarl-side for
+light-tasking and gnat-side for embedded (`embedded.gnat.lst` names them).
+Nothing needs an overlay to express that, because `Source_List_File` already
+decides membership per project. Verified by merging them into `libgnarl`: all
+four applications rebuild byte-identically, and no project's source path gains a
+duplicate basename.
 
 `ada_source_path` needs the same ordering. Duplication stays small: the embedded
 overlay is large because that profile genuinely has far more units, not because
@@ -641,9 +650,18 @@ of them, so `libgnat-light-tasking` held a second byte-identical copy of
 
 The rule, which also decides where a profile-variant unit lives:
 
-> A unit that varies by profile belongs in a **shared overlay** when two or more
-> profiles agree on its content, and stays **leaf-owned** only when every
-> profile differs.
+> An overlay exists to resolve a **content disagreement** under one basename.
+> A unit belongs in a **shared overlay** when two or more profiles agree on its
+> content, stays **leaf-owned** only when every profile differs, and belongs in
+> the **common directory** when the profiles do not disagree at all — even if
+> only some of them compile it.
+
+The last clause is the one that is easy to get backwards. A unit that exists in
+only one profile, or that different profiles file under different *libraries*,
+needs no overlay: `Source_List_File` already decides membership per project, and
+a unit merely present on the source path but named by no list is inert
+([§7.15](#715-tier-1-is-not-a-flat-union--profiles-need-different-content)).
+`libgnarl-light-tasking` was such a case and no longer exists.
 
 Applying it removed 21 of 42 physical files with no content lost:
 

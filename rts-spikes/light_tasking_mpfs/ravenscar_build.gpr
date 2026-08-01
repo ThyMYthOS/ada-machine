@@ -44,7 +44,6 @@ project Ravenscar_Build is
      ("src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
-      Rts_Sources_Gcc15.Gnarl_Light_Tasking_Dir,
       Rts_Sources_Gcc15.Gnarl_Dir);
 
    --  This project's own membership (88 units): a disjoint partition of

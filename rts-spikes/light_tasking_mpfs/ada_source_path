@@ -4,5 +4,4 @@ src
 ../rts_core_riscv64/src
 ../rts_sources_gcc15/libgnat-light
 ../rts_sources_gcc15/libgnat
-../rts_sources_gcc15/libgnarl-light-tasking
 ../rts_sources_gcc15/libgnarl
