@@ -63,6 +63,7 @@ L=$T/light-polarfiresoc; LT=$T/light-tasking-polarfiresoc; E=$T/embedded-polarfi
 # the exact hazard CONTRACT.md 7.15 describes if anything ever puts it back on a
 # source path.
 rm -rf "$here/rts_sources_gcc15/libgnat-light-tasking"
+rm -rf "$here/rts_sources_gcc15/libgnarl-light-tasking"
 
 echo "rts_sources_gcc15"
 # libgnat.lst now excludes every profile-variant unit (lists/profile-variant.lst),
@@ -82,7 +83,6 @@ copy "$here/rts_sources_gcc15/libgnarl.lst" "$here/rts_sources_gcc15/libgnarl" "
 copy "$here/rts_sources_gcc15/libgnat-light.lst"          "$here/rts_sources_gcc15/libgnat-light"          "$L/gnat"
 assert_identical "$here/rts_sources_gcc15/libgnat-light.lst" "$L/gnat" "$LT/gnat" light light-tasking
 copy "$here/rts_sources_gcc15/libgnat-embedded.lst"       "$here/rts_sources_gcc15/libgnat-embedded"       "$E/gnat"
-copy "$here/rts_sources_gcc15/libgnarl-light-tasking.lst" "$here/rts_sources_gcc15/libgnarl-light-tasking" "$LT/gnarl"
 copy "$here/rts_sources_gcc15/libgnarl-embedded.lst"      "$here/rts_sources_gcc15/libgnarl-embedded"      "$E/gnarl"
 echo "rts_core_riscv64"
 copy "$here/rts_core_riscv64/src.lst" "$here/rts_core_riscv64/src" "$LT/gnarl" "$E/gnarl" "$L/gnat" "$LT/gnat"

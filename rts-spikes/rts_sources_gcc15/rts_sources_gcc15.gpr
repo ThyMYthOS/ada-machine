@@ -29,7 +29,6 @@ abstract project Rts_Sources_Gcc15 is
    --  (CONTRACT.md 7.16).
    Gnat_Light_Dir          := Project'Project_Dir & "libgnat-light";
    Gnat_Embedded_Dir       := Project'Project_Dir & "libgnat-embedded";
-   Gnarl_Light_Tasking_Dir := Project'Project_Dir & "libgnarl-light-tasking";
    Gnarl_Embedded_Dir      := Project'Project_Dir & "libgnarl-embedded";
 
 end Rts_Sources_Gcc15;
