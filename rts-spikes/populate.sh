@@ -84,6 +84,11 @@ copy "$here/rts_sources_gcc15/libgnat-light.lst"          "$here/rts_sources_gcc
 assert_identical "$here/rts_sources_gcc15/libgnat-light.lst" "$L/gnat" "$LT/gnat" light light-tasking
 copy "$here/rts_sources_gcc15/libgnat-embedded.lst"       "$here/rts_sources_gcc15/libgnat-embedded"       "$E/gnat"
 copy "$here/rts_sources_gcc15/libgnarl-embedded.lst"      "$here/rts_sources_gcc15/libgnarl-embedded"      "$E/gnarl"
+# Units whose owning LIBRARY varies by profile, not their content: gnarl-side
+# for light-tasking, gnat-side for embedded, byte-identical either way. One
+# directory serves both; the assertion keeps that true (CONTRACT.md 7.17).
+copy "$here/rts_sources_gcc15/librestrictions.lst"        "$here/rts_sources_gcc15/librestrictions"        "$LT/gnarl"
+assert_identical "$here/rts_sources_gcc15/librestrictions.lst" "$LT/gnarl" "$E/gnat" light-tasking-gnarl embedded-gnat
 echo "rts_core_riscv64"
 copy "$here/rts_core_riscv64/src.lst" "$here/rts_core_riscv64/src" "$LT/gnarl" "$E/gnarl" "$L/gnat" "$LT/gnat"
 echo "rts_support_mpfs"

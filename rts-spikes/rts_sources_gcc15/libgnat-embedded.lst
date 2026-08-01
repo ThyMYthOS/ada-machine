@@ -393,9 +393,6 @@ s-ransee.adb
 s-ransee.ads
 s-regexp.adb
 s-regexp.ads
-s-restri.adb
-s-restri.ads
-s-rident.ads
 s-scaval.adb
 s-scaval.ads
 s-shabig.ads
