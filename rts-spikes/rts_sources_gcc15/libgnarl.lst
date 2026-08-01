@@ -67,6 +67,3 @@ s-tpoben.ads
 s-tpobmu.adb
 s-tpobmu.ads
 trap_handler.S
-s-restri.adb
-s-restri.ads
-s-rident.ads

@@ -57,3 +57,4 @@ embedded_mpfs/src/*.ad[bs]
 
 rts_sources_gcc15/libgnat-*/
 rts_sources_gcc15/libgnarl-*/
+rts_sources_gcc15/librestrictions/

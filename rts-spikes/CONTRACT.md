@@ -697,3 +697,61 @@ Two guards make this safe rather than merely smaller, and both are in
 in full. They stay duplicated, but `populate.sh` now compares them and fails on
 divergence, so the drift that duplication invites is caught rather than assumed
 away.
+
+### 7.17 One directory may feed two different libraries
+
+`librestrictions` holds `s-restri.ads/.adb` and `s-rident.ads`. These are not a
+profile variant of anything: the text is byte-identical everywhere. What varies
+is **which library claims them** — `libgnarl` for light-tasking, `libgnat` for
+embedded.
+
+That needs no duplication, because `Source_List_File` decides membership *per
+project*. Both `light_tasking_mpfs/ravenscar_build.gpr` and
+`embedded_mpfs/runtime_build.gpr` mount the one directory; each leaf's list
+names the three units on exactly one side; the other project sees them and does
+not select them. Verified: the same source compiles into `libgnarl.a` for
+light-tasking and into `libgnat.a` for embedded, all four applications rebuild
+byte-identically, and no project's resolved source path gains a duplicate
+basename.
+
+This is worth stating as a rule because the intuition runs the other way:
+
+> A directory in tier 1 is **not** owned by a library. It is a set of sources.
+> Which library a unit ends up in is a property of the *leaf's list*, not of
+> where the file sits.
+
+`populate.sh` asserts the two vendor copies (`light-tasking/gnarl` and
+`embedded/gnat`) are byte-identical and fails if a toolchain update breaks that,
+exactly as for the shared `libgnat-light` overlay ([§7.16](#716-overlays-are-keyed-by-content-not-by-profile-name)).
+
+### 7.18 To audit what is really in the runtime, read the `.ali` files
+
+Nothing in the project files is evidence. `Source_Dirs` says where gprbuild
+*looked*, `Source_List_File` says what it was *allowed* to select, and duplicate
+basenames resolve by directory order **with no diagnostic**
+([§3.4](#34-runtime_buildgpr)). None of those tell you which file was compiled.
+
+The `.ali` files do, and they are the only artifact that does:
+
+| Line | Answers |
+|---|---|
+| `U` | which unit this is |
+| `D` | every source file it depended on, **with timestamp and checksum** |
+| `A` | the exact switches it was compiled with, including `--RTS=` |
+
+So, to establish what a runtime actually contains:
+
+```
+ls adalib-<tag>/*.ali | wc -l        # units actually in the library
+grep '^D ' adalib-<tag>/<unit>.ali   # the sources really used, with checksums
+grep '^A ' adalib-<tag>/<unit>.ali   # the switches really applied
+```
+
+This is not a style preference. Two conclusions in this spike were wrong because
+a *candidate* source file was inspected instead of the compiled artifact: the
+`a-strsup` md5 check of [§7.15](#715-tier-1-is-not-a-flat-union--profiles-need-different-content),
+which in a union layout could not have been the file compiled, and an ISA claim
+read from a linked ELF whose attributes `ld` had merged across all inputs. In
+both cases the `.ali` would have given the answer immediately. For a
+certification reader asking "show me exactly what is in this runtime", the
+`Source_List_File` is the *claim* and the set of `.ali` files is the *evidence*.

@@ -29,6 +29,14 @@ abstract project Rts_Sources_Gcc15 is
    --  (CONTRACT.md 7.16).
    Gnat_Light_Dir          := Project'Project_Dir & "libgnat-light";
    Gnat_Embedded_Dir       := Project'Project_Dir & "libgnat-embedded";
+
+   --  Units whose owning LIBRARY varies by profile rather than their content:
+   --  System.Restrictions and System.Rident are gnarl-side for light-tasking
+   --  and gnat-side for embedded, byte-identically. One directory, mounted by
+   --  light_tasking's ravenscar_build and by embedded's runtime_build; each
+   --  leaf's Source_List_File decides which library actually claims them, so
+   --  no copy is needed on either side (CONTRACT.md 7.17).
+   Restrictions_Dir        := Project'Project_Dir & "librestrictions";
    Gnarl_Embedded_Dir      := Project'Project_Dir & "libgnarl-embedded";
 
 end Rts_Sources_Gcc15;
