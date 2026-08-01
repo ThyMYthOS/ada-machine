@@ -136,6 +136,50 @@ done
 # into rts_sources_gcc15 (that crate is gitignored in full -- the file would
 # stop being tracked). Left duplicated, but checked: editing one leaf's copy
 # and not the other's now fails here instead of silently diverging.
+# Config_Tag must name every configuration variable that COMPILED code can
+# read. If it does not, two configurations differing only in an untagged value
+# share one adalib and silently reuse each other's objects -- including a stale
+# mpfs_config_checks.o whose Compile_Time_Error checks were evaluated for the
+# other configuration, so the validation "passes" without ever running.
+# Alire's own build hash keys on all 17 variables; ALIRE_BUILD_HASH is computed
+# but never exported to GPR (verified: External("ALIRE_BUILD_HASH","default")
+# yields "default"), so the tag is hand-written and needs this check.
+#
+# The authority for "which variables matter" is Alire's own build-hash input
+# list, which it writes to <leaf>/alire/build_hash_inputs. Every variable there
+# must be either IN Config_Tag or explicitly exempt in
+# lists/config-tag-exempt.lst -- an omission has to be a decision, not an
+# oversight. Do not try to infer compile-relevance by grepping the sources:
+# units reach the config through `use MPFS_Runtime_Config` and name the
+# variables unqualified, so a search for "MPFS_Runtime_Config.<Var>" misses
+# them and reports a false clean.
+echo "Config_Tag coverage check"
+tag_bad=0
+exempt="$here/lists/config-tag-exempt.lst"
+for crate in light_mpfs light_tasking_mpfs embedded_mpfs; do
+  inputs="$here/$crate/alire/build_hash_inputs"
+  if [ ! -f "$inputs" ]; then
+    echo "  (skipped $crate: no build_hash_inputs yet -- run a build first)"
+    continue
+  fi
+  tag=$(sed -n '/Config_Tag :=/,/;$/p' "$here/$crate/runtime_build.gpr" | tr 'A-Z' 'a-z')
+  for v in $(sed -n 's/^config:[^.]*\.\([a-z_0-9]*\)=.*/\1/p' "$inputs"); do
+    case "$tag" in
+      *".$v"*) ;;                                   # named in the tag
+      *) if grep -qxF "$v" "$exempt" 2>/dev/null; then :; else
+           echo "  MISSING from $crate Config_Tag: $v"
+           tag_bad=$((tag_bad+1)); fi ;;
+    esac
+  done
+done
+if [ "$tag_bad" -ne 0 ]; then
+  echo "error: a configuration variable is neither in Config_Tag nor exempt."
+  echo "       Add it to the tag, or to lists/config-tag-exempt.lst with a reason."
+  echo "       Otherwise two configurations share one adalib (CONTRACT.md 7.11)."
+  exit 1
+fi
+echo "  -> every Alire-hashed configuration variable is tagged or exempt"
+
 echo "leaf duplicate check"
 dup_bad=0
 for f in s-parame.ads s-parame.adb s-bbpara.ads; do

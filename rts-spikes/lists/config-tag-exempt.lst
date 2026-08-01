@@ -1,0 +1,20 @@
+# Configuration variables deliberately NOT in Config_Tag, with the reason.
+#
+# Config_Tag names every variable a COMPILED unit can read, so that two
+# configurations differing only in one of them cannot share an adalib and
+# silently reuse each other's objects (CONTRACT.md 7.11). The variables below
+# reach only the LINKER -- they become -Wl,--defsym= values, so they change the
+# link line and not a single object file. Tagging them would fork the whole
+# runtime library on a value no compiled unit can observe.
+#
+# Anything not listed here must appear in Config_Tag. populate.sh enforces that
+# against Alire's own build_hash_inputs, so a newly added variable fails the
+# populate until someone decides which side it belongs on.
+#
+# DDR sizes: consumed as MPFS_DDR_*_LENGTH defsyms only. Note DDR_Present is
+# NOT here -- mpfs_config_checks.ads reads it, so it is tagged.
+ddr_cached_kb
+ddr_noncached_kb
+ddr_wcb_kb
+# Main stack size: consumed as the __stack_size defsym only.
+main_stack_size

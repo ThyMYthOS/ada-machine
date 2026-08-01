@@ -468,9 +468,34 @@ light_mpfs/adalib-e51-0-m_mode-mmuart0-8192-2048-1-15-0-0-1
 light_mpfs/adalib-u54-1-m_mode-mmuart0-8192-2048-1-15-0-2-1
 ```
 
-Link-only values (`Memory_Profile`, `DDR_*`, `Main_Stack_Size`,
-`Switch_Code_Bytes`) are excluded deliberately — they change the linker
-invocation, not the library. Two notes: `Config_Tag` must be declared *after*
+**The tag must name every variable a COMPILED unit can read.** Getting that
+wrong is silent: two configurations differing only in an untagged value share
+one `adalib`, and the second reuses the first's objects — including a stale
+`mpfs_config_checks.o` whose `Compile_Time_Error` checks were evaluated for the
+*other* configuration, so the validation "passes" without ever running. That was
+a live defect: `Memory_Profile`, `DDR_Present` and `MPFS_PARTITION` were
+excluded as "link-only" while `mpfs_config_checks.ads` reads all three.
+
+Only genuinely link-only values are exempt — they become `-Wl,--defsym=`
+arguments and change no object file. They are listed, with reasons, in
+`lists/config-tag-exempt.lst`: `DDR_Cached_KB`, `DDR_NonCached_KB`,
+`DDR_WCB_KB`, `Main_Stack_Size`.
+
+`populate.sh` enforces this against **Alire's own build-hash input list**
+(`<leaf>/alire/build_hash_inputs`, which enumerates every configuration
+variable Alire keys a build on): each one must be in `Config_Tag` or in the
+exempt list, or the populate fails. A newly added variable therefore forces a
+decision instead of defaulting to "untagged". Verified by removing
+`Memory_Profile` from the tag: `MISSING from light_mpfs Config_Tag:
+memory_profile`.
+
+**Why not use Alire's hash directly?** Because it is not reachable. `alr`
+computes it (`Alire.Roots.Build_Hash`) and writes the inputs file, but never
+exports it to GPR: `External ("ALIRE_BUILD_HASH", "default")` yields the literal
+`"default"`, which would put *every* configuration in one `adalib-default` — the
+same bug, total and undetectable. Verified directly. Exporting the hash as a
+scenario variable would delete this whole hand-maintained mechanism, and is
+worth asking Alire for. Two notes: `Config_Tag` must be declared *after*
 `Hart_Class` (it starts with it), and `ada_object_path` may keep naming plain
 `adalib` even though `Library_Dir` is `adalib-<tag>` — a stale entry is
 tolerated because the withed library project is authoritative (§1.1). The link

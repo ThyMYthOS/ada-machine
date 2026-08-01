@@ -38,7 +38,10 @@ project Runtime_Build is
      & "-" & Embedded_Mpfs_Config.L2_LIM_Ways
      & "-" & Embedded_Mpfs_Config.L2_Scratchpad_Ways
      & "-" & Embedded_Mpfs_Config.ITIM_Ways
-     & "-" & Embedded_Mpfs_Config.DTIM_Ways;
+     & "-" & Embedded_Mpfs_Config.DTIM_Ways
+     & "-" & Embedded_Mpfs_Config.DDR_Present
+     & "-" & Embedded_Mpfs_Config.Memory_Profile
+     & "-" & Embedded_Mpfs_Config.MPFS_PARTITION;
 
 
    for Languages use ("Ada", "Asm_Cpp", "C");
