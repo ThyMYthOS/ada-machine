@@ -34,7 +34,34 @@ copy() {   # copy <list> <dest> <src-dir>...
   echo "  -> $dest: $n copied${miss:+, $miss missing}"
 }
 
+assert_identical() {   # assert_identical <list> <dir-a> <dir-b> <label-a> <label-b>
+  # A SHARED overlay is only sound while the profiles mounting it agree on
+  # every byte. This turns that assumption into a checked invariant: without
+  # it, a toolchain update that makes light and light-tasking diverge would
+  # silently give one of them the other's variant of a unit it compiles into
+  # libgnat -- undetectable until something misbehaves on hardware.
+  list=$1; a=$2; b=$3; la=$4; lb=$5; bad=0
+  while read -r f; do
+    [ -n "$f" ] || continue
+    [ -f "$a/$f" ] && [ -f "$b/$f" ] || continue
+    cmp -s "$a/$f" "$b/$f" || { echo "  DIVERGED: $f differs between $la and $lb"; bad=$((bad+1)); }
+  done < "$list"
+  if [ "$bad" -ne 0 ]; then
+    echo "error: the shared $la/$lb overlay is not valid for this toolchain."
+    echo "       Split libgnat-light back into per-profile overlays and restore"
+    echo "       Gnat_Light_Tasking_Dir (CONTRACT.md 7.16)."
+    exit 1
+  fi
+  echo "  -> verified: $la and $lb agree on every file in $(basename "$list")"
+}
+
 L=$T/light-polarfiresoc; LT=$T/light-tasking-polarfiresoc; E=$T/embedded-polarfiresoc
+
+# Migration: libgnat-light-tasking was merged into libgnat-light (CONTRACT.md
+# 7.16). Remove it rather than leaving it behind -- a stale overlay directory is
+# the exact hazard CONTRACT.md 7.15 describes if anything ever puts it back on a
+# source path.
+rm -rf "$here/rts_sources_gcc15/libgnat-light-tasking"
 
 echo "rts_sources_gcc15"
 # libgnat.lst now excludes every profile-variant unit (lists/profile-variant.lst),
@@ -45,8 +72,14 @@ copy "$here/rts_sources_gcc15/libgnarl.lst" "$here/rts_sources_gcc15/libgnarl" "
 # CONTRACT.md 7.15: tier 1 is NOT a flat union. GNAT's configurable-runtime
 # logic keys off which units are VISIBLE on the source path, so a light-profile
 # build must not see embedded's units. Common set plus per-profile overlays.
+#
+# libgnat-light is SHARED by the light and light-tasking leaves: measured on
+# this toolchain, every unit both profiles vary is byte-identical between them,
+# so two directories held two copies of one snapshot for no content reason
+# (CONTRACT.md 7.16). One directory, plus the assertion below that the sharing
+# is still true. There is deliberately no libgnat-light-tasking any more.
 copy "$here/rts_sources_gcc15/libgnat-light.lst"          "$here/rts_sources_gcc15/libgnat-light"          "$L/gnat"
-copy "$here/rts_sources_gcc15/libgnat-light-tasking.lst"  "$here/rts_sources_gcc15/libgnat-light-tasking"  "$LT/gnat"
+assert_identical "$here/rts_sources_gcc15/libgnat-light.lst" "$L/gnat" "$LT/gnat" light light-tasking
 copy "$here/rts_sources_gcc15/libgnat-embedded.lst"       "$here/rts_sources_gcc15/libgnat-embedded"       "$E/gnat"
 copy "$here/rts_sources_gcc15/libgnarl-light-tasking.lst" "$here/rts_sources_gcc15/libgnarl-light-tasking" "$LT/gnarl"
 copy "$here/rts_sources_gcc15/libgnarl-embedded.lst"      "$here/rts_sources_gcc15/libgnarl-embedded"      "$E/gnarl"
@@ -61,6 +94,21 @@ echo "leaf-owned units"
 for p in light:light_mpfs light-tasking:light_tasking_mpfs embedded:embedded_mpfs; do
   prof=${p%%:*}; crate=${p##*:}
   mkdir -p "$here/$crate/src"
+  # PRUNE leaf src/ as well, against this profile's own lists plus the
+  # keep-list of hand-authored files no list names. This is what makes moving
+  # a unit OUT of a leaf and into a tier-1 overlay actually take effect: leaf
+  # src/ precedes the overlay in Source_Dirs, so a left-behind copy still WINS
+  # and the move would silently do nothing. It is the leaf-level form of the
+  # visibility hazard in CONTRACT.md 7.15.
+  for existing in "$here/$crate/src"/*; do
+    [ -e "$existing" ] || continue
+    b=$(basename "$existing"); named=
+    for lst in "$here/lists/$prof.gnat.leaf.lst" "$here/lists/$prof.gnarl.leaf.lst" \
+               "$here/lists/leaf-keep.lst"; do
+      [ -f "$lst" ] && grep -qxF "$b" "$lst" && { named=1; break; }
+    done
+    [ -n "$named" ] || { echo "  pruned $crate/src/$b"; rm -f "$existing"; }
+  done
   for d in gnat gnarl; do
     lst="$here/lists/$prof.$d.leaf.lst"
     [ -f "$lst" ] && while read -r f; do
@@ -74,4 +122,25 @@ for p in light:light_mpfs light-tasking:light_tasking_mpfs embedded:embedded_mpf
   done
   echo "  -> $crate/src: $(ls "$here/$crate/src" | wc -l | tr -d ' ') files"
 done
+
+# What remains duplicated between leaves, and why it is not shared:
+#   s-parame.ads/.adb, s-bbpara.ads  -- identical in light-tasking and embedded.
+# A shared "tasking family" overlay would save three files but cost a whole
+# directory, and s-bbpara.ads is HAND-EDITED and committed, so it cannot move
+# into rts_sources_gcc15 (that crate is gitignored in full -- the file would
+# stop being tracked). Left duplicated, but checked: editing one leaf's copy
+# and not the other's now fails here instead of silently diverging.
+echo "leaf duplicate check"
+dup_bad=0
+for f in s-parame.ads s-parame.adb s-bbpara.ads; do
+  a=$here/light_tasking_mpfs/src/$f; b=$here/embedded_mpfs/src/$f
+  [ -f "$a" ] && [ -f "$b" ] || continue
+  cmp -s "$a" "$b" || { echo "  DIVERGED: $f differs between light_tasking_mpfs and embedded_mpfs"; dup_bad=$((dup_bad+1)); }
+done
+if [ "$dup_bad" -ne 0 ]; then
+  echo "error: leaf copies that are meant to be identical have drifted."
+  echo "       Reconcile them, or record the divergence in CONTRACT.md 7.16."
+  exit 1
+fi
+echo "  -> light_tasking_mpfs and embedded_mpfs agree on their shared leaf units"
 echo "done."

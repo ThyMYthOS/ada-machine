@@ -67,7 +67,9 @@ project Runtime_Build is
      ("gnat_config", "src",
       Rts_Support_Mpfs.Src_Dir,
       Rts_Core_Riscv64.Src_Dir,
-      Rts_Sources_Gcc15.Gnat_Light_Tasking_Dir,
+      --  Shared with light_mpfs (CONTRACT.md §7.16): the units this profile
+      --  varies are byte-identical to light's, so both mount one overlay.
+      Rts_Sources_Gcc15.Gnat_Light_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
 
    --  This project's own membership (513 units): a disjoint partition of

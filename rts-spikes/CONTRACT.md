@@ -608,3 +608,52 @@ hand-authored files no list names, and an unrestricted prune deleted
 **This qualifies RTS.md's tier-1 claim.** The snapshot is *not* "identical for
 every target on earth": it has a second axis — the runtime profile — for
 visibility as well as for the 18 content-variant units of §7.6.
+
+### 7.16 Overlays are keyed by content, not by profile name
+
+§7.15 requires per-profile overlays. It does **not** require one overlay *per
+profile*: two profiles that agree on every unit they vary can mount the same
+directory. Measured on this toolchain, `light` and `light-tasking` agree on all
+of them, so `libgnat-light-tasking` held a second byte-identical copy of
+`libgnat-light` — 11 files duplicated for no content reason.
+
+The rule, which also decides where a profile-variant unit lives:
+
+> A unit that varies by profile belongs in a **shared overlay** when two or more
+> profiles agree on its content, and stays **leaf-owned** only when every
+> profile differs.
+
+Applying it removed 21 of 42 physical files with no content lost:
+
+| | before | after |
+|---|---|---|
+| `libgnat-light` + `libgnat-light-tasking` | 11 + 11 (identical) | 21, one directory |
+| the 10 units `light` and `light-tasking` share, per leaf | 10 + 10 in leaf `src/` | in the shared overlay |
+| `light_mpfs/src` | 14 files | 4 |
+| `light_tasking_mpfs/src` | 21 files | 11 |
+
+`s-memory` is the case that shows why the spec and the body must be placed
+**independently**: `s-memory.ads` is identical across `light`/`light-tasking`
+and moves to the shared overlay, while `s-memory.adb` differs in all three and
+stays leaf-owned. A unit is not an indivisible placement decision.
+
+Two guards make this safe rather than merely smaller, and both are in
+`populate.sh`:
+
+1. **`assert_identical`** re-checks, on every populate, that the profiles
+   sharing an overlay still agree byte-for-byte, and fails with instructions to
+   split the overlay again if a toolchain update breaks it. The sharing is a
+   measured fact about GCC 15, not a guarantee.
+2. **Leaf `src/` is now pruned** against its own lists plus `lists/leaf-keep.lst`.
+   This is what makes a move *take effect*: leaf `src/` precedes the overlay in
+   `Source_Dirs`, so a left-behind copy still wins and the move would silently
+   do nothing — the leaf-level form of §7.15's visibility hazard.
+
+**What deliberately stays duplicated.** `s-parame.ads`, `s-parame.adb` and
+`s-bbpara.ads` are identical in `light-tasking` and `embedded`. A shared
+"tasking family" overlay would save three files and cost a directory, and
+`s-bbpara.ads` is hand-edited *and committed* — moving it into
+`rts_sources_gcc15` would stop it being tracked, since that crate is gitignored
+in full. They stay duplicated, but `populate.sh` now compares them and fails on
+divergence, so the drift that duplication invites is caught rather than assumed
+away.

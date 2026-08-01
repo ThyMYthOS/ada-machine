@@ -181,7 +181,7 @@ Upstream [bb-runtimes](https://github.com/AdaCore/bb-runtimes) does carry more t
 | 1 | `rts_sources_gcc15` | source-only, shared | the `libgnat`/`libgnarl` snapshot (RTS.md tier 1) |
 | 2 | `rts_core_riscv64` | source-only | `System.BB.CPU_Primitives`, threads, time — or folded into (1) per RTS.md §7 |
 | 3 | `rts_support_mpfs` | source-only | `s-bbbopa.ads`, `s-bbripl.adb` (PLIC), `a-intnam.ads`, `riscv_def.h`, startup variants (single-hart / SMP × M-mode / S-mode), CLINT / PLIC / L2-controller / L1-split private register bindings, the Ada that *interprets* the generator's raw values (§4.3), `ld/mpfs-memory.ld` + the five placement scripts (§6.1) |
-| 4 | `light_mpfs` | **buildable leaf** | manifest, config variables, metadata, per-profile source list, and the exported `ISA_Switches`/`Linker_Switches`/`Defsyms`. `runtime.xml` is a valid stub only — see §11 item 13 |
+| 4 | `light_mpfs` | **buildable leaf** | manifest, config variables, metadata, per-profile source list, and the exported `ISA_Switches`/`Linker_Switches`/`Defsyms`. No `runtime.xml`: `target_options.gpr` owns the ISA and exports the `Builder` package applications rename — see §11 item 13 |
 | 5 | `light_tasking_mpfs` | **buildable leaf** | + `ravenscar_build.gpr`/`libgnarl` |
 | 6 | `embedded_mpfs` | **buildable leaf** | + full exception propagation, C unwinder |
 | 7 | `mpfs_system` | **generated, project-local** | derived from the MSS Configurator XML + HSS payload YAML — see §4 |
@@ -299,8 +299,8 @@ Standalone mode is not a lesser path: a single-image bring-up, a monitor-only bu
 
 | Variable | Type | Derives |
 |---|---|---|
-| `Hart_Class` | `Enum ("e51", "u54")` | `-march`/`-mabi` (§1.1, note `_zicsr`), the three float source variants, ITIM base, whether a DTIM exists at all |
-| `Harts` | `String` (e.g. `"1"`, `"1..4"`, `"2,3"`) | `Max_Number_Of_CPUs`, startup variant, per-hart `mtimecmp` and PLIC context, `MPFS_LOCAL_ITIM_ORIGIN` (§6.2). In derived mode this is the payload YAML's `owner-hart` + `secondary-harts` (§4.1) |
+| `Harts_Mask` | `Integer` bitmask, bit *N* = hart *N*, bit 0 the E51 | **everything on this axis.** `Hart_Class` is *derived* from it, and from that `-march`/`-mabi` (§1.1, note `_zicsr`), the float source variants, ITIM base and whether a DTIM exists at all. Also `Max_Number_Of_CPUs`, startup variant, per-hart `mtimecmp` and PLIC context, `MPFS_LOCAL_ITIM_ORIGIN` (§6.2). In derived mode this is the payload YAML's `owner-hart` + `secondary-harts` (§4.1) |
+| ~~`Hart_Class`~~ | — | **not a configuration variable.** It was one, independently of the ISA, which is exactly how a correct `Hart_Class => e51` coexisted with a hard-float build (§11 item 13). Deriving it from the mask makes the disagreeing pair unrepresentable. An `Integer` mask rather than a `String` hart set also keeps every derived value static, which a `String` did not (CONTRACT.md §7.8) |
 | `MPFS_PARTITION` | `String` | when set, hart set / window / console / clocks / privilege all come from `mpfs_system` (§4) instead of the knobs below |
 | `Privilege` | `Enum ("m_mode", "s_mode")` | timer and interrupt paths: `mtimecmp`/`mie` vs. `stimecmp`/`sie` (§4.2) |
 
@@ -326,18 +326,18 @@ The first five select a committed placement script; `system_partition` selects t
 Plus the cross-variable rules that matter most:
 
 ```ada
+--  What this section originally specified -- all three now MOOT:
 pragma Compile_Time_Error
-  (Hart_Class = E51 and then Float_ABI = Hard,
-   "the E51 monitor core has no FPU; use Hart_Class => U54 or a soft-float ABI");
+  (Hart_Class = E51 and then Float_ABI = Hard, "the E51 has no FPU; ...");
 pragma Compile_Time_Error
-  (Hart_Class = E51 and then Hart_Set /= Hart_0,
-   "the E51 is hart 0; Harts must be \"0\" for Hart_Class => E51");
+  (Hart_Class = E51 and then Hart_Set /= Hart_0, "the E51 is hart 0; ...");
 pragma Compile_Time_Error
-  (Hart_Class = U54 and then (Hart_Set and Hart_0) /= 0,
-   "hart 0 is the E51 and cannot be part of a U54 hart set");
+  (Hart_Class = U54 and then (Hart_Set and Hart_0) /= 0, "hart 0 is the E51; ...");
 ```
 
-`pragma Compile_Time_Error` — not constrained subtypes — is what actually enforces these; RTS.md §5.2 measured that subtypes only warn, and a surviving build reaches `Last_Chance_Handler` at startup.
+**These three checks were deleted rather than implemented, and that is the better outcome.** Each guarded a disagreement between two independently-set variables — `Hart_Class` against the ABI, and `Hart_Class` against the hart set. Since `Harts_Mask` is the only input and `Hart_Class` is derived from it (§5.1), none of the three states can be expressed at all. A check that cannot fire beats a check that fires, and the first was unimplementable anyway: the ABI never reached Ada, so no pragma could see it (CONTRACT.md §7.9).
+
+Where `pragma Compile_Time_Error` *is* still the enforcement mechanism — the way sums of §5.3, the multi-hart-with-ITIM rule — it is because constrained subtypes only **warn**: RTS.md §5.2 measured that, and a surviving build reaches `Last_Chance_Handler` at startup. The general rule this yields is worth stating once: **prefer making a bad state unrepresentable, fall back to `Compile_Time_Error`, and never rely on a subtype.**
 
 ---
 
@@ -438,7 +438,9 @@ These are real patches to `rts_support_mpfs`, and they are prerequisites, not ni
 
 ## 9. What has already been verified
 
-Measured on `alr 2.1.0`, `gnat_riscv64_elf` 15.1.2, macOS/Apple Silicon, using a copy of the shipped `light-polarfiresoc` runtime with its `adalib` deleted so the runtime rebuilt from source each time, `-march`/`-mabi` externalised in `runtime.xml`, and the three float files swapped from `light-rv64imac` for the soft-float case:
+Measured on `alr 2.1.0`, `gnat_riscv64_elf` 15.1.2, macOS/Apple Silicon, using a copy of the shipped `light-polarfiresoc` runtime with its `adalib` deleted so the runtime rebuilt from source each time, `-march`/`-mabi` externalised in `runtime.xml`, and the three float files swapped from `light-rv64imac` for the soft-float case.
+
+*(This was P0, run against a **shipped** runtime directory reached by gprconfig discovery — which is why `runtime.xml` is the vehicle here. The crates built since carry no `runtime.xml`; the ISA arrives from `target_options.gpr`, §11 item 13. The ISA findings below are properties of the toolchain and are unaffected.)*
 
 | Configuration | Result | `Tag_RISCV_arch` |
 |---|---|---|
@@ -512,9 +514,13 @@ A useful property of this order: each phase's milestone is checkable on hardware
 8. **The generator fork inherits vendor register encodings.** Forking `mpfs_configuration_generator.py` (§4.3) keeps the XML-parsing half untouched, but the interpretation of raw values into frequencies, PMP regions and way counts is ours to maintain and will drift with the XML format version. The script already reads `xml_format_version`; the fork should refuse an unknown one rather than mis-decode it.
 9. **`mem_elements` is designer intent, not hardware truth** (§4.3) — the Icicle reference labels its DDR entries "example instance" at 1 MB. Every derived window needs range-checking against §1.2 regardless of what the XML says.
 10. **The L2 startup-order contract is not checkable at run time** (§6.4). Generation can verify that whoever reduces LIM runs first; nothing verifies it actually did.
-13. **`runtime.xml` cannot carry the ISA in a tier-composed runtime — settled, not open.** Measured on the spike (RTS.md A.22): with the application `with`ing `runtime_build.gpr`, the file is parsed (a syntax error in its CDATA fails the build) but its `Compiler` and `Linker` packages do not take effect — editing its ISA default literally still produced a hard-float image. The switches must come from GPR, with the **application** applying `ISA_Switches` via `Builder'Global_Compilation_Switches`, which only a root project can set.
+13. **There is no `runtime.xml` — settled.** (Numbered out of sequence, and kept here rather than moved, because other files cite `§11 risk 5` and `risk 8` by number.)
 
-    Two consequences for this plan. First, keeping a second ISA default inside `runtime.xml` is worse than having none: it looks authoritative and is not, and that is exactly why the E51 image stayed hard-float across six build attempts while `Hart_Class => e51` sat correctly in the generated config. Second, the residual risk is unclosed — an application that omits the `Builder` package gets a silently wrong ABI, undetectable whenever the intended ISA coincides with the compiler default. A compile-time ABI witness in the runtime would fix it; no way to observe the float ABI from Ada at compile time was found.
+    An earlier version of this item claimed `runtime.xml` "is parsed but its `Compiler` and `Linker` packages do not take effect" in a tier-composed runtime. **That was false.** The file under test was malformed XML — a `--` used as an em-dash inside an XML comment, which is illegal — and **gprconfig silently ignores an unparseable `runtime.xml`** at any verbosity. The mechanism works exactly as documented once the file is valid, as `embedded_rp2040` demonstrates in production. Retracted in full in RTS.md A.22.
+
+    The files are nonetheless **deleted**, following `avrada_rts`, on a different and surviving argument: a gprconfig `<config>` fragment cannot `with` a crate's generated configuration project, so every value in it must arrive as an `external()` — a second source of truth beside the Alire configuration variable it duplicates. That is what produced the hard-float-E51 defect, and a malformed file being ignored in silence is what made it expensive to find. `target_options.gpr` now derives `Hart_Class` from `Harts_Mask` once and computes `ISA_Switches` from it, with no `external()` able to override.
+
+    **The ABI-witness risk is closed, structurally.** It was real only while the ISA lived solely in the application's `Builder` package: runtime and application then both fell back to the compiler default and agreed. Now that the runtime library is compiled from its own derived ISA, a wrong application ABI cannot link — `ld: can't link soft-float modules with double-float modules`, verified by removing the `Builder` rename from `clock_switch_e51`. What remains genuinely missing from GPR is any way for a *withed* project to contribute required switches to its dependents; the rename is a convention, and conventions are forgettable.
 
 11. **Who owns HSS.** This plan assumes HSS stays responsible for DDR training and optionally L2 configuration. Replacing it with Ada is a much larger project and explicitly out of scope.
 12. **PMP/U-mode is deferred to P5** but the data exists in `pmp_h0…h4` (§4.2), so `System_Map` should carry per-hart PMP regions from the start — that keeps P5 a decoding exercise rather than a schema change.

@@ -18,8 +18,15 @@ abstract project Rts_Sources_Gcc15 is
    --  language features are available from what it can SEE on the source
    --  path, so a light-profile build able to see embedded's Put_Image
    --  machinery would enable it and then fail to link (CONTRACT.md 7.15).
+   --
+   --  Overlays are keyed by CONTENT, not by profile name: Gnat_Light_Dir is
+   --  mounted by BOTH the light and light-tasking leaves, because every unit
+   --  those two profiles vary is byte-identical between them on this
+   --  toolchain. There is no Gnat_Light_Tasking_Dir -- it named a second,
+   --  byte-identical copy of this directory. populate.sh asserts the sharing
+   --  still holds and fails the build if a toolchain update breaks it
+   --  (CONTRACT.md 7.16).
    Gnat_Light_Dir          := Project'Project_Dir & "libgnat-light";
-   Gnat_Light_Tasking_Dir  := Project'Project_Dir & "libgnat-light-tasking";
    Gnat_Embedded_Dir       := Project'Project_Dir & "libgnat-embedded";
    Gnarl_Light_Tasking_Dir := Project'Project_Dir & "libgnarl-light-tasking";
    Gnarl_Embedded_Dir      := Project'Project_Dir & "libgnarl-embedded";
