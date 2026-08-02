@@ -64,6 +64,7 @@ project Runtime_Build is
       Rts_Sources_Gcc15.Gnat_Light_Dir,
       Rts_Sources_Gcc15.Gnat_64_Dir,
       Rts_Sources_Gcc15.Gnat_Textio_Dir,
+      Rts_Sources_Gcc15.Patched_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
 
    --  Not in Languages (CONTRACT.md §3.4: "C" is embedded_mpfs-only) and

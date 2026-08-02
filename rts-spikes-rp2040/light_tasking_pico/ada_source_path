@@ -1,0 +1,12 @@
+gnat_config
+src
+../../rts-spikes/rts_support_pico/src-rp2040
+../../rts-spikes/rts_support_pico/src
+../../rts-spikes/rts_core_cortexm/src
+../../rts-spikes/rts_sources_gcc15/libgnat-32
+../../rts-spikes/rts_sources_gcc15/libgnat-semihosting
+../../rts-spikes/rts_sources_gcc15/libgnat-patched
+../../rts-spikes/rts_sources_gcc15/libgnat
+../../rts-spikes/rts_sources_gcc15/librestrictions
+../../rts-spikes/rts_sources_gcc15/libgnarl-smp
+../../rts-spikes/rts_sources_gcc15/libgnarl

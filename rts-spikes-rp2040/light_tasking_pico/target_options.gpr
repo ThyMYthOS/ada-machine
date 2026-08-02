@@ -1,0 +1,117 @@
+--  This is the default version of the target_options.gpr file, imported by
+--  runtime_build.gpr / ravenscar_build.gpr. Mirrors rts-spikes/CONTRACT.md
+--  §3.6: there is no runtime.xml in this leaf; this project is the single
+--  place the target ISA is decided, following avrada_rts's / light_mpfs's
+--  pattern, and it exports a Builder package for applications to rename.
+--
+--  The vendor-shipped light-tasking-rpi-pico/runtime.xml (read, not copied)
+--  carries the equivalent switches as a gprconfig <config> fragment:
+--
+--    Common_Required_Switches := ("-mlittle-endian", "-mthumb",
+--      "-mfloat-abi=soft", "-mcpu=cortex-m0plus",
+--      "-fno-tree-loop-distribute-patterns");
+--
+--  reached via Compiler'Leading_Required_Switches / Linker'Required_Switches
+--  in an unparsed XML fragment. Here the same switches are ordinary GPR
+--  values, derived from Device, and re-exported through Builder for the
+--  application to rename -- see README.md axis 4 for the side-by-side.
+
+with "gnat_config/light_tasking_pico_config.gpr";
+
+abstract project Target_Options is
+
+  type Build_Type is ("Production", "Debug", "Assert", "Gnatcov");
+  Build : Build_Type := external ("BUILD", "Production");
+  type Lib_Type is ("static", "dynamic");
+  Lib : Lib_Type := external ("LIBRARY_TYPE", "static");
+
+  Version := external ("GNAT_VERSION", "26");
+
+  COMFLAGS := ("-ffunction-sections",
+        "-fdata-sections",
+        "-fcallgraph-info=su,da");
+  COMGNARLFLAGS := ("");
+  COMDEBUGFLAGS := ("-g");
+
+  --  -gnatg/-nostdinc are NOT here: runtime-only, and applications reference
+  --  this project's ALL_ADAFLAGS too (the avrada_rts/light_mpfs split).
+  --  runtime_build.gpr/ravenscar_build.gpr add them as RTS_ADAFLAGS.
+  ADAFLAGS := ("-fno-delete-null-pointer-checks");
+  ASMFLAGS := ("");
+  CFLAGS := ("-DIN_RTS", "-Dinhibit_libc", "-DLIGHT_RUNTIME",
+        "-Werror", "-Wall");
+  case Build is
+     when "Production" =>
+        COMFLAGS := COMFLAGS & ("-O2");
+        ADAFLAGS := ADAFLAGS & ("-gnatp", "-gnatn2");
+     when "Debug" =>
+        COMFLAGS := COMFLAGS & COMDEBUGFLAGS & ("-O0");
+        ASMFLAGS := ASMFLAGS & COMDEBUGFLAGS;
+     when "Assert" =>
+        COMFLAGS := COMFLAGS & ("-O");
+        ADAFLAGS := ADAFLAGS & ("-gnata");
+     when "Gnatcov" =>
+        COMFLAGS := COMFLAGS & COMDEBUGFLAGS &
+          ("-O0", "-fdump-scos", "-fpreserve-control-flow");
+  end case;
+
+  LOPTIONS := ();
+  case Lib is
+     when "static" => null;
+     when "dynamic" =>
+        LOPTIONS := LOPTIONS & ("-nostdlib", "-lc", "-lgcc");
+  end case;
+
+  ------------------------------------------------------------------
+  --  The ISA / device axis. Device is a content selector into tier 1's
+  --  Armv6m/Armv8m sqrt overlay (rts_sources_gcc15_arm/README.md), NOT a
+  --  second crate. Only "rp2040" has populated sources in this toolchain.
+  ------------------------------------------------------------------
+
+  type Device_Kind is ("rp2040", "rp2350");
+  Device : Device_Kind := Light_Tasking_Pico_Config.Device;
+
+  Cpu  := "cortex-m0plus";
+  Fpu  := ("-mfloat-abi=soft");
+  case Device is
+     when "rp2040" =>
+        Cpu := "cortex-m0plus";       --  ARMv6-M, matches this toolchain's
+        Fpu := ("-mfloat-abi=soft");  --  light-tasking-rpi-pico exactly.
+     when "rp2350" =>
+        --  RP2350's Cortex-M33 has an optional single-precision FPU; the
+        --  RP2350 Alire crates default to it disabled for the plain
+        --  "cortex-m33" runtime (see comparison in
+        --  ../rts_sources_gcc15_arm/README.md). Not exercised: no RP2350
+        --  sources are populated, so choosing this value fails at
+        --  Source_Dirs resolution before this switch would ever matter.
+        Cpu := "cortex-m33";
+        Fpu := ("-mfloat-abi=soft");
+  end case;
+
+  ISA_Switches := ("-mcpu=" & Cpu, "-mthumb") & Fpu;
+
+  --  Switches that must reach EVERY unit in the closure, runtime and
+  --  application alike -- the job runtime.xml's Compiler'Leading_Required_Switches
+  --  does in the vendor-shipped runtime (see file header).
+  Global_Ada_Switches := ISA_Switches & ("-fno-tree-loop-distribute-patterns");
+
+  ALL_ADAFLAGS := ADAFLAGS & COMFLAGS & ISA_Switches;
+  ALL_CFLAGS := CFLAGS & COMFLAGS & ISA_Switches;
+  ALL_ASMFLAGS := ASMFLAGS & ISA_Switches;
+  GNARL_ADAFLAGS := ALL_ADAFLAGS & COMGNARLFLAGS;
+  GNARL_CFLAGS := ALL_CFLAGS & COMGNARLFLAGS;
+
+  ------------------------------------------------------------------
+  --  Applications rename this package (avrada_rts's / light_mpfs's pattern):
+  --
+  --     package Builder renames Target_Options.Builder;
+  --
+  --  Global_Compilation_Switches applies to every project in the closure,
+  --  so a HAL/driver crate cannot be compiled with the wrong ABI either.
+  ------------------------------------------------------------------
+  package Builder is
+     for Global_Compilation_Switches ("Ada")     use Global_Ada_Switches;
+     for Global_Compilation_Switches ("Asm_Cpp") use ISA_Switches;
+  end Builder;
+
+end Target_Options;

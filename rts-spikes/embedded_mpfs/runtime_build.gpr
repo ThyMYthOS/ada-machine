@@ -68,6 +68,7 @@ project Runtime_Build is
       --  Gnat-side HERE, gnarl-side for light-tasking; one shared directory,
       --  membership decided per project (CONTRACT.md §7.17).
       Rts_Sources_Gcc15.Restrictions_Dir,
+      Rts_Sources_Gcc15.Patched_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
 
    --  embedded.lst (1053 units, headers stripped per CONTRACT.md §7.2) is

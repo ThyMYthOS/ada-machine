@@ -1,0 +1,23 @@
+abstract project Rts_Support_Pico is
+
+   --  Source-only, tier-3 crate (mirrors rts-spikes/CONTRACT.md §2): never
+   --  built by Alire. Exports paths only; the leaf's runtime_build.gpr adds
+   --  Src_Dir to its own Source_Dirs and Ld_Dir to its own linker search
+   --  path (-L). `Project'Project_Dir` already ends in a separator.
+
+   for Source_Dirs use ();
+
+   Src_Dir := Project'Project_Dir & "src";
+
+   --  ONE crate for both Pico devices. Measured against the published
+   --  light_tasking_rp2040 and light_tasking_rp2350 crates: of this crate's
+   --  units, 5 are byte-identical on both devices, 5 differ, and the rest are
+   --  device-only BY NAME (boot2.S and i-rp2040-*.ads versus i-rp2350-*.ads
+   --  and image_def.S.inc). Names that do not collide need no overlay at all --
+   --  they share one directory and each leaf's Source_List_File selects its own
+   --  (CONTRACT.md 7.17). Only the 5 genuine disagreements get an overlay.
+   Rp2040_Dir := Project'Project_Dir & "src-rp2040";
+   Rp2350_Dir := Project'Project_Dir & "src-rp2350";
+   Ld_Dir  := Project'Project_Dir & "ld";
+
+end Rts_Support_Pico;

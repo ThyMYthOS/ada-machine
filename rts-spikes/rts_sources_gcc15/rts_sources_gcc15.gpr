@@ -79,4 +79,25 @@ abstract project Rts_Sources_Gcc15 is
    Gnarl_Sp_Dir            := Project'Project_Dir & "libgnarl-sp";
    Gnarl_Smp_Dir           := Project'Project_Dir & "libgnarl-smp";
 
+   --  Units we OWN rather than populate. libgnat-patched holds hand-authored
+   --  replacements for vendored bodies, committed rather than copied, and
+   --  mounted ahead of libgnat by every leaf.
+   --
+   --  s-lisisq.adb / s-lidosq.adb: upstream ships each twice, one body using a
+   --  direct hardware sqrt and one refining a reciprocal estimate. Selecting
+   --  between two FILES cost a directory per capability plus a mount in every
+   --  leaf; selecting inside the body costs neither, because the branch folds in
+   --  the front end -- verified by compiling for a soft-float target at -O0,
+   --  where the PowerPC frsqrte asm never reaches the assembler. The capability
+   --  arrives as RTS_Capabilities.Has_Hw_Sqrt_Single/_Double, a static Boolean
+   --  each leaf provides under that one stable name.
+   --
+   --  Per-file capabilities are what the directory pair could not express: a
+   --  Cortex-M4F has single-precision hardware sqrt but not double.
+   --
+   --  The cost is ownership. These bodies must be re-merged against upstream on
+   --  a GCC bump, which is why they live in their own directory rather than
+   --  among the populated sources.
+   Patched_Dir             := Project'Project_Dir & "libgnat-patched";
+
 end Rts_Sources_Gcc15;
