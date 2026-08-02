@@ -6,6 +6,7 @@ src
 ../rts_sources_gcc15/libgnat-64
 ../rts_sources_gcc15/libgnat-textio
 ../rts_sources_gcc15/librestrictions
+../rts_sources_gcc15/libgnat-patched
 ../rts_sources_gcc15/libgnat
 ../rts_sources_gcc15/libgnarl-embedded
 ../rts_sources_gcc15/libgnarl-sp

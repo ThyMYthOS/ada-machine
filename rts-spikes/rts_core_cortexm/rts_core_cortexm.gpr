@@ -1,0 +1,17 @@
+--  Tier 2 (mirrors rts-spikes/CONTRACT.md §2, rts_core_riscv64): the ARM
+--  Cortex-M architecture core -- System.BB's CPU-specific layer. Source-only,
+--  never built by Alire (see README.md for why). This project exists only to
+--  export the source-directory path; it has no sources of its own.
+--
+--  Project'Project_Dir already ends in a directory separator, so the
+--  concatenation below must not add one.
+
+abstract project Rts_Core_Cortexm is
+
+   for Source_Dirs use ();
+
+   Src_Dir := Project'Project_Dir & "src";
+
+   --  which is why it lives in this crate rather than in tier 1.
+
+end Rts_Core_Cortexm;

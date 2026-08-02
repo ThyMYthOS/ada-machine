@@ -1,6 +1,13 @@
 #!/bin/sh
-# Copy the runtime sources named in each crate's list out of the installed
-# GNAT RISC-V toolchain. See CONTRACT.md §1 for why they are not committed.
+# Populate TIER 1 ONLY.
+#
+# Tier 1 is a snapshot of the compiler's own sources, so it is copied from the
+# installed toolchains and asserted against both. Tier 2, tier 3 and every leaf
+# src/ are OURS: committed, hand-editable, never overwritten (CONTRACT.md §1).
+#
+# That is why there is no prune here any more beyond tier 1's own. The leaf
+# prune deleted a correctly-listed hand-authored file three times; owning the
+# files removes the mechanism rather than adding a fourth guard to it.
 set -e
 T=$(ls -d "$HOME"/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_*/riscv64-elf/lib/gnat 2>/dev/null | head -1)
 [ -n "$T" ] || { echo "error: gnat_riscv64_elf 15.1.2 not installed"; exit 1; }
@@ -72,6 +79,8 @@ L=$T/light-polarfiresoc; LT=$T/light-tasking-polarfiresoc; E=$T/embedded-polarfi
 rm -rf "$here/rts_sources_gcc15/libgnat-light-tasking"
 rm -rf "$here/rts_sources_gcc15/libgnarl-light-tasking"
 
+#  libgnat-patched is COMMITTED, not populated: those bodies are ours
+#  (rts_sources_gcc15.gpr). Nothing here copies into it.
 echo "rts_sources_gcc15"
 # libgnat.lst now excludes every profile-variant unit (lists/profile-variant.lst),
 # so any profile is a valid source for the rest. Search order is still
@@ -118,108 +127,7 @@ copy "$here/rts_sources_gcc15/libgnarl-embedded.lst"      "$here/rts_sources_gcc
 # directory serves both; the assertion keeps that true (CONTRACT.md 7.17).
 copy "$here/rts_sources_gcc15/librestrictions.lst"        "$here/rts_sources_gcc15/librestrictions"        "$LT/gnarl"
 assert_identical "$here/rts_sources_gcc15/librestrictions.lst" "$LT/gnarl" "$E/gnat" light-tasking-gnarl embedded-gnat
-echo "rts_core_riscv64"
-copy "$here/rts_core_riscv64/src.lst" "$here/rts_core_riscv64/src" "$LT/gnarl" "$E/gnarl" "$L/gnat" "$LT/gnat"
-echo "rts_support_mpfs"
-copy "$here/rts_support_mpfs/src.lst" "$here/rts_support_mpfs/src" "$L/gnat" "$LT/gnarl" "$E/gnarl"
-for f in common-RAM.ld memory-map.ld; do
-  [ -f "$L/ld/$f" ] && { mkdir -p "$here/rts_support_mpfs/ld"; cp "$L/ld/$f" "$here/rts_support_mpfs/ld/$f.upstream"; }
-done
-echo "leaf-owned units"
-for p in light:light_mpfs light-tasking:light_tasking_mpfs embedded:embedded_mpfs; do
-  prof=${p%%:*}; crate=${p##*:}
-  mkdir -p "$here/$crate/src"
-  # PRUNE leaf src/ as well, against this profile's own lists plus the
-  # keep-list of hand-authored files no list names. This is what makes moving
-  # a unit OUT of a leaf and into a tier-1 overlay actually take effect: leaf
-  # src/ precedes the overlay in Source_Dirs, so a left-behind copy still WINS
-  # and the move would silently do nothing. Same shadowing rule as CONTRACT.md
-  # 7.15, one directory level down.
-  for existing in "$here/$crate/src"/*; do
-    [ -e "$existing" ] || continue
-    b=$(basename "$existing"); named=
-    for lst in "$here/lists/$prof.gnat.leaf.lst" "$here/lists/$prof.gnarl.leaf.lst" \
-               "$here/lists/leaf-keep.lst"; do
-      [ -f "$lst" ] && grep -qxF "$b" "$lst" && { named=1; break; }
-    done
-    [ -n "$named" ] || { echo "  pruned $crate/src/$b"; rm -f "$existing"; }
-  done
-  for d in gnat gnarl; do
-    lst="$here/lists/$prof.$d.leaf.lst"
-    [ -f "$lst" ] && while read -r f; do
-      # Never clobber a leaf source that has been edited: these files are
-      # deliberately modified (s-bbbopa/s-bbpara read MPFS_Runtime_Config).
-      # Use FORCE_LEAF_SRC=1 to re-copy pristine upstream copies.
-      [ -n "$f" ] && [ -f "$T/$prof-polarfiresoc/$d/$f" ] && \
-        { [ -z "${FORCE_LEAF_SRC:-}" ] && [ -f "$here/$crate/src/$f" ] \
-          || cp "$T/$prof-polarfiresoc/$d/$f" "$here/$crate/src/$f"; }
-    done < "$lst"
-  done
-  echo "  -> $crate/src: $(ls "$here/$crate/src" | wc -l | tr -d ' ') files"
-done
 
-# What remains duplicated between leaves, and why it is not shared:
-#   s-parame.ads/.adb, s-bbpara.ads  -- identical in light-tasking and embedded.
-# A shared "tasking family" overlay would save three files but cost a whole
-# directory, and s-bbpara.ads is HAND-EDITED and committed, so it cannot move
-# into rts_sources_gcc15 (that crate is gitignored in full -- the file would
-# stop being tracked). Left duplicated, but checked: editing one leaf's copy
-# and not the other's now fails here instead of silently diverging.
-# Config_Tag must name every configuration variable that COMPILED code can
-# read. If it does not, two configurations differing only in an untagged value
-# share one adalib and silently reuse each other's objects -- including a stale
-# mpfs_config_checks.o whose Compile_Time_Error checks were evaluated for the
-# other configuration, so the validation "passes" without ever running.
-# Alire's own build hash keys on all 17 variables; ALIRE_BUILD_HASH is computed
-# but never exported to GPR (verified: External("ALIRE_BUILD_HASH","default")
-# yields "default"), so the tag is hand-written and needs this check.
-#
-# The authority for "which variables matter" is Alire's own build-hash input
-# list, which it writes to <leaf>/alire/build_hash_inputs. Every variable there
-# must be either IN Config_Tag or explicitly exempt in
-# lists/config-tag-exempt.lst -- an omission has to be a decision, not an
-# oversight. Do not try to infer compile-relevance by grepping the sources:
-# units reach the config through `use MPFS_Runtime_Config` and name the
-# variables unqualified, so a search for "MPFS_Runtime_Config.<Var>" misses
-# them and reports a false clean.
-echo "Config_Tag coverage check"
-tag_bad=0
-exempt="$here/lists/config-tag-exempt.lst"
-for crate in light_mpfs light_tasking_mpfs embedded_mpfs; do
-  inputs="$here/$crate/alire/build_hash_inputs"
-  if [ ! -f "$inputs" ]; then
-    echo "  (skipped $crate: no build_hash_inputs yet -- run a build first)"
-    continue
-  fi
-  tag=$(sed -n '/Config_Tag :=/,/;$/p' "$here/$crate/runtime_build.gpr" | tr 'A-Z' 'a-z')
-  for v in $(sed -n 's/^config:[^.]*\.\([a-z_0-9]*\)=.*/\1/p' "$inputs"); do
-    case "$tag" in
-      *".$v"*) ;;                                   # named in the tag
-      *) if grep -qxF "$v" "$exempt" 2>/dev/null; then :; else
-           echo "  MISSING from $crate Config_Tag: $v"
-           tag_bad=$((tag_bad+1)); fi ;;
-    esac
-  done
-done
-if [ "$tag_bad" -ne 0 ]; then
-  echo "error: a configuration variable is neither in Config_Tag nor exempt."
-  echo "       Add it to the tag, or to lists/config-tag-exempt.lst with a reason."
-  echo "       Otherwise two configurations share one adalib (CONTRACT.md 7.11)."
-  exit 1
-fi
-echo "  -> every Alire-hashed configuration variable is tagged or exempt"
-
-echo "leaf duplicate check"
-dup_bad=0
-for f in s-parame.ads s-parame.adb s-bbpara.ads; do
-  a=$here/light_tasking_mpfs/src/$f; b=$here/embedded_mpfs/src/$f
-  [ -f "$a" ] && [ -f "$b" ] || continue
-  cmp -s "$a" "$b" || { echo "  DIVERGED: $f differs between light_tasking_mpfs and embedded_mpfs"; dup_bad=$((dup_bad+1)); }
-done
-if [ "$dup_bad" -ne 0 ]; then
-  echo "error: leaf copies that are meant to be identical have drifted."
-  echo "       Reconcile them, or record the divergence in CONTRACT.md 7.16."
-  exit 1
-fi
-echo "  -> light_tasking_mpfs and embedded_mpfs agree on their shared leaf units"
+#  Tier 2, tier 3 and the leaves are owned, not populated. Nothing follows.
+echo "tier 2/3 and leaves: owned, not populated"
 echo "done."

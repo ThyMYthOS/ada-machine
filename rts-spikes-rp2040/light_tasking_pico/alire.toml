@@ -1,0 +1,62 @@
+name = "light_tasking_pico"
+description = "Raspberry Pi Pico (RP2040/RP2350) Ravenscar Ada runtime"
+long-description = """
+Leaf crate of the rts-spikes-rp2040 hierarchy, mirroring
+rts-spikes/CONTRACT.md §3: the buildable, Ravenscar-tasking Ada runtime for
+the Raspberry Pi Pico family. There is no plain, non-tasking "light-rpi-pico"
+runtime in the installed gnat_arm_elf 15.1.2 toolchain -- only
+light-tasking-rpi-pico(-smp) and embedded-rpi-pico(-smp) are shipped -- so
+this leaf is sourced from light-tasking-rpi-pico and is honestly named for
+what it contains (see README.md "Blockers"). Owns
+`for Runtime ("Ada") use Project'Project_Dir;` and produces
+adalib/libgnat.a + libgnarl.a from the shared tier-1..3 source crates
+(rts_sources_gcc15, rts_core_cortexm, rts_support_pico) plus its own
+gnat_config/ (configuration renaming shim) and src/ (leaf-owned units,
+populated -- not vendored -- from the installed toolchain by
+../populate.sh; `make populate`-equivalent is a prerequisite for any build).
+
+The Device configuration variable is a content-keyed selector (rp2040 |
+rp2350), not a second crate: rp2040 (Cortex-M0+, ARMv6-M) is the only value
+with populated sources in this toolchain, since no RP2350 runtime ships here.
+Selecting Device => rp2350 fails at Source_Dirs resolution with a clear
+missing-directory error rather than silently building the wrong ISA.
+"""
+version = "0.1.0-dev"
+licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
+authors = ["Free Software Foundation", "AdaCore"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
+
+#  This leaf has a tasking floor (Ravenscar) -- mirrors light_tasking_mpfs,
+#  not light_mpfs -- so it DOES declare gnat_rts_tasking (CONTRACT.md §3.1).
+provides = ["gnat_rts_tasking=0.1.0"]
+
+[[depends-on]]
+rts_sources_gcc15 = "*"
+rts_core_cortexm = "*"
+rts_support_pico = "*"
+#  The cross compiler is a real dependency (puts arm-eabi-gcc in the build
+#  environment), not an assumption about PATH -- mirrors rts-spikes/CONTRACT.md
+#  §3.1's note re gnat_riscv64_elf / gnat_avr_elf / embedded_rp2040.
+gnat_arm_elf = "^15"
+
+#  Tiers 1-3 are source-only siblings in this same working tree, never
+#  published -- path-pinned rather than indexed (mirrors CONTRACT.md §1).
+[[pins]]
+rts_sources_gcc15 = { path = "../../rts-spikes/rts_sources_gcc15" }
+rts_core_cortexm = { path = "../../rts-spikes/rts_core_cortexm" }
+rts_support_pico = { path = "../../rts-spikes/rts_support_pico" }
+
+[configuration]
+output_dir = "gnat_config"
+generate_c = false
+
+#  Only ONE configuration variable in this narrow spike (contrast light_mpfs's
+#  15): the device axis discovered while building this crate (README.md
+#  "Device axis"). No Memory_Profile / Console / stack-size knobs -- RP2040
+#  has one memory map and this spike builds one application.
+[configuration.variables]
+Device.type = "Enum"
+Device.values = ["rp2040", "rp2350"]
+Device.default = "rp2040"

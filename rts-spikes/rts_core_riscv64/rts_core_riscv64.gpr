@@ -13,4 +13,9 @@ abstract project Rts_Core_Riscv64 is
 
    Src_Dir := Project'Project_Dir & "src";
 
+   --  The software square-root helpers vary by FPU PRESENCE, not by target
+   --  alone: light-rv64imac's s-lidosq.adb/s-lisisq.adb implement Rsqrt in
+   --  Machine_Code while light-rv64imafdc's call Fpu_Sqrt. They also vary by
+   --  in the per-target crate, with a float overlay rather than in tier 1.
+
 end Rts_Core_Riscv64;

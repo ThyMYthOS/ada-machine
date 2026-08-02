@@ -5,4 +5,5 @@ src
 ../rts_sources_gcc15/libgnat-light
 ../rts_sources_gcc15/libgnat-64
 ../rts_sources_gcc15/libgnat-textio
+../rts_sources_gcc15/libgnat-patched
 ../rts_sources_gcc15/libgnat

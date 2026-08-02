@@ -1,0 +1,89 @@
+--  light_tasking_pico -- leaf crate, mirrors rts-spikes/CONTRACT.md §3.
+--  Produces adalib/libgnat.a from the shared tier-1..3 source crates plus
+--  this leaf's own units.
+
+with "rts_sources_gcc15.gpr";
+with "rts_core_cortexm.gpr";
+with "rts_support_pico.gpr";
+with "gnat_config/light_tasking_pico_config.gpr";
+with "target_options.gpr";
+
+project Runtime_Build is
+
+   type Device_Kind is ("rp2040", "rp2350");
+   Device : Device_Kind := Target_Options.Device;
+
+   ISA_Switches := Target_Options.ISA_Switches;
+
+   for Languages use ("Ada", "Asm_Cpp");
+   for Target use "arm-eabi";
+   for Runtime ("Ada") use Project'Project_Dir;
+
+   for Library_Name use "gnat";
+   for Library_Kind use "static";
+   for Library_Dir use "adalib";
+   for Object_Dir use "obj";
+
+   --  ORDER IS LOAD-BEARING (mirrors rts-spikes/CONTRACT.md §3.4): board
+   --  shadows core shadows shared; gnat_config/src (this leaf) win over
+   --  all three. Source_List_File, not shadowing, is what defines
+   --  membership.
+   --  There is no per-DEVICE tier-1 overlay. The two units that differ between
+   --  RP2040 (ARMv6-M) and RP2350's ARM cores (ARMv8-M) are s-lidosq.adb and
+   --  s-lisisq.adb, and they differ between two 32-bit targets -- so they are
+   --  not a word-size axis and cannot live in Gnat_32_Dir. They are owned by
+   --  tier 2, per target (Rts_Core_Cortexm below), which is where anything
+   --  target-specific belongs.
+   --
+   --  Adding rp2350 therefore means giving TIER 2 a per-device overlay, not
+   --  tier 1. Until then, selecting Device => rp2350 is caught by the
+   --  Compile_Time_Error in src/pico_config_checks.ads.
+   for Source_Dirs use
+     ("gnat_config", "src",
+      --  RP2040's half of the 5 units the two devices disagree on.
+      Rts_Support_Pico.Rp2040_Dir,
+      Rts_Support_Pico.Src_Dir,
+      Rts_Core_Cortexm.Src_Dir,
+      Rts_Sources_Gcc15.Gnat_32_Dir,
+      Rts_Sources_Gcc15.Gnat_Semihosting_Dir,
+      Rts_Sources_Gcc15.Patched_Dir,
+      Rts_Sources_Gcc15.Gnat_Dir);
+
+   for Source_List_File use "runtime.gnat.lst";
+
+   package Naming is
+      for Spec_Suffix ("Asm_Cpp") use ".inc";
+   end Naming;
+
+   --  Runtime-only: -gnatg (internal GNAT implementation mode) and
+   --  -nostdinc (don't search the default RTS location). Kept out of
+   --  Target_Options.ALL_ADAFLAGS because applications reference that.
+   RTS_ADAFLAGS := Target_Options.ALL_ADAFLAGS & ("-gnatg", "-nostdinc");
+
+   package Compiler is
+      for Default_Switches ("Ada")     use RTS_ADAFLAGS;
+      for Default_Switches ("Asm_Cpp") use Target_Options.ALL_ASMFLAGS;
+
+      --  Carried over from the vendor light-tasking-rpi-pico runtime_build.gpr,
+      --  restricted to units actually in runtime.gnat.lst.
+      for Switches ("a-except.adb") use RTS_ADAFLAGS
+        & ("-g", "-O1", "-fno-inline", "-fno-toplevel-reorder");
+      for Switches ("a-tags.adb") use RTS_ADAFLAGS & ("-g");
+      for Switches ("s-assert.adb") use RTS_ADAFLAGS & ("-g");
+      for Switches ("s-macres.adb") use RTS_ADAFLAGS & ("-fno-inline");
+
+      for Switches ("system.ads") use RTS_ADAFLAGS
+        & ("-gnatet=" & Project'Project_Dir & "ada_target_properties");
+   end Compiler;
+
+   ------------------------------------------------------------------
+   --  Linker_Switches (mirrors rts-spikes/CONTRACT.md §3.7): -T/-L for the
+   --  single RP2040 memory map (no PolarFire-style Memory_Profile axis --
+   --  rts_support_pico/README.md).
+   ------------------------------------------------------------------
+   Linker_Switches :=
+     ("-L", Rts_Support_Pico.Ld_Dir,
+      "-T", "common-ROM.ld")
+     & ISA_Switches & ("-nostartfiles", "-nolibc");
+
+end Runtime_Build;

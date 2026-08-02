@@ -383,6 +383,7 @@ mpfs_config_checks.ads
 mpfs_runtime_config.ads
 newlib-bb.c
 raise-gcc.c
+rts_capabilities.ads
 s-addima.adb
 s-addima.ads
 s-addope.adb

@@ -1,0 +1,25 @@
+name = "hello_rp2040"
+description = "Example: hello world on Raspberry Pi RP2040 via light_tasking_pico"
+long-description = """
+Minimal application proving the four-crate composition
+(rts_sources_gcc15 / rts_core_cortexm / rts_support_pico /
+light_tasking_pico) links a real RP2040 image. Builds with the default
+Device => "rp2040" (the only value with populated sources in this toolchain).
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+executables = ["hello_rp2040"]
+
+[[depends-on]]
+light_tasking_pico = "*"
+
+[[pins]]
+light_tasking_pico = { path = "../light_tasking_pico" }
+
+#  Device defaults to "rp2040" (light_tasking_pico/alire.toml); restated here
+#  only for documentation, since it is the only populated value.
+[configuration.values]
+light_tasking_pico.Device = "rp2040"

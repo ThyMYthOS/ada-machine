@@ -1,0 +1,17 @@
+name = "rts_core_cortexm"
+description = "Tier 2: ARM Cortex-M architecture core (source-only)"
+long-description = """
+Tier 2 of the rts-spikes-rp2040 hierarchy: the ARM Cortex-M architecture core
+-- System.BB, System.BB.CPU_Primitives, System.BB.CPU_Specific and
+System.BB.Armv6m_Atomic. Source-only and never built by Alire (these units
+need -gnatg -nostdinc, the cross compiler and no runtime, a bootstrap cycle);
+a leaf crate compiles them. Sources are populated from an installed
+gnat_arm_elf 15.1.2 by ../populate.sh rather than vendored -- see README.md.
+"""
+version = "0.1.0-dev"
+licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
+authors = ["Free Software Foundation", "AdaCore"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+auto-gpr-with = false
+project-files = ["rts_core_cortexm.gpr"]

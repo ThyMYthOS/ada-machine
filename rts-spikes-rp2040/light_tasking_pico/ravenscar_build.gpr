@@ -1,0 +1,51 @@
+--  light_tasking_pico gnarl library. Mirrors rts-spikes/CONTRACT.md §3.4's
+--  correction: Source_Dirs must include "src" too -- s-bbpara.ads,
+--  s-taskin.ads, s-tpobop.*, s-tposen.* are leaf-owned units that exist only
+--  there.
+
+with "target_options.gpr";
+with "runtime_build.gpr";
+with "rts_sources_gcc15.gpr";
+with "rts_core_cortexm.gpr";
+with "rts_support_pico.gpr";
+
+project Ravenscar_Build is
+   for Languages use ("Ada");
+
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+   for Target use Runtime_Build'Target;
+
+   for Library_Name use "gnarl";
+   for Library_Kind use Runtime_Build'Library_Kind;
+   for Library_Dir use "adalib";
+   for Object_Dir use "obj";
+
+   for Source_Dirs use
+     ("src",
+      --  Tier 3 must be mounted here too: the board units it owns
+      --  (a-intnam.ads, s-bbbosu.adb/.ads) are gnarl-side.
+      Rts_Support_Pico.Rp2040_Dir,
+      Rts_Support_Pico.Src_Dir,
+      Rts_Core_Cortexm.Src_Dir,
+      --  Gnarl-side here, gnat-side for embedded: one shared directory,
+      --  membership decided per project (CONTRACT.md §7.17). The same
+      --  arrangement PolarFire uses, reached independently on ARM.
+      Rts_Sources_Gcc15.Restrictions_Dir,
+      Rts_Sources_Gcc15.Gnarl_Smp_Dir,
+      Rts_Sources_Gcc15.Gnarl_Dir);
+
+   for Source_List_File use "runtime.gnarl.lst";
+
+   package Compiler is
+      for Default_Switches ("Ada") use Target_Options.GNARL_ADAFLAGS
+        & ("-gnatg", "-nostdinc");
+
+      --  Always build System.BB.CPU_Primitives at -O2 -- some targets rely
+      --  on inline assembly whose constant-loading depends on compiler
+      --  behaviour not enabled at -O0 (carried over from the vendor
+      --  ravenscar_build.gpr).
+      for Switches ("s-bbcppr.adb") use Target_Options.GNARL_ADAFLAGS
+        & ("-gnatg", "-nostdinc", "-O2");
+   end Compiler;
+
+end Ravenscar_Build;

@@ -1,0 +1,45 @@
+--  Tier 1 (mirrors rts-spikes/CONTRACT.md §2): the shared libgnat/libgnarl
+--  source snapshot for arm-eabi. Source-only, never built by Alire -- these
+--  units need -gnatg -nostdinc, the cross compiler and no runtime, which is
+--  a bootstrap cycle. This project exists only to export source-directory
+--  paths; it has no sources of its own.
+--
+--  Project'Project_Dir already ends in a directory separator, so the
+--  concatenations below must not add one.
+
+abstract project Rts_Sources_Gcc15_Arm is
+
+   for Source_Dirs use ();
+
+   Gnat_Dir  := Project'Project_Dir & "libgnat";
+   Gnarl_Dir := Project'Project_Dir & "libgnarl";
+
+   --  Device-keyed overlay (README.md "Device axis"): two sqrt helpers,
+   --  System.Libm_Double.Squareroot (s-lidosq.adb) and
+   --  System.Libm_Single.Squareroot (s-lisisq.adb), differ between ARMv6-M
+   --  cores (RP2040's Cortex-M0+) and ARMv8-M cores (RP2350's Cortex-M33) --
+   --  measured directly against this toolchain's ten light-cortex-* runtimes:
+   --  light-cortex-m0p vs light-cortex-m33f differ in exactly these two files
+   --  out of 380. Everything else in tier 1 is content-identical across the
+   --  whole Cortex-M family, so ONE crate serves both devices with this pair
+   --  as the only overlay -- CONTRACT.md §7.16's "overlays are keyed by
+   --  content, not by profile name" applied to a DEVICE axis instead of a
+   --  PROFILE axis.
+   --
+   --  Only the rp2040/ARMv6-M side is populated: this toolchain ships no
+   --  RP2350 board runtime, so there is no source for Gnat_Armv8m_Dir. The
+   --  leaf's Device configuration variable still has an "rp2350" value (see
+   --  light_tasking_pico/alire.toml) so the shape is in place; selecting it
+   --  today fails the build with a missing-directory error rather than
+   --  silently compiling the wrong sqrt implementation.
+   Gnat_Armv6m_Dir := Project'Project_Dir & "libgnat-armv6m";
+
+   --  Declared (so a leaf's Device case-statement resolves at parse time)
+   --  but the directory is NOT populated -- no RP2350 source exists in this
+   --  toolchain. Selecting Device => "rp2350" therefore fails honestly, at
+   --  Source_Dirs resolution ("... is not a valid directory"), rather than
+   --  with an unknown-identifier error or, worse, silently reusing the
+   --  ARMv6-M sqrt implementation.
+   Gnat_Armv8m_Dir := Project'Project_Dir & "libgnat-armv8m";
+
+end Rts_Sources_Gcc15_Arm;

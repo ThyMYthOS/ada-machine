@@ -1,0 +1,26 @@
+with "runtime_build.gpr";
+with "target_options.gpr";
+with "config/hello_rp2040_config.gpr";
+
+project Hello_RP2040 is
+   --  Restated because gprbuild reads Target/Runtime only from the root
+   --  project, never from a withed dependency (mirrors rts-spikes' hello_mpfs).
+   for Target use Runtime_Build'Target;
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+
+   for Source_Dirs use ("src", "config");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Main use ("hello_rp2040.adb");
+
+   --  The ABI comes from the runtime crate, which derives it from Device.
+   --  Renaming rather than restating means the application cannot disagree
+   --  with the runtime about it (avrada_rts's / light_mpfs's pattern; only
+   --  the ROOT project's Builder is honoured, hence the rename here).
+   package Builder renames Target_Options.Builder;
+
+   package Linker is
+      for Switches ("Ada") use
+        Runtime_Build.Linker_Switches & ("-Wl,--gc-sections");
+   end Linker;
+end Hello_RP2040;

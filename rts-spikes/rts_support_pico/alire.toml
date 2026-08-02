@@ -1,0 +1,21 @@
+name = "rts_support_pico"
+description = "Tier 3: RP2040 board support -- startup, linker scripts"
+long-description = """
+Tier 3 of the rts-spikes-rp2040 hierarchy, mirroring rts-spikes/rts_support_mpfs:
+board support for the Raspberry Pi RP2040 -- the boot2 second-stage
+bootloader, the ROM entry point, the RP2040 peripheral register interfaces
+used at startup (clocks, PLL, resets, ROSC/XOSC, timer, watchdog, SIO,
+PSM), System.BB.Board_Parameters and System.BB.MCU_Parameters, and the
+common-ROM/memory-map linker scripts. Source-only and never built by Alire;
+populated from an installed gnat_arm_elf 15.1.2 (light-tasking-rpi-pico) by
+../populate.sh rather than vendored -- see README.md. Genuinely RP2040-only:
+this toolchain ships no RP2350 board runtime, so there is no RP2350 variant
+to overlay here (contrast rts_sources_gcc15, where the device axis lives).
+"""
+version = "0.1.0-dev"
+licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
+authors = ["Free Software Foundation", "AdaCore"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+auto-gpr-with = false
+project-files = ["rts_support_pico.gpr"]

@@ -59,6 +59,7 @@ light_mpfs_config.ads
 machcode.ads
 mpfs_config_checks.ads
 mpfs_runtime_config.ads
+rts_capabilities.ads
 s-addope.adb
 s-addope.ads
 s-aridou.adb

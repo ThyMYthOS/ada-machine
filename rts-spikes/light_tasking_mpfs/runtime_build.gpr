@@ -75,6 +75,7 @@ project Runtime_Build is
       Rts_Sources_Gcc15.Gnat_Light_Dir,
       Rts_Sources_Gcc15.Gnat_64_Dir,
       Rts_Sources_Gcc15.Gnat_Textio_Dir,
+      Rts_Sources_Gcc15.Patched_Dir,
       Rts_Sources_Gcc15.Gnat_Dir);
 
    --  This project's own membership (513 units): a disjoint partition of

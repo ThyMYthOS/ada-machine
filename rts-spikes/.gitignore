@@ -1,60 +1,40 @@
-# CONTRACT.md §1: runtime sources are copied by populate.sh, never committed
+#  OWNERSHIP RULE (CONTRACT.md §1): tier 1 tracks upstream; everything else is
+#  ours.
+#
+#  Only rts_sources_gcc15's populated directories are excluded, because they are
+#  a snapshot of the compiler's own sources that populate.sh reproduces and
+#  asserts against both toolchains. Tier 2, tier 3 and every leaf src/ are
+#  hand-owned: committed, editable, and never copied over. That is what lets a
+#  board file be fixed in place instead of being re-derived, and it retires the
+#  prune that three times deleted a correctly-listed hand-authored file.
 rts_sources_gcc15/libgnat/
 rts_sources_gcc15/libgnarl/
-*/obj/
-*/adalib/
-*/bin/
-*/alire/
-*/config/
-
-# gnat_config/ holds ONLY Alire-generated output, regenerated from
-# [configuration.variables] on every build. The hand-written
-# mpfs_runtime_config.ads shim lives in src/ precisely so that generated and
-# authored files are not mixed in one directory (CONTRACT.md §3.3).
-*/gnat_config/light_mpfs_config.*
-*/gnat_config/light_tasking_mpfs_config.*
-*/gnat_config/embedded_mpfs_config.*
-
-# Reference copies made by populate.sh from the installed toolchain
-*.upstream
-
-# Stray compiler output from verification probes
-*.ali
-*.o
-
-# Populated runtime sources are reproducible via populate.sh and not committed
-# (CONTRACT.md 1). The seven files we authored or deliberately edited ARE
-# deliverables, and populate.sh preserves them (FORCE_LEAF_SRC=1 to override).
-rts_core_riscv64/src/*.ad[bs]
-rts_core_riscv64/src/*.S
-rts_support_mpfs/src/*.ad[bs]
-rts_support_mpfs/src/*.S
-rts_support_mpfs/src/*.h
-light_mpfs/src/*.ad[bs]
-light_tasking_mpfs/src/*.ad[bs]
-embedded_mpfs/src/*.ad[bs]
-!rts_support_mpfs/src/mpfs_config_checks.ads
-!rts_support_mpfs/src/s-bbbopa.ads
-!rts_support_mpfs/src/s-bbbosu.ads
-!rts_support_mpfs/src/s-bbripl.ads
-!rts_support_mpfs/src/s-textio.ads
-!light_tasking_mpfs/src/s-bbpara.ads
-!embedded_mpfs/src/s-bbpara.ads
-
-# The renaming shim (CONTRACT.md §3.3) is hand-written and MUST be committed.
-# It needs an explicit negation now that it lives in src/: the patterns above
-# ignore src/*.ad[bs] wholesale. The three existing shims happen to stay
-# tracked because `git mv` kept them in the index -- git ignores .gitignore for
-# already-tracked files -- so without these lines a NEW leaf's shim would be
-# silently dropped instead of committed.
-!light_mpfs/src/mpfs_runtime_config.ads
-!light_tasking_mpfs/src/mpfs_runtime_config.ads
-!embedded_mpfs/src/mpfs_runtime_config.ads
-
-# Per-configuration runtime build outputs (CONTRACT.md 7.11)
-*/adalib-*/
-*/obj-*/
-
 rts_sources_gcc15/libgnat-*/
 rts_sources_gcc15/libgnarl-*/
 rts_sources_gcc15/librestrictions/
+
+#  ...except the bodies we own inside tier 1. These are the one deliberate
+#  exception to "tier 1 tracks upstream": merged variants of units upstream
+#  ships twice, carrying an in-body capability test instead of a directory pair
+#  (rts_sources_gcc15.gpr, Patched_Dir). They must be re-merged on a GCC bump.
+!rts_sources_gcc15/libgnat-patched/
+!rts_sources_gcc15/libgnat-patched/*.adb
+
+#  Build output.
+*/obj/
+*/obj-*/
+*/adalib/
+*/adalib-*/
+*/bin/
+*/alire/
+*/config/
+*.upstream
+*.ali
+*.o
+
+#  Alire regenerates gnat_config/ from [configuration.variables] on every build.
+#  The hand-written shims live in src/ so generated and authored files are never
+#  mixed in one directory (CONTRACT.md §3.3).
+*/gnat_config/light_mpfs_config.*
+*/gnat_config/light_tasking_mpfs_config.*
+*/gnat_config/embedded_mpfs_config.*

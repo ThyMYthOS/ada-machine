@@ -1,0 +1,9 @@
+#  Hand-authored leaf files that no populate list names. The prune in
+#  populate.sh deletes anything in a leaf's src/ that is neither populated nor
+#  listed here -- which is how pico_config_checks.ads was lost: it was authored,
+#  never committed, and absent from this list. Same defect as
+#  rts-spikes/CONTRACT.md 7.12, third occurrence. Add the file here FIRST, then
+#  write it.
+pico_runtime_config.ads
+pico_config_checks.ads
+rts_capabilities.ads
