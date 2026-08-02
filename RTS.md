@@ -51,6 +51,7 @@ Only the leaf is built. It owns `for Runtime ("Ada") use Project'Project_Dir`, t
 - ISA/ABI is a configuration variable, on both ARM and RISC-V ([A.16](#a16), [A.18](#a18)).
 - `runtime.xml` works, and is still better deleted — for a reason that has nothing to do with whether it works ([§5.4](#54-can-runtimexml-be-eliminated-in-favour-of-pure-gpr)).
 - Tier 1 is not a flat union: eighteen units differ in *content* between profiles, so one directory cannot serve all three ([A.23](#a23)).
+- Four mechanisms select between variants — directory, file, subunit, in-body constant. Use the finest the variation allows; a spec difference rules out all but the coarsest ([§5.5](#55-four-ways-to-select-between-variants-and-what-each-cannot-express), [A.24](#a24)).
 
 **What is not settled.** [§8](#8-open-problems) lists the open problems. The two that would bite first: no way for a `with`ed project to force switches on its dependents, so an application must opt in by convention; and the shared snapshot needs a real versioning story against FSF GCC releases.
 
@@ -165,6 +166,10 @@ So three mechanisms, each for one job, and they are not interchangeable:
 | which units are compiled **into** the library | `Source_List_File` | file |
 
 The list makes the runtime's unit set a reviewable manifest, and a typo becomes a missing source rather than a quietly different one. The first row is the one that bites, precisely because it is silent: get the order wrong, or leave a stale file where a variant should be, and you compile different text with no diagnostic at all ([A.23](#a23)). That is also why a populate step must **prune** rather than merely copy.
+
+A third property of `Source_List_File` is easy to miss and turns out to be load-bearing: **a unit that is present on the source path but named by no list is inert.** It is not compiled, not in the library, and costs nothing. That is what lets one directory serve two profiles, or even two different *libraries*, with membership decided per project rather than by where the file sits.
+
+These are the GPR mechanisms. Ada adds two more that operate below file granularity — see [§5.5](#55-four-ways-to-select-between-variants-and-what-each-cannot-express).
 
 **Which means: to establish what a runtime actually contains, read the `.ali` files.** Nothing in the project files is evidence. `Source_Dirs` records where gprbuild *looked*; `Source_List_File` records what it was *allowed* to select; neither says which file was compiled, and the rule above guarantees that a wrong answer is silent. Each `.ali` in `adalib/` carries a `U` line naming its unit, `D` lines naming **every source it depended on, with timestamp and checksum**, and `A` lines giving the exact switches including `--RTS=`. The list of `.ali` files *is* the unit set; the `D` lines *are* the provenance. Treat the `Source_List_File` as the claim and the `.ali` set as the evidence — this document reached two wrong conclusions by inspecting a candidate source instead of the compiled artifact ([A.22](#a22), [A.23](#a23)).
 
@@ -571,6 +576,79 @@ ld: libgnat.a(a-elchha.o): can't link soft-float modules with double-float modul
 ```
 
 The residual exposure is narrower than stated before: it applies only where the intended ISA coincides with the compiler default *and* no float-ABI difference exists to disagree about — in which case the wrong build is also, by construction, the right one. What remains genuinely missing from GPR is any way for a *withed* project to contribute required switches to its dependents; the `Builder` rename is a convention, and a convention is still forgettable.
+
+### 5.5 Four ways to select between variants, and what each cannot express
+
+A runtime carries the same unit in several forms — per profile, per word size,
+per console, per FPU. Four mechanisms choose between them, and they differ in
+*granularity*, which is what decides whether a given variation can use them at
+all:
+
+| Mechanism | Granularity | Chooses by | Cannot express |
+|---|---|---|---|
+| `Source_Dirs` order / per-variant directories | **directory** | which directory is mounted | nothing, but duplicates the whole unit |
+| `Source_List_File` | **file** | membership, per project | content differences — it names basenames |
+| `separate` (subunits) | **subprogram** | which directory holds the subunit | anything in a **spec** |
+| static test in the body | **expression** | a compile-time constant | variation the unit cannot see a constant for |
+
+Reach for the finest one the variation allows. A directory pair duplicates an
+entire unit to vary a line; a subunit duplicates one subprogram; an in-body test
+duplicates nothing.
+
+**`separate` splits a body across files.** It is idiomatic in this codebase
+rather than exotic: twelve units in a populated PolarFire tree are subunits,
+including `s-bbsuti.adb` (`separate (System.BB.Board_Support)`) and
+`s-dorepr.adb` (`separate (System.Double_Real)`). The second is instructive —
+its parent spec is in the shared snapshot and only the 97-to-172-line subunit
+varies, so upstream has already applied the technique to one of the units that
+differs by word size.
+
+Its limit is exact: **subunits exist for bodies, not specs.** Measured across
+the six units that vary between `light` and `embedded`, five vary in the spec
+and only one — `s-assert.adb`, with a shared spec and eight differing lines —
+could use it.
+
+`a-strsup` shows why that limit bites hardest where the prize is largest. Its
+spec and body total ~5000 lines and differ by **23**, and every one of those
+lines is `Put_Image`: a `with Ada.Strings.Text_Buffers`, the aspect
+`Put_Image => Put_Image` on the type, a procedure declaration, and an eleven-line
+body. The body is a textbook subunit candidate. The spec is not: you cannot stub
+out a subprogram the light spec never declares, and an aspect cannot be
+conditional. Ada offers nothing below file granularity for a spec, so ~5000 lines
+stay duplicated to vary 23. Upstream's own comment states the reason — *"This
+version of this package does not specify the Put_Image aspect… needed for runtime
+configurations that do not include package Ada.Strings.Text_Buffers."*
+
+**A static test in the body selects with no extra file at all.** Upstream already
+does this too, in `s-lisisq.adb`:
+
+```ada
+if Standard'Target_Name = "powerpc-elf" then
+   System.Machine_Code.Asm ("frsqrte %0,%1", ...);   --  a PowerPC FPU instruction
+else
+   ...                                               --  software estimate
+end if;
+```
+
+Two things make this safe, and both were checked rather than assumed. The branch
+is folded in the **front end**, not by the optimiser: the same unit compiles for a
+soft-float target at `-O0` without the `frsqrte` asm ever reaching the assembler.
+And a capability supplied as a **static Boolean** folds more reliably than
+upstream's version does — equality on an enumeration is RM-static, whereas
+whole-string equality is not ([§5.2](#52-derive-in-ada-not-in-the-generator))
+and merely happens to be folded here.
+
+The in-body test is the only mechanism with *per-file* reach, which matters more
+than it sounds. A Cortex-M4F or Cortex-M33 has single-precision hardware square
+root but not double, so the single-precision unit wants the hardware path while
+the double-precision one wants software. Two constants in two bodies say that
+directly; a directory pair cannot, because it selects both units together.
+
+Its cost is the mirror image of `separate`'s: the constant has to be **visible**
+to the unit that tests it. A unit shared between targets cannot `with` a
+per-target configuration package, so it needs one stable name every leaf
+provides — and if the unit is `Pure`, that package must be `Pure` too. Where the
+variation is one subprogram and a spec is already shared, `separate` asks less.
 
 ## 6. The proposed hierarchy
 
@@ -992,3 +1070,21 @@ Structure that works, measured on the three PolarFire profiles: a common `libgna
 Note how few overlays that is — two, not one per profile. An overlay is only needed to resolve a **content disagreement under one basename**. Units that merely differ in *which profile compiles them*, or in which *library* claims them, need none: `Source_List_File` decides membership per project, and a unit present on the source path but named by no list is inert. Both corollaries were measured: light and light-tasking turned out to want byte-identical content and now share one overlay, and a would-be `libgnarl-light-tasking` (three units that embedded files gnat-side instead) folded into the common directory with all four applications rebuilding byte-identically.
 
 Corollary: a populate step must **prune**, not merely copy. A file left from an earlier layout stays visible, so copying alone is not idempotent. → [§4](#4-where-each-axis-falls), [§7](#7-honest-assessment-which-boundaries-pay).
+
+<a id="a24"></a>
+**A.24 — How much do the duplicated units actually differ, and which mechanism can factor it out?** Measured on the six `libgnat` units that vary between `light` and `embedded` in a populated PolarFire tree, counting changed lines against the combined size of both variants:
+
+| unit | light | embedded | changed | spec varies? | `separate` usable |
+|---|---|---|---|---|---|
+| `a-strsup.adb` | 2272 | 2283 | **11** | — | — |
+| `a-strsup.ads` | 2729 | 2731 | **12** | yes | no |
+| `s-assert.adb` | 45 | 47 | 8 | **no** | **yes** |
+| `a-elchha.adb` | 86 | 64 | 62 | yes | no |
+| `a-tags.adb` | 130 | 1074 | 958 | yes | no |
+| `a-except.adb` | 99 | 1942 | 1943 | yes | no |
+
+Two results. First, duplication and divergence are unrelated: `a-except` and `a-tags` are genuinely different implementations (79–95% changed), while `a-strsup` holds ~5000 lines twice to vary 23. Second, **`separate` is applicable to one of the six**, because five vary in the *spec* and subunits exist only for bodies.
+
+The `a-strsup` diff is entirely the Ada 2022 `Put_Image` chain — a `with`, an aspect on the type, a declaration, and an eleven-line body. That is also [A.23](#a23) from a third angle: the union build failed on *content*, and here is the content.
+
+Supporting measurements: twelve units in the same tree are already subunits, among them `s-bbsuti.adb` and `s-dorepr.adb`, whose parent spec sits in the shared snapshot while only its subunit varies by word size. And the in-body alternative was checked for robustness rather than assumed — a soft-float RISC-V build of `s-lisisq.adb` at `-O0` compiles cleanly, so the `Standard'Target_Name` branch guarding a PowerPC `frsqrte` instruction is eliminated by the front end and not by the optimiser. → [§5.5](#55-four-ways-to-select-between-variants-and-what-each-cannot-express)
