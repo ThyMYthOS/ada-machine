@@ -199,8 +199,8 @@ Two limits shape everything downstream:
 
 ## 3. The boundary rule
 
-> **Separate crate** when the variation changes the dependency graph or the exported API.
-> **Configuration variable** when it changes only numbers, addresses, or which sources are selected behind a fixed interface.
+> - **Separate crate** when the variation changes the dependency graph or the exported API.
+> - **Configuration variable** when it changes only numbers, addresses, or which sources are selected behind a fixed interface.
 
 Applied as three tests, in order:
 
