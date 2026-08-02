@@ -31,8 +31,15 @@
 TOOLCHAIN := $(firstword $(wildcard $(HOME)/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_*/bin))
 SIZE      := $(TOOLCHAIN)/riscv64-elf-size
 READELF   := $(TOOLCHAIN)/riscv64-elf-readelf
+ARM_TC      := $(firstword $(wildcard $(HOME)/.local/share/alire/toolchains/gnat_arm_elf_15.1.2_*/bin))
+ARM_SIZE    := $(ARM_TC)/arm-eabi-size
+ARM_READELF := $(ARM_TC)/arm-eabi-readelf
 
-APPS := hello_mpfs clock_switch_e51 tasking_mpfs embedded_app
+#  Two targets now live side by side, so each application carries its own
+#  inspection toolchain: riscv64-elf for the PolarFire leaves, arm-eabi for the
+#  Pico one. There is nothing else target-specific in this file.
+APPS     := hello_mpfs clock_switch_e51 tasking_mpfs embedded_app
+ARM_APPS := hello_rp2040
 
 #  The two AMP partitions in this spike: an E51 monitor (soft-float, Harts_Mask
 #  = 1) and a U54 application (hard-float, Harts_Mask = 2), both pinning the
@@ -62,11 +69,11 @@ populate:
 	@sh populate.sh
 
 build: populate
-	@set -e; for a in $(APPS); do \
+	@set -e; for a in $(APPS) $(ARM_APPS); do \
 	  printf '==> %s\n' "$$a"; \
 	  ( cd "$$a" && alr -n build >/dev/null ) || { echo "FAILED: $$a"; exit 1; }; \
 	done
-	@echo "all $(words $(APPS)) applications built"
+	@echo "all $(words $(APPS) $(ARM_APPS)) applications built"
 
 verify:
 	@printf '%-18s %-8s %-9s %-11s %s\n' APP TEXT BSS ENTRY FLOAT
@@ -78,6 +85,15 @@ verify:
 	  ar=$$($(READELF) -A "$$e" | awk -F'"' '/Tag_RISCV_arch/{print $$2}'); \
 	  case "$$ar" in *_f*_d*) fl=hard ;; *) fl=soft ;; esac; \
 	  printf '%-18s %-8s %-9s %-11s %s\n' "$$a" "$$t" "$$b" "$$en" "$$fl"; \
+	done
+
+	@set -e; for a in $(ARM_APPS); do \
+	  e="$$a/bin/$$a"; [ -f "$$e" ] || { printf '%-18s (not built)\n' "$$a"; continue; }; \
+	  t=$$($(ARM_SIZE) "$$e" | awk 'NR==2{print $$1}'); \
+	  b=$$($(ARM_SIZE) "$$e" | awk 'NR==2{print $$3}'); \
+	  en=$$($(ARM_READELF) -h "$$e" | awk '/Entry point/{print $$4}'); \
+	  ar=$$($(ARM_READELF) -A "$$e" | awk -F: '/Tag_CPU_arch:/{print $$2}' | tr -d ' '); \
+	  printf '%-18s %-8s %-9s %-11s %s\n' "$$a" "$$t" "$$b" "$$en" "$$ar"; \
 	done
 
 #  Build both partitions, then do the check no single link can do: compare the
@@ -109,6 +125,6 @@ amp: populate
 	    sys.exit(1 if bad else 0)' $(READELF) $(AMP_PARTITIONS)
 
 clean:
-	@for a in $(APPS); do rm -rf "$$a/obj" "$$a/bin"; done
+	@for a in $(APPS) $(ARM_APPS); do rm -rf "$$a/obj" "$$a/bin"; done
 	@rm -rf */adalib-* */obj-* */obj-gnarl-*
 	@echo "build output removed (populated sources kept; use git clean -fdx for those)"

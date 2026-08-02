@@ -11,26 +11,60 @@ Target: PolarFire SoC, `riscv64-elf`, per [../RTS-POLARFIRE.md](../RTS-POLARFIRE
 ```
 rts-spikes/
 ├── CONTRACT.md              this file
-├── Makefile                 populate + build
-├── populate.sh              copies runtime sources from the installed toolchain
+├── Makefile                 populate, build, verify, amp — all five apps
+├── populate.sh              TIER 1 ONLY; everything else is owned (§1)
 ├── lists/                   partition provenance (generated, committed)
-├── rts_sources_gcc15/       tier 1 — source-only
-├── rts_core_riscv64/        tier 2 — source-only
-├── rts_support_mpfs/        tier 3 — source-only
-├── light_mpfs/              leaf — buildable
-├── light_tasking_mpfs/      leaf — buildable
-├── embedded_mpfs/           leaf — buildable
+│
+├── rts_sources_gcc15/       tier 1 — populated, shared by BOTH targets
+├── rts_core_riscv64/        tier 2 — owned    riscv64-elf
+├── rts_core_cortexm/        tier 2 — owned    arm-eabi
+├── rts_support_mpfs/        tier 3 — owned    PolarFire SoC
+├── rts_support_pico/        tier 3 — owned    RP2040 + RP2350
+│
+├── light_mpfs/              leaf — riscv64-elf, light
+├── light_tasking_mpfs/      leaf — riscv64-elf, light-tasking
+├── embedded_mpfs/           leaf — riscv64-elf, embedded
+├── light_tasking_pico/      leaf — arm-eabi,   light-tasking
 ├── mpfs_system/             generated system description (stand-in)
-└── hello_mpfs/              example application
+│
+└── hello_mpfs/ clock_switch_e51/ tasking_mpfs/ embedded_app/ hello_rp2040/
+                             applications
 ```
 
-**The runtime sources are NOT committed.** Tier 1 alone is 963 + 86 units (~6 MB) of FSF/AdaCore code. Instead each source crate commits a **file list** and `populate.sh` copies the named files out of the installed toolchain. Consequences:
+**Two targets, one tree.** There was a separate `rts-spikes-rp2040/` while the
+ARM work was exploratory; it is gone. Tier 1 is shared (§7.19), tier 2 and
+tier 3 are per-target/per-family, and the leaves sit alongside each other. The
+ownership rule is what makes that flat layout workable: only tier 1 is
+reproduced from upstream, so nothing else needs a per-spike populate script.
 
-- `make populate` is a prerequisite for any build. A fresh clone does not build.
-- The lists are the reviewable artifact — the same role [RTS.md §2.1](../RTS.md#21-gpr-source-resolution) gives `Source_List_File`.
-- A *published* crate would vendor the sources. This is a spike-only shortcut, and it must be stated in each source crate's `README.md`.
+**TIER 1 TRACKS UPSTREAM; EVERYTHING ELSE IS OURS.** This is the ownership rule
+the whole layout follows.
 
-Do not commit anything under `*/libgnat/`, `*/libgnarl/` or `*/src/` in the three source crates; `.gitignore` already excludes them.
+*Tier 1 is not committed.* It is ~1050 units of FSF/AdaCore code that is a
+snapshot of the compiler's own sources, so `rts_sources_gcc15` commits **file
+lists** and `populate.sh` copies the named files out of the installed
+toolchains — both of them, since the crate serves two targets — and asserts
+that the two agree ([§7.19](#719-one-tier-1-crate-serves-more-than-one-target)).
+Consequences: `make populate` is a prerequisite, a fresh clone does not build,
+and the lists are the reviewable artifact — the role
+[RTS.md §2.1](../RTS.md#21-gpr-source-resolution) gives `Source_List_File`.
+
+*Everything below tier 1 is committed and hand-editable.* Tier 2, tier 3 and
+every leaf `src/` are ours: no populate step, no prune, no no-clobber rule. Two
+things follow that are worth stating, because both were bought with pain:
+
+- A board file can be **fixed in place** rather than re-derived. The RP2350 half
+  of `rts_support_pico` came from a published crate rather than a toolchain,
+  which under "populate everything" was a second kind of upstream with nothing
+  to assert it against; owned, it is simply ours.
+- The leaf prune is **gone**, and with it the defect that deleted a
+  correctly-listed hand-authored file three times
+  ([§7.12](#712-a-new-unit-must-be-added-to-the-membership-lists-or-it-is-dead-code)).
+  Removing the mechanism beat adding a fourth guard to it.
+
+The one exception, marked as such: `rts_sources_gcc15/libgnat-patched/` holds
+bodies we own *inside* the tier that syncs. `.gitignore` excludes tier 1's
+populated directories and re-admits exactly that one.
 
 ---
 
@@ -61,7 +95,9 @@ project-files = ["<crate>.gpr"]
 |---|---|---|
 | `rts_sources_gcc15` | `Rts_Sources_Gcc15` | `Gnat_Dir`, `Gnarl_Dir` |
 | `rts_core_riscv64` | `Rts_Core_Riscv64` | `Src_Dir` |
+| `rts_core_cortexm` | `Rts_Core_Cortexm` | `Src_Dir` |
 | `rts_support_mpfs` | `Rts_Support_Mpfs` | `Src_Dir`, `Ld_Dir` |
+| `rts_support_pico` | `Rts_Support_Pico` | `Src_Dir`, `Rp2040_Dir`, `Rp2350_Dir` |
 
 ```ada
 abstract project Rts_Core_Riscv64 is
@@ -805,3 +841,39 @@ read from a linked ELF whose attributes `ld` had merged across all inputs. In
 both cases the `.ali` would have given the answer immediately. For a
 certification reader asking "show me exactly what is in this runtime", the
 `Source_List_File` is the *claim* and the set of `.ali` files is the *evidence*.
+
+### 7.19 One tier-1 crate serves more than one target
+
+`rts_sources_gcc15` is shared by `arm-eabi` and `riscv64-elf`. It was two crates
+until measurement: of the units the two toolchains have in common, **339 of 343
+libgnat and 66 of 67 libgnarl are byte-identical**. The snapshot is keyed to the
+GCC release, not to the target — which is consistent with the crate depending on
+no compiler crate at all (each leaf declares its own).
+
+Three mechanisms carry the difference, in increasing cost:
+
+1. **Membership.** A unit only one target compiles needs no overlay and no copy:
+   it sits in the common directory and the other target's `Source_List_File`
+   simply never names it, which is inert ([§7.17](#717-one-directory-may-feed-two-different-libraries)).
+   That covers 122 of the 136 RISC-V-only units — 128-bit integer and
+   packed-array support a 32-bit target cannot use.
+2. **Overlay pairs**, where two targets genuinely disagree on one basename.
+   Neither member sits in a common directory and a leaf mounts exactly one:
+   `libgnat-32`/`libgnat-64` (word size), `libgnat-textio`/`libgnat-semihosting`
+   (console), `libgnarl-sp`/`libgnarl-smp` (multiprocessor support).
+3. **An in-body test**, where the variation is per-file rather than per-target —
+   `libgnat-patched`, see [§7.16](#716-overlays-are-keyed-by-content-not-by-profile-name)
+   and the Patched_Dir comment in `rts_sources_gcc15.gpr`.
+
+**Board units belong to tier 3, never here.** `s-bbbosu.*`, `a-intnam.ads`,
+`s-macres.*` and `s-textio.*` were in tier 1 *and* in tier 3 for PolarFire,
+resolved silently by `Source_Dirs` order. The merge exposed it by making an ARM
+build compile PolarFire's Board_Support and fail on `System.Bb.Riscv_Plic is not
+a predefined library unit`. `populate.sh` asserts both halves — the gnarl guard
+was missing at first, and that is exactly where the duplication hid.
+
+**The guards are the point.** Four `assert_identical` calls run on every
+populate: libgnat and libgnarl across targets, libgnat-light across profiles,
+and librestrictions across the library split. Sharing is a measured fact about
+one toolchain, not a guarantee; when a compiler release breaks it, the populate
+fails with instructions rather than a silently wrong build.
