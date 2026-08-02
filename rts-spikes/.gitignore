@@ -38,3 +38,6 @@ rts_sources_gcc15/librestrictions/
 */gnat_config/light_mpfs_config.*
 */gnat_config/light_tasking_mpfs_config.*
 */gnat_config/embedded_mpfs_config.*
+*/gnat_config/light_pico_config.*
+*/gnat_config/light_tasking_pico_config.*
+*/gnat_config/embedded_pico_config.*
