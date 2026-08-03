@@ -223,11 +223,11 @@ So the thing you most want to express about profiles is a capability floor, and 
 
 | Tier | Crate | Holds | Buildable | Verdict |
 |---|---|---|---|---|
-| 0 | `gnat_arm_elf`, `gnat_riscv64_elf` | the cross compiler | binary | — |
+| 0 | `gnat_arm_elf`<br/>`gnat_riscv64_elf` | the cross compiler | binary | — |
 | 1 | `rts_sources_gcc15` | the ~400-unit `libgnat`/`libgnarl` snapshot | **no** | **pays** |
 | 2 | `rts_core_cortexm` | `CPU_Primitives` + context-switch asm | **no** | barely — consider folding into tier 1 |
 | 3 | `rts_support_<family>` | board support, startup, vectors, linker scripts, register subset | **no** | **pays** |
-| leaf | `light_tasking_<family>` | manifest, knobs, metadata, the library projects | **yes** | pays, and must stay thin |
+| leaf | `light_<family>`<br/>`light_tasking_<family>`<br/>`embedded_<family>` | manifest, knobs, metadata, the library projects | **yes** | pays, and must stay thin |
 
 **Tier 1 pays clearly.** One version axis (the compiler), one licence, one provenance — and ~400 units that are otherwise vendored into every single runtime crate, dozens of times over across an index.
 
