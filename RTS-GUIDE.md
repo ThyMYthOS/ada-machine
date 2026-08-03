@@ -14,27 +14,43 @@ The design is not hypothetical. Every mechanism it uses is either in production 
 
 **One rule decides every boundary question:**
 
-> **Separate crate** when the variation changes the dependency graph or the exported API.
-> **Configuration variable** when it changes only numbers, addresses, or which sources are selected behind a fixed interface.
+> - **Separate crate** when the variation changes the dependency graph or the exported API.
+> - **Configuration variable** when it changes only numbers, addresses, or which sources are selected behind a fixed interface.
 
 **Four things are crates. Everything else is a knob.**
 
-| Crate | Configuration variable |
-|---|---|
-| the target (`arm-eabi`, `riscv64-elf`) — it is a different compiler | device / MCU |
-| the runtime profile (`light`, `light-tasking`, `embedded`) | board |
-| the device-support family (one SoC or MCU series) | **ISA / ABI** — the counterintuitive one |
-| the shared `libgnat`/`libgnarl` source snapshot | memory map, clocks, stack sizes, console, SMP |
+<div style="display: flex;"><div style="flex: 1;">
 
-**The shape.** Three source-only crates and one buildable crate:
+**Crate**
 
-```
-gnat_arm_elf ─────┐   (tier 0: the cross compiler, a binary crate)
-rts_sources_gcc15 ┤   (tier 1: the ~400-unit libgnat/libgnarl snapshot)
-rts_support_<fam> ┤   (tier 3: board support, startup, linker scripts)
-                  └─► light_tasking_<fam>   ◄── the ONLY buildable crate
-                                            │   owns Runtime("Ada"), the knobs, adalib/
-                                            └─► your application
+- the **target** — `arm-eabi`, `riscv64-elf`; it is a different compiler
+- the runtime **profile** — `light`, `light-tasking`, `embedded`
+- the device-support **family** — one SoC or MCU series
+- the shared `libgnat`/`libgnarl` snapshot
+</div><div style="flex: 1;border-left: 1px;">
+
+**Configuration**
+
+- device / MCU
+- board
+- **ISA / ABI** — the counterintuitive one
+- memory map, clocks, stack sizes, console, SMP
+</div></div>
+
+**The shape.** Three source-only crates feeding one buildable crate:
+
+```mermaid
+graph TD
+    TC["gnat_arm_elf<br/><i>tier 0 — binary, the cross compiler</i>"]
+    SRC["rts_sources_gcc15<br/><i>tier 1 — source-only, the ~400-unit libgnat/libgnarl snapshot</i>"]
+    BOARD["rts_support_&lt;family&gt;<br/><i>tier 3 — source-only, board support, startup, ld/</i>"]
+    LEAF["light_tasking_&lt;family&gt;<br/><b>the only buildable crate</b><br/>owns Runtime(&quot;Ada&quot;), the knobs, adalib/"]
+    APP["your application<br/><i>sets [configuration.values]</i>"]
+
+    TC --> LEAF
+    SRC --> LEAF
+    BOARD --> LEAF
+    LEAF -->|"provides gnat_rts_tasking"| APP
 ```
 
 **Each bb-runtimes mechanism has exactly one replacement:**
@@ -102,8 +118,7 @@ This surprises people, so it is worth stating early: a published runtime crate c
 
 That is not a clever trick — it is what the ecosystem already does.
 
-> **Why a library project, and not just extra source directories in the application?**
-> Because the runtime needs a different compilation régime than application code: `-gnatg` (internal GNAT implementation mode), `-nostdinc`, its own `Global_Configuration_Pragmas`, and per-unit switch overrides — `a-except.adb` at `-O1 -fno-inline`, `s-macres.adb` at `-fno-inline`, `system.ads` with `-gnatet=`. None of that may leak onto application units. The library is a build product; only its recipe is shipped.
+> **Why a library project, and not just extra source directories in the application?** Because the runtime needs a different compilation régime than application code: `-gnatg` (internal GNAT implementation mode), `-nostdinc`, its own `Global_Configuration_Pragmas`, and per-unit switch overrides — `a-except.adb` at `-O1 -fno-inline`, `s-macres.adb` at `-fno-inline`, `system.ads` with `-gnatet=`. None of that may leak onto application units. The library is a build product; only its recipe is shipped.
 >
 > Two consequences to plan for. The first build of any application pays for the whole runtime. And `adalib/`/`obj/` land *inside the Alire dependency cache* — the build writes into what is otherwise a read-mostly directory.
 
@@ -137,8 +152,8 @@ So `ada_source_path` is not only a bind-time file, and an incomplete one can fai
 
 ## 2. The boundary rule
 
-> **Separate crate** when the variation changes the dependency graph or the exported API.
-> **Configuration variable** when it changes only numbers, addresses, or which sources are selected behind a fixed interface.
+> - **Separate crate** when the variation changes the dependency graph or the exported API.
+> - **Configuration variable** when it changes only numbers, addresses, or which sources are selected behind a fixed interface.
 
 Apply it as three tests, in order:
 
