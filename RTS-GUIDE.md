@@ -466,7 +466,15 @@ pragma Compile_Time_Error
    "XOSC_Frequency is ignored unless Board is generic_board");
 ```
 
-> **Two traps in `Compile_Time_Error` itself.** The condition must be a **flat, independent, named scalar constant** — an indexed or selected non-static expression silently never fires, which is a check that looks like assurance and is not. And the unit holding it must be named in the leaf's `Source_List_File`, or it is never compiled at all ([§6.2](#62-source_list_file-decides-membership)).
+> **Three traps in `Compile_Time_Error` itself.**
+>
+> 1. **A non-static condition makes the check vanish, with no diagnostic at all** — not under `-gnatwa`, `-gnatw.a`, `-gnatwe`, `-gnatv` or `-gnatVa`. A check that looks like assurance and is not. **Record-component selection always does this**: `Windows (A).Base = Windows (B).Base` is silent because of the `.Base`.
+> 2. **Which forms fold is not intuitive, so do not rely on it.** Measured single-file with `-gnatc`, no build system: a single index into a one-dimensional *scalar* array (`W (1) = W (2)`) **does** fire, GNAT folding more than the RM requires — but two-dimensional (`M (1,1)`) and chained (`M (1)(1)`) indexing are silent, like selection. The safe rule is therefore stronger than the mechanism: **every quantity feeding a check must be a flat, independent, named scalar constant.** Build any nicer aggregate view separately, for ordinary non-static consumption.
+> 3. **The unit holding the pragma must be named in the leaf's `Source_List_File`**, or it is never compiled and every check in it is dead ([§6.2](#62-source_list_file-decides-membership)).
+>
+> **One mitigation turns trap 1 from silence into a diagnostic**, and it is worth taking: put `pragma Pure` (or `Preelaborate`) on the **check-holding unit itself**. Preelaboration legality then rejects the same condition outright — `non-static constant in preelaborated unit`, `static expression must have scalar or string type (RM 4.9(2))`. Under `-gnatg`, as a runtime unit is compiled, those become default-on *warnings* instead, which `-gnatwe` promotes back to errors. Note the precision: merely `with`ing a `Pure` package does nothing — the unit carrying the pragma must be `Pure`.
+>
+> Whatever you do, **deliberately break at least two checks and confirm each reports *your* message.** An unexercised check reads as assurance.
 
 ### 5.5 The three device/board levels
 

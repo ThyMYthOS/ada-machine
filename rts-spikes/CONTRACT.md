@@ -377,9 +377,63 @@ pragma Compile_Time_Error (A_Base = B_Base, "FLAT");                         -- 
 pragma Compile_Time_Error (Windows (A).Base = Windows (B).Base, "INDEXED");  --  SILENT
 ```
 
-Indexing an array constant or selecting a record component makes the condition non-static. GNAT does not diagnose the mistake — no error, no warning, even under `-gnatwa`. The check simply never fires.
+**Re-verified in isolation**, because the two build defects recorded in
+[§7.11](#711-per-configuration-output-directories--a-path-pin-workaround-only)
+and [§7.12](#712-a-new-unit-must-be-added-to-the-membership-lists-or-it-is-dead-code)
+produce the same symptom for unrelated reasons and could have been the real
+cause. They were not: single-file `riscv64-elf-gcc -c -gnatc`, a fresh output
+directory per case, no gprbuild and no `alr`, so there was no prior object to
+reuse and no membership list to omit the unit from. The `SILENT` above
+reproduces. **Staticness is the correct explanation.**
 
-So: **every quantity feeding a check must be a flat, independent named scalar constant.** Build any nicer aggregate view separately, for ordinary non-static consumption. And after writing checks, deliberately break at least two and confirm each reports *your* message — an unexercised check is worse than none, because it reads as assurance.
+The same experiment shows the old wording here was **too broad**, and the
+correction matters because it names the wrong culprit:
+
+| Condition form | Result |
+|---|---|
+| two flat named numbers / typed constants | fires |
+| static enumeration equality | fires |
+| `W (1) = W (2)` — one index into a 1-D **scalar** array | **fires** — GNAT folds more than the RM requires |
+| `M (1,1)` two-dimensional, `M (1)(1)` chained | **silent** |
+| `R1.Base = R2.Base` — any record-component selection | **silent** |
+| `Windows (A).Base = Windows (B).Base` | **silent — because of the `.Base`, not the indexing** |
+
+No diagnostic accompanies any silent case under `-gnatwa`, `-gnatw.a`,
+`-gnatwe`, `-gnatv` or `-gnatVa`, and `pragma Compile_Time_Warning` behaves
+identically — the two pragmas share one staticness mechanism and differ only in
+severity.
+
+So the rule stays **stronger than the mechanism**, deliberately: **every quantity
+feeding a check must be a flat, independent named scalar constant.** Which
+indexed forms happen to fold is not something to build on. Build any nicer
+aggregate view separately, for ordinary non-static consumption. And after writing
+checks, deliberately break at least two and confirm each reports *your* message —
+an unexercised check is worse than none, because it reads as assurance.
+
+**A mitigation that converts the silence into a diagnostic**, measured in the
+same run and **not yet applied here**: if the *check-holding unit itself* carries
+`pragma Pure` or `pragma Preelaborate`, preelaboration legality rejects the
+non-static condition outright —
+
+```
+error: non-static constant in preelaborated unit
+error: static expression must have scalar or string type (RM 4.9(2))
+```
+
+— and under `-gnatg`, which is how a runtime unit is compiled, those become
+default-on *warnings* that `-gnatwe` would promote back to errors. The precision
+matters: merely `with`ing a `Pure` package does **not** do this.
+`mpfs_config_checks.ads` only withs one (`MPFS_Runtime_Config` →
+`Light_Mpfs_Config`, which Alire generates as `Pure`) and is not itself `Pure`,
+so it currently sits in the fully-silent case. Making it `Pure` would enforce the
+flat-constant discipline above mechanically instead of by convention.
+
+Two things confirmed live in the tree while checking this, so neither §7.11 nor
+§7.12 is currently biting: `mpfs_config_checks.ads` **is** named in
+`light_mpfs/light.lst`, and the `e51` and `u54` `adalib-<tag>` directories each
+hold their own `mpfs_config_checks.ali` whose `D` lines carry *different*
+`light_mpfs_config.ads` checksums — proof each was compiled against its own
+generated configuration rather than reusing the other's object.
 
 ### 7.5 Leaves need explicit dependencies and pins
 
