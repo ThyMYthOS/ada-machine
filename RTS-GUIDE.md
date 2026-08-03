@@ -37,21 +37,27 @@ The design is not hypothetical. Every mechanism it uses is either in production 
 - memory map, clocks, stack sizes, console, SMP
 </div></div>
 
-**The shape.** Three source-only crates feeding one buildable crate:
+**The shape.** One binary crate, up to three source-only crates, and exactly one buildable crate:
 
 ```mermaid
 graph TD
     TC["gnat_arm_elf<br/><i>tier 0 — binary, the cross compiler</i>"]
-    SRC["rts_sources_gcc15<br/><i>tier 1 — source-only, the ~400-unit libgnat/libgnarl snapshot</i>"]
-    BOARD["rts_support_&lt;family&gt;<br/><i>tier 3 — source-only, board support, startup, ld/</i>"]
+    SRC["rts_sources_gcc15<br/><i>tier 1 — source-only<br/>the ~400-unit libgnat/libgnarl snapshot</i>"]
+    CORE["rts_core_&lt;arch&gt;<br/><i>tier 2 — source-only<br/>CPU primitives + context switch</i>"]
+    BOARD["rts_support_&lt;family&gt;<br/><i>tier 3 — source-only<br/>board support, startup, ld/</i>"]
     LEAF["light_tasking_&lt;family&gt;<br/><b>the only buildable crate</b><br/>owns Runtime(&quot;Ada&quot;), the knobs, adalib/"]
     APP["your application<br/><i>sets [configuration.values]</i>"]
 
     TC --> LEAF
     SRC --> LEAF
+    CORE -.->|"optional — fold into tier 1"| LEAF
     BOARD --> LEAF
     LEAF -->|"provides gnat_rts_tasking"| APP
 ```
+
+**Tier 2 is dashed because it is the one boundary that may not be worth having.** Measured on a real runtime it holds **six files against tier 1's ~1050**, and it shares tier 1's release cadence, so start by folding it into tier 1 as a subdirectory and split it out only if an architecture set proves to need its own version stream ([§3](#3-the-crate-hierarchy)). Fold it and the diagram has two source-only crates, which is the recommended shape.
+
+Note also that the profile — `light` versus `light-tasking` versus `embedded` — is a crate boundary but not a *box*: it is **which leaf you are looking at**. The four required crate axes map onto the picture as target → tier 0, snapshot → tier 1, family → tier 3, and profile → the leaf itself. Architecture generation, which tier 2 would carve out, is deliberately absent from that list: it changes sources but no dependent selects on it, so it is a source-selection axis first and a crate only if you want the blast radius ([§2.1](#21-the-three-answers-that-surprise-people)).
 
 **Each bb-runtimes mechanism has exactly one replacement:**
 
@@ -689,7 +695,7 @@ Useful cross-checks beyond that:
 ### 10.1 Standing up the first crate
 
 1. **Pick one concrete target × profile × family** and get it building end to end before generalising anything. Resist adding a second device until the first links.
-2. **Create the tier-1 crate** as a snapshot of the installed toolchain's runtime sources. Split it into a common directory plus one overlay directory per profile you intend to support ([§3](#3-the-crate-hierarchy)).
+2. **Create the tier-1 crate** as a snapshot of the installed toolchain's runtime sources. Split it into a common directory plus one overlay directory per profile you intend to support ([§3](#3-the-crate-hierarchy)). Put the architecture core — `CPU_Primitives` and the context-switch assembly — in a subdirectory of *this* crate rather than a tier-2 crate of its own; that is six files, and you can always split them out later if they turn out to need their own version stream.
 3. **Create the tier-3 crate** for the family: `Board_Support` body, `Board_Parameters`, `MCU_Parameters`, startup, vector table, linker scripts, the private register subset. Name it for the family.
 4. **Create the leaf** with the layout in [§4](#4-anatomy-of-the-leaf-crate). Start with *no* configuration variables — hardcode everything — and get an ELF out.
 5. **Write `runtime.gnat.lst`** by listing what the shipped runtime actually contains. Derive it from the `.ali` files of a build against the stock runtime, not from a directory listing.
