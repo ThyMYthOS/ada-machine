@@ -18,3 +18,10 @@ ddr_noncached_kb
 ddr_wcb_kb
 # Main stack size: consumed as the __stack_size defsym only.
 main_stack_size
+# Pico flash size: consumed as the PICO_FLASH_LENGTH defsym only. Alire still
+# emits it as a constant in the generated Ada spec -- as it does for
+# main_stack_size above -- so "link-only" here means no unit READS it, not that
+# it is unreadable. If one ever does, it moves out of this list.
+# It is also the case this list exists for: the published embedded_rp2040 crate
+# spends four committed directories on this same number (RTS.md A.25).
+flash_size_kb

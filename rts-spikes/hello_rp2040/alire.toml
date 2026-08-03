@@ -23,3 +23,9 @@ light_tasking_pico = { path = "../light_tasking_pico" }
 #  only for documentation, since it is the only populated value.
 [configuration.values]
 light_tasking_pico.Device = "rp2040"
+
+#  2048 KB = the W25Q16 on the original Raspberry Pi Pico. This is the board
+#  fact that used to be a constant inside the runtime's memory-map.ld, and it
+#  is the application's to state -- which flash part is on the board is not
+#  something the runtime crate can know (RTS.md §5.3).
+light_tasking_pico.Flash_Size_KB = 2048

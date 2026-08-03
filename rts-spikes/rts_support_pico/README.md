@@ -29,12 +29,23 @@ s-bbmcpa.ads               System.BB.MCU_Parameters
 setup_clocks.adb           clock-tree initialisation run before elaboration
 ```
 
-Plus `ld/common-ROM.ld` and `ld/memory-map.ld`, copied verbatim from the same
-runtime (both are also byte-identical to `embedded-rpi-pico`'s copies,
-checked). RP2040 has one memory map (2 MB external QSPI flash at `0x1000_0000`,
-256 KB SRAM at `0x2000_0000`) and no PolarFire-style memory-profile axis, so
-unlike `rts_support_mpfs` there is no family of placement scripts here -- the
-shipped `common-ROM.ld` (XIP flash boot via `boot2`) is used as-is.
+Plus `ld/common-ROM.ld` and `ld/memory-map.ld`. `common-ROM.ld` is verbatim from
+the same runtime (and byte-identical to `embedded-rpi-pico`'s copy, checked);
+XIP flash boot via `boot2`, used as-is. There is no PolarFire-style
+memory-profile axis, so unlike `rts_support_mpfs` there is no family of
+placement scripts here.
+
+`memory-map.ld` is the **one modified file** in this crate. The vendor copy has
+`LENGTH = 2M` for flash; here it is `LENGTH = PICO_FLASH_LENGTH`, supplied by
+the leaf from `Flash_Size_KB`. The QSPI flash is external and a board choice --
+2/4/8/16 MB parts all ship on RP2040 boards -- and the published
+`embedded_rp2040` crate spends four committed directories on exactly that one
+number (RTS.md §5.3 / [A.25](../../RTS.md#a25)). `sram` stays literal at 256 KB
+at `0x2000_0000`, because on-chip SRAM is a property of the die and not
+configurable. Verified that the value genuinely reaches `LENGTH(flash)` rather
+than being substituted and ignored: with the script's `ASSERT` threshold
+temporarily raised to `4M`, the link fails at `Flash_Size_KB = 2048` and
+succeeds at `4096`.
 
 Genuinely RP2040-only, unlike tier 1: this toolchain ships no RP2350 board
 runtime at all (only the generic, board-agnostic `light-cortex-m33f` etc.), so

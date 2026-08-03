@@ -79,11 +79,18 @@ project Runtime_Build is
    ------------------------------------------------------------------
    --  Linker_Switches (mirrors rts-spikes/CONTRACT.md §3.7): -T/-L for the
    --  single RP2040 memory map (no PolarFire-style Memory_Profile axis --
-   --  rts_support_pico/README.md).
+   --  rts_support_pico/README.md), plus the one defsym that map needs.
+   --
+   --  PICO_FLASH_LENGTH is why there is no ld/flash-<n>/ directory set here
+   --  (RTS.md §5.3 / A.25): the flash size is a number, so it travels as a
+   --  symbol. The "K" suffix is ld's own -- --defsym takes the same size
+   --  suffixes a script does, so nothing converts units on the way.
    ------------------------------------------------------------------
    Linker_Switches :=
      ("-L", Rts_Support_Pico.Ld_Dir,
       "-T", "common-ROM.ld")
-     & ISA_Switches & ("-nostartfiles", "-nolibc");
+     & ISA_Switches & ("-nostartfiles", "-nolibc",
+        "-Wl,--defsym=PICO_FLASH_LENGTH="
+          & Light_Tasking_Pico_Config.Flash_Size_KB & "K");
 
 end Runtime_Build;

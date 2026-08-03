@@ -52,11 +52,20 @@ rts_support_pico = { path = "../rts_support_pico" }
 output_dir = "gnat_config"
 generate_c = false
 
-#  Only ONE configuration variable in this narrow spike (contrast light_mpfs's
-#  15): the device axis discovered while building this crate (README.md
-#  "Device axis"). No Memory_Profile / Console / stack-size knobs -- RP2040
-#  has one memory map and this spike builds one application.
+#  Two configuration variables in this narrow spike (contrast light_mpfs's 15):
+#  the device axis discovered while building this crate (README.md "Device
+#  axis"), and the flash size. No Memory_Profile / Console / stack-size knobs.
 [configuration.variables]
 Device.type = "Enum"
 Device.values = ["rp2040", "rp2350"]
 Device.default = "rp2040"
+
+#  Integer, not an Enum of the four sizes the published embedded_rp2040 crate
+#  enumerates as directories. That crate's ld/flash-{2,4,8,16}/ differ in one
+#  line each, so the four values are a NUMBER wearing a selector's clothes
+#  (RTS.md 5.3 / A.25); as an Integer it reaches parts no directory set
+#  enumerates. Consumed only as the PICO_FLASH_LENGTH defsym -- no compiled
+#  unit reads it, which is why it is link-only (lists/config-tag-exempt.lst).
+#  Default 2048 = the 2 MB W25Q16 on the original Raspberry Pi Pico, matching
+#  the constant this replaced in rts_support_pico/ld/memory-map.ld.
+Flash_Size_KB = { type = "Integer", first = 2048, last = 16384, default = 2048 }
