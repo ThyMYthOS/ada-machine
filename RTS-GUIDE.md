@@ -52,7 +52,7 @@ graph TD
     SRC --> LEAF
     CORE -.->|"optional — fold into tier 1"| LEAF
     BOARD --> LEAF
-    LEAF -->|"provides gnat_rts_tasking"| APP
+    LEAF -->|"provides gnat_rts=&lt;floor&gt;"| APP
 ```
 
 **Tier 2 is dashed because it is the one boundary that may not be worth having.** Measured on a real runtime it holds **six files against tier 1's ~1050**, and it shares tier 1's release cadence, so start by folding it into tier 1 as a subdirectory and split it out only if an architecture set proves to need its own version stream ([§3](#3-the-crate-hierarchy)). Fold it and the diagram has two source-only crates, which is the recommended shape.
@@ -163,7 +163,7 @@ So `ada_source_path` is not only a bind-time file, and an incomplete one can fai
 
 Apply it as three tests, in order:
 
-1. **Solver test.** Does a *dependent* crate need to select on it? A configuration variable is invisible to dependency resolution, so anything an application must be able to *require* — a tasking runtime, a particular compiler — is a crate.
+1. **Solver test.** Does a *dependent* crate need to state a requirement about it? A configuration variable is invisible to dependency resolution, and `provides`/`project-files` cannot be made conditional on one — so anything a dependent must be able to *require*, such as a capability floor or a particular compiler, is a crate ([§2.2](#22-profiles-are-ordered-so-declare-a-floor--not-an-identity)).
 2. **Version test.** Does it have its own release cadence, provenance, or licence? A snapshot of GCC's `libgnat` is versioned against the compiler. Family support generated from vendor register data is versioned against that data. Different cadences want different crates.
 3. **Otherwise** — configuration variable. Numbers, addresses, memory sizes, timer choice, stack sizes, and body selection behind a frozen spec are all knobs.
 
@@ -179,24 +179,45 @@ The real boundary is one level out: crossing an **architecture generation** (ARM
 
 **`cert` and `none` are not profiles.** bb-runtimes defines `cert` as `light` plus I/O exceptions minus packing support — a *flag set* over `light`, not a distinct unit set or API. No dependent selects on it. It belongs with the feature flags. `none` is `light` with everything switched off.
 
-> **Where a crate boundary genuinely is required — only three places.** The target (a different compiler crate). The runtime profile (the solver test: an application must be able to require tasking). And the device-support family — not for any mechanical reason, but because support code differs *in kind* between vendors, and one crate spanning every family would make every fix churn every user. Family is where you draw the blast radius.
+> **Where a crate boundary genuinely is required — only three places.** The target (a different compiler crate). The runtime profile (because `project-files` and `provides` are static in the manifest and cannot vary with a knob — [§2.2](#22-profiles-are-ordered-so-declare-a-floor--not-an-identity)). And the device-support family — not for any mechanical reason, but because support code differs *in kind* between vendors, and one crate spanning every family would make every fix churn every user. Family is where you draw the blast radius.
 
-### 2.2 Declaring a profile so the solver can see it
+### 2.2 Profiles are ordered, so declare a floor — not an identity
 
-Profile is a crate, and the mechanism for saying so is `provides`:
+**The three profiles are not three alternatives. They are a chain.**
 
-```toml
-provides = ["gnat_rts_tasking=1.0.0"]
+```
+light  ⊆  light-tasking  ⊆  embedded
 ```
 
-The version must be a full three-part semver. The mechanism is in production: seven compiler crates declare `provides = ["gnat=<version>"]`.
+Code written for `light` compiles unchanged on the other two: the unit set grows, the restrictions relax, `a-except.adb` goes from 99 lines to 1942. Only the other direction breaks — tasking code has no `Ada.Real_Time` to find on `light`.
 
-**But a virtual name is a constraint, not a selector.** With seven crates providing `gnat`, a bare `gnat = "*"` dependency silently resolves to the *host* compiler. The same would happen to an application depending only on `gnat_rts_tasking` — it would get an arbitrary SoC's runtime. So:
+That asymmetry means what a library needs to state is not *which* profile but **a lower bound**. Give the virtual name a version and one name covers the whole chain:
 
-- a **library** crate uses the virtual name to say "I require a tasking runtime", satisfied by whichever concrete runtime the application already pulled in;
-- the **application** must still name its runtime crate concretely.
+| Crate | declares |
+|---|---|
+| `light_<family>` | `provides = ["gnat_rts=1.0.0"]` |
+| `light_tasking_<family>` | `provides = ["gnat_rts=2.0.0"]` |
+| `embedded_<family>` | `provides = ["gnat_rts=3.0.0"]` |
 
-Never let the virtual name be the only runtime-shaped dependency in a solution.
+A library needing tasking depends on `gnat_rts = ">=2.0.0"` and is satisfied by `light-tasking` *or* `embedded`. A library that only needs `light` states nothing at all — every runtime already satisfies it, so there is no constraint to express. The version must be a full three-part semver. The mechanism is in production: seven compiler crates declare `provides = ["gnat=<version>"]`.
+
+**The ordering is also the sharpest reason profile cannot become a configuration variable**, and it is a better reason than the solver test. Both `project-files` and `provides` are **static arrays in the manifest**, so neither can depend on a configuration value:
+
+- `light` has one library project; the tasking profiles have two, and the application must `with` both. **A knob cannot add an entry to `project-files`.**
+- A single crate with `Profile => light` would still declare its `provides` unconditionally — claiming a capability it does not have at that setting.
+
+So the thing you most want to express about profiles is a capability floor, and the only place it can be expressed is a file that cannot be made conditional.
+
+> **Why the solver test is the weaker argument here.** Taken alone it is about the *quality* of a failure, not its existence. With a `Profile` knob, a library needing tasking would still fail on a `light` runtime — just later and worse, as `"Ada.Real_Time" is not a predefined library unit` during compilation of a dependency, rather than as a resolution error naming the unsatisfied constraint. That is a real argument for a crate boundary, but it is an ergonomics argument. The static-manifest one is mechanical.
+
+**A practical payoff of the chain, worth having on purpose.** A library that claims `light` compatibility can be CI-verified by compiling it against a `light` runtime, and passing there implies passing on the other two — because restrictions only relax as you move up. One job covers all three profiles in the direction that matters.
+
+**Two caveats.**
+
+- **A virtual name is a constraint, not a selector.** With seven crates providing `gnat`, a bare `gnat = "*"` dependency silently resolves to the *host* compiler. The same would happen to an application depending only on `gnat_rts` — it would get an arbitrary SoC's runtime. So a **library** uses the virtual name to state its floor, satisfied by whichever concrete runtime the application already pulled in; the **application** must still name its runtime crate concretely. Never let the virtual name be the only runtime-shaped dependency in a solution.
+- **Compiles-the-same is not produces-the-same.** The chain is about compilability. The same source on `embedded` links a substantially larger runtime and takes ~21 s to build from clean against ~8 s for `light`. Moving up the chain is free at the source level and is not free in the artifact.
+
+> **Status: the version-ordering scheme above is reasoned, not measured.** What is verified is that `provides` resolves and reports its provider for a bare `"*"` constraint. Whether a `>=` constraint against a *virtual* name resolves the way it does against a real crate is the one thing to check before relying on this — a short experiment with two local crates providing one name at two versions.
 
 ## 3. The crate hierarchy
 
@@ -249,8 +270,10 @@ version = "0.1.0"
 licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
 project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
 
-#  A tasking floor, so the solver can be told about it (§2.2).
-provides = ["gnat_rts_tasking=1.0.0"]
+#  The capability FLOOR this crate satisfies, as a version on one shared virtual
+#  name -- 1 = light, 2 = light-tasking, 3 = embedded (§2.2). A library needing
+#  tasking depends on gnat_rts = ">=2.0.0" and is happy with embedded too.
+provides = ["gnat_rts=2.0.0"]
 
 [[depends-on]]
 gnat_arm_elf = "^15"          # the compiler is a real dependency, not a PATH assumption
@@ -823,6 +846,7 @@ Be honest about these before committing to the design.
 5. **A `with`ed project cannot force switches on its dependents.** This is a gap in GPR, not a design choice. `Compiler'Leading_Required_Switches` has exactly the right semantics but is configuration-project-only; `Builder'Global_Compilation_Switches` has the reach but is root-project-only. So the runtime guarantees its own library's ABI and must *ask* the application to opt in ([§8.3](#83-why-the-abi-is-safe-even-though-the-rename-is-forgettable)).
 6. **Certification.** Silent shadowing plus sources arriving from three separately versioned crates complicate "show me exactly what is in this runtime." The mitigation has three parts and only the third is evidence: the `Source_List_File` states the intended unit set, `alr show --solve` states which crate versions supplied it, and **the `.ali` files record what was actually compiled**. Point an auditor at the `.ali` set. Whether that suffices for qualification is a question for someone who has taken a runtime through it.
 7. **Versioning tier 1 against FSF GCC releases** needs a real story. It is a snapshot of someone else's tree.
+8. **A version constraint against a *virtual* name is unverified.** [§2.2](#22-profiles-are-ordered-so-declare-a-floor--not-an-identity) encodes the profile chain as `provides = ["gnat_rts=<1|2|3>"]` so a library can require `>=2.0.0` and accept either of the two profiles above its floor. `provides` itself is verified — it resolves and reports its provider — but only against a bare `"*"`. Check the `>=` case before relying on it; if it does not hold, the fallback is one virtual name per capability, which works but loses the ordering and needs a naming convention before it accretes one name per axis.
 
 ### The strongest counterargument
 
