@@ -673,7 +673,7 @@ variation is one subprogram and a spec is already shared, `separate` asks less.
 graph TD
     TC["gnat_arm_elf<br/><i>binary — cross compiler</i>"]
     SRC["rts_sources_gcc15<br/><i>source-only — libgnat + libgnarl snapshot</i>"]
-    CORE["rts_core_armv7m<br/><i>source-only — System.BB.* kernel</i>"]
+    CORE["rts_core_cortexm<br/><i>source-only — System.BB.* kernel</i>"]
     BOARD["rts_support_stm32g4xx<br/><i>source-only — Board_Support, startup, ld/,<br/>all 8 devices + board tables</i>"]
     LEAF["light_tasking_stm32g4xx<br/><b>the only buildable crate</b><br/>owns Runtime(&quot;Ada&quot;), config vars, adalib"]
     APP["application<br/><i>sets [configuration.values]</i>"]
@@ -689,11 +689,13 @@ graph TD
 |---|---|---|---|---|
 | 0 | `gnat_arm_elf`, `gnat_riscv64_elf`, `gnat_avr_elf` | cross compiler | binary origin | target |
 | 1 | `rts_sources_gcc15` | the ~400-unit `libgnat`/`libgnarl` snapshot from the GCC tree, flat | **no** | GCC version only |
-| 2 | `rts_core_armv7m`, `rts_core_riscv64`, … | `System.BB.CPU_Primitives` and the context-switch asm — **only these**. `Threads`, `Time`, `Interrupts` and protected-object support are architecture-*independent* and belong in tier 1 ([A.21](#a21)) | **no** | architecture generation — or fold into tier 1 and select the variants by knob ([§4.2](#42-the-isaabi-dimension--configuration-not-a-crate), [§7](#7-honest-assessment-which-boundaries-pay)) |
-| 3 | `rts_support_stm32g4xx`, `rts_support_rp2040`, … | `System.BB.Board_Support` body, `Board_Parameters`, `MCU_Parameters`, startup, vector table, `ld/` variants, private register subset, and the device/board tables for **every** part in the family | **no** | family, *not* device, board or ISA |
+| 2 | `rts_core_cortexm`, `rts_core_riscv64`, … | `System.BB.CPU_Primitives` and the context-switch asm — **only these**. `Threads`, `Time`, `Interrupts` and protected-object support are architecture-*independent* and belong in tier 1 ([A.21](#a21)) | **no** | architecture generation — or fold into tier 1 and select the variants by knob ([§4.2](#42-the-isaabi-dimension--configuration-not-a-crate), [§7](#7-honest-assessment-which-boundaries-pay)) |
+| 3 | `rts_support_stm32g4xx`, `rts_support_pico`, … | `System.BB.Board_Support` body, `Board_Parameters`, `MCU_Parameters`, startup, vector table, `ld/` variants, private register subset, and the device/board tables for **every** part in the family | **no** | family, *not* device, board or ISA |
 | 4 | `light_tasking_stm32g4xx` (and siblings) | manifest, configuration variables, renaming shim, `runtime_build.gpr`, `runtime.xml`, the metadata files, per-profile `Source_List_File`. Produces — does not ship — `adalib/libgnat.a` | **yes** | target × profile × family ([§4.1](#41-the-device-and-board-dimension)) |
 
-### The leaf's responsibilities
+**Tier 3's crate names are `_pico`, not `_rp2040`, and that is the row's own rule applied to itself.** A crate whose "varies by" is *family* cannot be named for a device without contradicting the column. It is also measured rather than aspirational: against the published `light_rp2040` and `light_rp2350` crates, of ~400 units **378 are byte-identical, 5 differ, 18 are RP2040-only and 13 RP2350-only** — and the device-only names are **disjoint** (`i-rp2040-*.ads` versus `i-rp2350-*.ads`, `boot2-*.S` versus `image_def.S.inc`). Names that do not collide need no overlay at all: they share one directory and each leaf's `Source_List_File` selects its own ([§2.1](#21-gpr-source-resolution)). Scoped to a light-tasking profile that leaves 19 device-neutral units plus a five-file overlay per device — `s-bbbopa.ads`, `s-bbbosu.adb`, `s-bbmcpa.ads`, `setup_clocks.adb`, `start-rom.S`. Two devices, two ARM architecture generations (ARMv6-M and ARMv8-M), one tier-3 crate.
+
+The same argument names tier 2 for the Cortex-M family rather than one generation, but on weaker evidence: the crate holds `CPU_Primitives` and the context-switch asm for Cortex-M generally, and only the M0+ path has been built. ARMv6-M lacking `LDREX`/`STREX` — hence the software atomics in `s-bbarat` — is the kind of difference that belongs *inside* such a crate, but until an ARMv8-M leaf builds against it, treat the name as a claim rather than a result.
 
 Everything that is per-(target × profile × family) and nothing else:
 

@@ -1,7 +1,7 @@
 name = "light_tasking_pico"
 description = "Raspberry Pi Pico (RP2040/RP2350) Ravenscar Ada runtime"
 long-description = """
-Leaf crate of the rts-spikes-rp2040 hierarchy, mirroring
+Leaf crate of the rts-spikes hierarchy, mirroring
 rts-spikes/CONTRACT.md §3: the buildable, Ravenscar-tasking Ada runtime for
 the Raspberry Pi Pico family. There is no plain, non-tasking "light-rpi-pico"
 runtime in the installed gnat_arm_elf 15.1.2 toolchain -- only
@@ -12,14 +12,16 @@ what it contains (see README.md "Blockers"). Owns
 adalib/libgnat.a + libgnarl.a from the shared tier-1..3 source crates
 (rts_sources_gcc15, rts_core_cortexm, rts_support_pico) plus its own
 gnat_config/ (configuration renaming shim) and src/ (leaf-owned units,
-populated -- not vendored -- from the installed toolchain by
-../populate.sh; `make populate`-equivalent is a prerequisite for any build).
+committed under the ownership rule -- tier 1 tracks upstream, everything
+below it is ours, CONTRACT.md 1 -- so ../populate.sh does not touch them).
 
-The Device configuration variable is a content-keyed selector (rp2040 |
-rp2350), not a second crate: rp2040 (Cortex-M0+, ARMv6-M) is the only value
-with populated sources in this toolchain, since no RP2350 runtime ships here.
-Selecting Device => rp2350 fails at Source_Dirs resolution with a clear
-missing-directory error rather than silently building the wrong ISA.
+The Device configuration variable selects tier 3's src-rp2040/ or src-rp2350/
+overlay; it is not a second crate, and rts_support_pico carries both. rp2040
+(Cortex-M0+, ARMv6-M) is the only value that BUILDS today, and the reason is
+no longer the sources: what is missing is an RP2350 linker script pair, the
+hard-float ISA switches, and this leaf's own rts_capabilities.ads for a
+single-precision-only FPU. src/pico_config_checks.ads rejects the value and
+names those, so the failure is a stated one rather than a mis-built image.
 """
 version = "0.1.0-dev"
 licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"

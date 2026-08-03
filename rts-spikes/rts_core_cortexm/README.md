@@ -1,8 +1,14 @@
 # rts_core_cortexm
 
-Tier 2 (source-only) of the `rts-spikes-rp2040` hierarchy: the ARM equivalent
+Tier 2 (source-only) of the `rts-spikes` hierarchy: the ARM equivalent
 of `rts-spikes/rts_core_riscv64`. Six files, same count as RISC-V's six, but a
 **different composition** -- this is the headline finding for this crate.
+
+Named for the Cortex-M family, not one architecture generation. That is the
+same rule tier 3 follows (RTS.md §6), but on weaker evidence here: only the
+Cortex-M0+ path has ever been built against this crate, so the name is a claim
+about where the ARMv6-M/ARMv8-M difference belongs -- inside, as
+`System.BB.Armv6m_Atomic` already is -- rather than a measured result.
 
 `src.lst` is the combined membership used by `populate.sh` (provenance, mirrors
 `rts-spikes`'s combined `*.lst` files). `src.gnat.lst` (3) and `src.gnarl.lst`

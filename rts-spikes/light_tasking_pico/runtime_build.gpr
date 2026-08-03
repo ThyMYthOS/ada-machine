@@ -28,19 +28,25 @@ project Runtime_Build is
    --  shadows core shadows shared; gnat_config/src (this leaf) win over
    --  all three. Source_List_File, not shadowing, is what defines
    --  membership.
-   --  There is no per-DEVICE tier-1 overlay. The two units that differ between
-   --  RP2040 (ARMv6-M) and RP2350's ARM cores (ARMv8-M) are s-lidosq.adb and
-   --  s-lisisq.adb, and they differ between two 32-bit targets -- so they are
-   --  not a word-size axis and cannot live in Gnat_32_Dir. They are owned by
-   --  tier 2, per target (Rts_Core_Cortexm below), which is where anything
-   --  target-specific belongs.
+   --  There is no per-DEVICE overlay in tier 1 or tier 2. The two units that
+   --  differ between RP2040 (ARMv6-M) and RP2350 (ARMv8-M) are s-lidosq.adb
+   --  and s-lisisq.adb, and they differ between two 32-bit targets -- so they
+   --  are not a word-size axis and cannot live in Gnat_32_Dir. Rather than
+   --  give either tier a per-device pair, they are single MERGED bodies in
+   --  Patched_Dir that test RTS_Capabilities in an expression the front end
+   --  folds (src/rts_capabilities.ads, RTS.md 5.5). That is what lets one
+   --  tier-1 snapshot serve both ARM generations -- and it is also the only
+   --  mechanism that can express the RP2350 case, whose M33 FPU has a
+   --  single-precision square root but no double-precision one.
    --
-   --  Adding rp2350 therefore means giving TIER 2 a per-device overlay, not
-   --  tier 1. Until then, selecting Device => rp2350 is caught by the
-   --  Compile_Time_Error in src/pico_config_checks.ads.
+   --  The device axis therefore lives entirely in TIER 3, as the
+   --  src-rp2040/ | src-rp2350/ overlay below. Selecting Device => rp2350 is
+   --  refused by the Compile_Time_Error in src/pico_config_checks.ads, which
+   --  names what is still missing.
    for Source_Dirs use
      ("gnat_config", "src",
-      --  RP2040's half of the 5 units the two devices disagree on.
+      --  RP2040's half of the 5 board units the two devices disagree on;
+      --  Rts_Support_Pico.Rp2350_Dir is the other, and carries the same names.
       Rts_Support_Pico.Rp2040_Dir,
       Rts_Support_Pico.Src_Dir,
       Rts_Core_Cortexm.Src_Dir,
