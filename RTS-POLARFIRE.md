@@ -392,7 +392,7 @@ MEMORY
 
 **2. Committed placement scripts**, one per `Memory_Profile` value, adapted from the vendor's five ([§1.3](#13-what-is-actually-invariant--and-what-121-makes-variable)). Selected by GPR `case` on the configuration value.
 
-**3. Generated placement scripts** for `system_partition`, one per partition, emitted by the forked generator ([§4.3](#43-the-decoding-risk-and-how-not-to-take-it)) alongside `MPFS.System_Map`.
+**3. Generated per-partition placement** for `system_partition`, emitted by the forked generator ([§4.3](#43-the-decoding-risk-and-how-not-to-take-it)) alongside `MPFS.System_Map`. What has to be generated is narrower than a whole script: the window origin/length are `--defsym` values like every other length, and only the **section grouping** is structure a symbol cannot carry — which is the existing `app-sections.ld` override seam, not a new artifact ([§6.5](#65-pmp-restricts-what-a-hart-sees-not-what-it-may-do)).
 
 ### 6.2 Where each length comes from
 
@@ -415,6 +415,8 @@ This is the part worth being precise about, because the three mechanisms have ge
 | a section exceeds its region | `ld` region overflow | [§9](#9-what-has-already-been-verified) — `region 'ram' overflowed by 2096944 bytes` |
 | something placed in a region this partition does not own | `LENGTH = 0` → overflow | [§1.4](#14-itim-and-dtim-in-the-linker-script) |
 | two regions overlap **within one link** | — **nothing** | [§9](#9-what-has-already-been-verified) — 32 KB overlap drew no diagnostic |
+| a region's `(rwx)` attribute is violated | — **nothing**; attributes bind only *orphan* sections | [§9](#9-what-has-already-been-verified) — `.data` into an `(rx)` region linked, exit 0 |
+| a section escapes its PMP window, or the window base is not grain-aligned | `ASSERT` on `--defsym` values ([§6.5](#65-pmp-restricts-what-a-hart-sees-not-what-it-may-do)) | [§9](#9-what-has-already-been-verified) — both fail the link |
 | two *partitions'* windows overlap | `pragma Compile_Time_Error` in `System_Map`, **plus a post-link check across the produced ELFs** (`make amp`) | [§4.4](#44-what-mpfs_system-contains); the ELF check found the two current demo partitions overlap completely at `0x08000000` |
 | a window exceeds the [§1.2](#12-memory-regions) hardware maximum | `pragma Compile_Time_Error` in `System_Map` | [§4.3](#43-the-decoding-risk-and-how-not-to-take-it) — the XML is designer *intent*, not ground truth |
 | way allocations sum correctly | `pragma Compile_Time_Error` on `L2_*_Ways` | [§5.3](#53-level-3--individual-knobs-and-what-checks-them) |
@@ -432,6 +434,51 @@ So there is exactly one cross-partition ordering constraint, and it is not expre
 > A partition placed in LIM and a partition that reduces LIM are in a startup-order relationship.
 
 `System_Map` should therefore record **which partition owns the L2 configuration**, and every other partition's window should be validated against the *post-configuration* layout rather than the reset one. The HSS payload YAML's `owner-hart` ordering and the XML's `RESET_VECTOR_HART*` entries ([§4.1](#41-do-not-invent-a-system-description--microchip-already-ships-two)) are the data that makes this checkable at generation time; at run time it remains a contract.
+
+### 6.5 PMP restricts what a hart sees, not what it may do
+
+`pmp_h0…h4` ([§4.1](#41-do-not-invent-a-system-description--microchip-already-ships-two)) means a hart may see a **smaller window** than the hardware provides, and with **different `rwx`** than the region nominally carries. Those are two variations with two different answers, and only one of them is a linker-script question at all.
+
+**The narrowed window needs no new mechanism.** It is [§1.4](#14-itim-and-dtim-in-the-linker-script)'s `local_itim` one step out: a confined partition gets a region whose `ORIGIN` *and* `LENGTH` are both symbolic, supplied from `System_Map` rather than the literal SoC base —
+
+```
+own_lim (rwx) : ORIGIN = MPFS_PMP_WINDOW_ORIGIN, LENGTH = MPFS_PMP_WINDOW_LENGTH
+```
+
+— and everything a partition does not own keeps the `LENGTH = 0` treatment already in use. Both halves of that are verified ([§9](#9-what-has-already-been-verified)), so "sees less than the hardware provides" is a configuration value, not a script variant.
+
+**The `rwx` restriction cannot be expressed in a linker script at all** — generic *or* generated. `ld`'s `MEMORY` attributes select a region only for **orphan** sections; with an explicit `> region` they are inert. Writable data placed into an `(rx)` region links with exit 0 ([§9](#9-what-has-already-been-verified)). So the `(rx)` on `envm` in [§6.1](#61-the-three-artifacts) is documentation, not enforcement, and nothing should be built on it.
+
+That settles the "generic or generated?" question for the flag half: **generating a script per partition adds no capability the script language lacks** — it replicates the same non-enforcement into N files.
+
+**What actually carries `rwx` is three things, and the script owns one of them:**
+
+| | Mechanism | Owned by |
+|---|---|---|
+| the permission itself | section flags → `PT_LOAD` `Flg` | the compiler/assembler, via section names |
+| *separating* permission classes onto PMP-representable spans | `ALIGN(MPFS_PMP_GRAIN)`, one output section per class | the placement script |
+| applying the permission | `pmpcfg`/`pmpaddr` writes in startup | runtime Ada, decoded from `pmp_h<n>` |
+
+Separating `.text`/`.rodata` from `.data`/`.bss` at the grain yields exactly the segments a PMP table wants, one per class (verified, [§9](#9-what-has-already-been-verified)). The script never states a permission; it only makes one expressible as a single PMP entry.
+
+**`ASSERT` supplies the enforcement the region attributes do not.** Both PMP conditions are checkable at link time from `--defsym` values, and both fail the link when violated ([§9](#9-what-has-already-been-verified)):
+
+```
+ASSERT ((ORIGIN(own_lim) & (MPFS_PMP_GRAIN - 1)) == 0, "PMP window base is not grain-aligned")
+ASSERT (__rw_end <= ORIGIN(own_lim) + LENGTH(own_lim), "rw span escapes the PMP window")
+```
+
+The first must test `ORIGIN`, not the section start: an `ALIGN` inside the section rounds a misaligned base up and silently wastes the difference, so a check on the section start passes on a base that was wrong.
+
+**Where a generic script genuinely runs out is the grouping — not the flags, and not the bases.** NAPOT pads every covered span to a power of two, and entries are scarce (8 on the E51, 16 on the U54s, [§4.1](#41-do-not-invent-a-system-description--microchip-already-ships-two)). How many permission classes a partition splits into — and therefore how much padding it pays — is per-partition policy: `rx`/`rw`/IPC is three entries, adding a stack guard and two peripheral windows is six. `--defsym` carries **numbers**; a set of output sections is **structure**. That is the boundary.
+
+So [§6.1](#61-the-three-artifacts)'s third artifact narrows: what a partition needs generated is not a whole placement script but the **grouping fragment**, and `rts_support_mpfs` already has that seam. Its `ld/app-sections.ld` is empty by default and an application overrides it by putting its own `-L` first; the spike's `hello_mpfs` already uses it for the harder case (VMA in `local_itim`, LMA in `l2lim`). PMP grouping is that same override with different contents — new pinned `--defsym` names in CONTRACT.md §4, no new mechanism.
+
+**Three asymmetries to record before P5 starts.**
+
+- **Ada checks the plan; `ld` checks the outcome.** `pragma Compile_Time_Error` in `System_Map` catches the design disagreeing with itself — a window outside its hart's PMP regions, or two partitions colliding, which no single link can see ([§6.3](#63-what-is-checked-where-and-what-is-not)). `ASSERT` catches the image disagreeing with the design — sections that grew past the window. Neither substitutes for the other.
+- **M-mode PMP is advisory until locked.** A partition booted `priv-mode: PRV_S` ([§4.2](#42-two-findings-that-fall-out-of-reading-the-real-files)) is confined as a matter of course. A monitor in `PRV_M` is not: PMP constrains M-mode only for entries with the lock bit set, and a lock survives until reset. So a tight window asserted in the monitor's script proves nothing about what the monitor can reach, and "sees less than the hardware provides" is true by construction only for the S-mode partitions.
+- **The PMP granularity `G` is implementation-defined** and must come out of the XML with the regions rather than be assumed. `MPFS_PMP_GRAIN` above is a generated value; it is deliberately not given a number anywhere in this plan.
 
 ---
 
@@ -498,6 +545,20 @@ e51_dtim         0x0000000001000000 0x0000000000001c00 xrw
 
 So variable region sizes need neither generated scripts nor a committed variant per combination, and an over-large partition is a link error — but overlap detection cannot be delegated to the linker, which is why [§4](#4-amp-is-not-a-runtime-configuration--it-is-system-composition) keeps it in `System_Map`.
 
+**Region attributes and `ASSERT` ([§6.5](#65-pmp-restricts-what-a-hart-sees-not-what-it-may-do)).** Direct `riscv64-elf-ld` links against hand-written scripts, one condition per link:
+
+| Script says | Result |
+|---|---|
+| `.data` placed `> romonly` where `romonly (rx)` | **links, exit 0.** The only diagnostic is `warning: has a LOAD segment with RWX permissions`, which comes from the *section flags* — not from the `(rx)` |
+| `ASSERT (__rw_end <= ORIGIN(win) + LENGTH(win), …)`, window shrunk below the data | `rw span escapes the PMP window`, exit 1 — alongside the ordinary overflow message |
+| `ASSERT ((ORIGIN(win) & (GRAIN - 1)) == 0, …)`, base at `0x08010800`, grain `0x1000` | `PMP window base is not grain-aligned`, exit 1 |
+| the same alignment condition tested on the *section start* instead of `ORIGIN` | **exit 0** — the in-section `ALIGN` had already rounded it up |
+| `.text`/`.rodata` and `.data` separated by `ALIGN(GRAIN)` | two `PT_LOAD` segments, `R E` at `0x08010000` and `RW` at `0x08011000`, each `0x1000` |
+
+- **`MEMORY` attributes enforce nothing** once placement is explicit; they bind only orphan sections. A PMP design cannot rest on them.
+- **`ASSERT` does enforce**, on both containment and NAPOT alignment, using values that arrive by `--defsym` — so the checks are generic and the numbers are configuration.
+- **Grain-separating the permission classes produces one segment per class**, which is the form a per-hart PMP table consumes.
+
 **So the plan's load-bearing assumption holds: one family crate serves both core classes as configurations.** The second row is why the ISA knob must be a validated enumeration rather than a free string.
 
 Also confirmed by inspection: the shipped `light-tasking-polarfiresoc` has `Max_Number_Of_CPUs = 1`; the shipped memory map is a single flat DDR region; upstream carries SMP startup/linker variants that the shipped build does not use.
@@ -513,7 +574,7 @@ Also confirmed by inspection: the shipped `light-tasking-polarfiresoc` has `Max_
 | **P2** | Hart-indexed CLINT/PLIC ([§8](#8-source-changes-that-configuration-cannot-fix) item 1); L1 split code ([§8](#8-source-changes-that-configuration-cannot-fix) item 6); `light_tasking_mpfs` | Ravenscar tasking on hart 3, not hart 1; and an ISR placed in that hart's ITIM |
 | **P3** | SMP: `Harts` set, smp source variants, `Max_Number_Of_CPUs > 1` | 2-hart and 4-hart SMP with `delay until` across cores |
 | **P4** | Generator fork ([§4.3](#43-the-decoding-risk-and-how-not-to-take-it)) → `mpfs_system`; **derived mode**; AMP | monitor + 2-hart SMP partition + single-hart partition, all generated from the **Icicle Kit's own** `ICICLE_MSS_mss_cfg.xml` and an HSS payload config; plus a deliberately overlapping design that **fails to compile** |
-| **P5** | S-mode support ([§8](#8-source-changes-that-configuration-cannot-fix) item 7); `embedded_mpfs`; PMP/U-mode partitioning; IPC over the non-cached alias | an Ada partition booted `priv-mode: PRV_S` under OpenSBI; exception propagation across a task; a PMP-confined partition faulting on a foreign window |
+| **P5** | S-mode support ([§8](#8-source-changes-that-configuration-cannot-fix) item 7); `embedded_mpfs`; PMP/U-mode partitioning ([§6.5](#65-pmp-restricts-what-a-hart-sees-not-what-it-may-do)); IPC over the non-cached alias | an Ada partition booted `priv-mode: PRV_S` under OpenSBI; exception propagation across a task; a PMP-confined partition faulting on a foreign window — which the milestone must take on an **S-mode** partition, or on a monitor whose entries are locked, since unlocked PMP does not constrain M-mode |
 
 Ordering rationale: **P1 and P2 unblock everything** and need no vendor tooling at all, which is why standalone mode is a first-class path rather than a stepping stone. **P4 is where the design is genuinely novel** — deriving configuration from the MSS XML and payload YAML — and therefore where it is most likely to need revision. **S-mode moved to P5** because it is the largest single source change ([§8](#8-source-changes-that-configuration-cannot-fix) item 7) and nothing before it needs supervisor mode.
 
@@ -547,7 +608,7 @@ A useful property of this order: each phase's milestone is checkable on hardware
     **The ABI-witness risk is closed, structurally.** It was real only while the ISA lived solely in the application's `Builder` package: runtime and application then both fell back to the compiler default and agreed. Now that the runtime library is compiled from its own derived ISA, a wrong application ABI cannot link — `ld: can't link soft-float modules with double-float modules`, verified by removing the `Builder` rename from `clock_switch_e51`. What remains genuinely missing from GPR is any way for a *withed* project to contribute required switches to its dependents; the rename is a convention, and conventions are forgettable.
 
 11. **Who owns HSS.** This plan assumes HSS stays responsible for DDR training and optionally L2 configuration. Replacing it with Ada is a much larger project and explicitly out of scope.
-12. **PMP/U-mode is deferred to P5** but the data exists in `pmp_h0…h4` ([§4.2](#42-two-findings-that-fall-out-of-reading-the-real-files)), so `System_Map` should carry per-hart PMP regions from the start — that keeps P5 a decoding exercise rather than a schema change.
+12. **PMP/U-mode is deferred to P5** but the data exists in `pmp_h0…h4` ([§4.2](#42-two-findings-that-fall-out-of-reading-the-real-files)), so `System_Map` should carry per-hart PMP regions from the start — that keeps P5 a decoding exercise rather than a schema change. Three things about it are now settled rather than open ([§6.5](#65-pmp-restricts-what-a-hart-sees-not-what-it-may-do)): the narrowed window is a `--defsym` pair, the `rwx` restriction is not expressible in a linker script at any granularity, and the only per-partition *structure* is the section grouping. What remains genuinely open is the grain `G` — implementation-defined, and to be read from the XML rather than assumed — and whether the monitor partition locks its PMP entries at all, since unlocked entries do not constrain M-mode and an unlocked monitor makes its own window assertions decorative.
 
 ---
 
