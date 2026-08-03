@@ -186,17 +186,29 @@ left for a future revision.
 
 ## Why `provides` is here, not on `light_mpfs`
 
-`light_mpfs`'s floor excludes tasking (RTS.md §4: AVR-style — a
-non-tasking leaf must never claim to satisfy a tasking dependency). This
-profile has tasking (a second library project, `Ravenscar_Build`,
-producing `libgnarl.a`), so it is the first leaf in this family that can
-honestly declare `provides = ["gnat_rts_tasking=0.1.0"]`. Per RTS.md §4:
-a *library* crate should depend on the virtual name (`gnat_rts_tasking`)
-to mean "I need a tasking runtime, whichever one the application already
-chose"; the *application* must still depend on a concrete runtime crate
-by name, since a bare `gnat_rts_tasking = "*"` dependency would resolve
-against an arbitrary provider (verified elsewhere in this repository,
-RTS.md A.17, for the analogous `gnat=<version>` alias).
+The three profiles are **ordered** — `light` ⊆ `light-tasking` ⊆
+`embedded`, because light code compiles unchanged on the profiles above
+it — so a leaf declares its floor as a *version* on one shared virtual
+name rather than a per-capability name (RTS.md §4, CONTRACT.md §3.1).
+This profile has tasking (a second library project, `Ravenscar_Build`,
+producing `libgnarl.a`), so its floor is 2:
+
+```toml
+provides = ["gnat_rts=2.0.0"]
+```
+
+A library needing tasking depends on `gnat_rts = ">=2.0.0"`, which
+resolves against this leaf **and** against `embedded_mpfs` — the reason
+the ordering lives in the version rather than in the name. `light_mpfs`
+declares `1.0.0` and will not satisfy that constraint.
+
+Two things unchanged from the earlier scheme. The *application* must
+still depend on a concrete runtime crate by name, since a bare
+`gnat_rts = "*"` dependency would resolve against an arbitrary provider
+(verified for the analogous `gnat=<version>` alias, RTS.md A.17). And
+only the declaration side is exercised here: no crate in this tree
+constrains a virtual name, so whether `>=` resolves against one is still
+open (RTS.md §8 item 5).
 
 ## Verification status
 

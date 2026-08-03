@@ -222,7 +222,7 @@ The reason this rule is worth stating rather than deriving case by case: it is v
 | Axis | Verdict | Reasoning |
 |---|---|---|
 | Target | **crate** (compiler) | `depends-on gnat_arm_elf` vs. `gnat_riscv64_elf`; solver test, decisively |
-| Runtime profile (`light` / `light-tasking` / `embedded`) | **crate** | Solver test: an application must be able to require tasking. Also changes the exported unit set (`libgnarl`, full `a-except`) and the `System` restrictions. Matches ecosystem practice |
+| Runtime profile (`light` / `light-tasking` / `embedded`) | **crate** | `project-files` and `provides` are static in the manifest and cannot follow a knob — `light` has one library project, the tasking profiles two. The profiles are *ordered*, so what a dependent states is a capability floor; see below. Also changes the exported unit set (`libgnarl`, full `a-except`) and the `System` restrictions |
 | ISA / ABI within one architecture generation (`m3` / `m4` / `m4f`) | **variable** | `runtime.xml` is not static — its CDATA is GPR source and already uses `external()` with a `case`. One crate builds consistent hard-float M4 and soft-float M3 binaries from one source tree ([A.16](#a16)). See [§4.2](#42-the-isaabi-dimension--configuration-not-a-crate) |
 | Architecture generation (ARMv6-M ↔ ARMv7-M ↔ ARMv8-M) | **variable** selecting source variants, or a crate | Not a switch axis: ARMv6-M rejects the Thumb-2 wide instructions in the ARMv7-M sources ([A.16](#a16)). Expressible in one crate via `Excluded_Source_Files` over `s-bbcppr__*`/`s-bbbosu__*` variants; a crate split is a packaging choice, not a requirement ([§4.2](#42-the-isaabi-dimension--configuration-not-a-crate)) |
 | `libgnat`/`libgnarl` source snapshot | **crate**, but *not* a flat union | Version test: versioned strictly against the compiler, licence `GPL-…-or-later WITH GCC-exception-3.1`, and the largest single duplication in the ecosystem today. It is **not** one directory: eighteen units differ in content between runtime profiles, so the crate must expose a common set plus per-profile overlays ([A.23](#a23)) |
@@ -242,20 +242,39 @@ The reason this rule is worth stating rather than deriving case by case: it is v
 
 Two entries deserve emphasis because they are counterintuitive.
 
-**Profile is a crate, and the mechanism for saying so is `provides` — with one important limit.** Every tasking-capable leaf declares
+**Profile is a crate — but the profiles are *ordered*, which changes what to declare.** The three are not alternatives; they form a chain:
 
-```toml
-provides = ["gnat_rts_tasking=1.0.0"]
+```
+light  ⊆  light-tasking  ⊆  embedded
 ```
 
-The mechanism is real and in production use: seven compiler crates declare `provides = ["gnat=<version>"]`, and a dependency on `gnat = "*"` resolves, with the solution reporting the provider — `gnat=16.1.0 (gnat_native)` ([A.17](#a17)). Note the version must be a full three-part semver.
+Code written for `light` compiles unchanged on the other two — the unit set grows and the restrictions relax, `a-except.adb` going from 99 lines to 1942 ([A.24](#a24)). Only the reverse breaks: tasking code has no `Ada.Real_Time` to find on `light`. So what a dependent needs to state is not *which* profile but a **lower bound**, and a version on one shared virtual name expresses the whole chain:
 
-**But a virtual name is a constraint, not a selector.** With seven crates providing `gnat`, a bare `gnat = "*"` dependency silently resolved to the *host* compiler — not an embedded one. The same would happen to an application depending only on `gnat_rts_tasking`: it would get an arbitrary SoC's runtime. So the division of labour is:
+| Crate | declares |
+|---|---|
+| `light_<family>` | `provides = ["gnat_rts=1.0.0"]` |
+| `light_tasking_<family>` | `provides = ["gnat_rts=2.0.0"]` |
+| `embedded_<family>` | `provides = ["gnat_rts=3.0.0"]` |
 
-- a **library** crate uses the virtual name to say "I require a tasking runtime", which is satisfied by whichever concrete runtime the application already pulled in;
+A library needing tasking depends on `gnat_rts = ">=2.0.0"` and is satisfied by `light-tasking` *or* `embedded`. A library needing only `light` declares nothing — every runtime already satisfies it. The mechanism is in production use: seven compiler crates declare `provides = ["gnat=<version>"]`, and a dependency on `gnat = "*"` resolves with the solution reporting the provider — `gnat=16.1.0 (gnat_native)` ([A.17](#a17)). The version must be a full three-part semver.
+
+**The ordering also supplies the *reason* profile must be a crate, and it is better than the solver test.** `project-files` and `provides` are static arrays in the manifest, so neither can depend on a configuration value:
+
+- `light` has one library project; the tasking profiles have two, and the application must `with` both. A knob cannot add an entry to `project-files`.
+- A single crate with `Profile => light` would still declare its `provides` unconditionally, claiming a capability it lacks at that setting.
+
+The thing you most want to say about profiles is a capability floor, and the only place it can be said is a file that cannot be made conditional. The solver test, taken alone, is weaker than it looks — it concerns the *quality* of a failure rather than its existence. Under a `Profile` knob a tasking library would still fail on `light`, just later and worse: `"Ada.Real_Time" is not a predefined library unit` while compiling a dependency, instead of a resolution error naming the unsatisfied constraint.
+
+**A practical payoff of the chain.** A library claiming `light` compatibility can be CI-verified against a `light` runtime, and passing there implies passing on the other two, because restrictions only relax going up. One job covers three profiles in the direction that matters. The counterweight: compiles-the-same is not produces-the-same — the same source on `embedded` links a substantially larger runtime (~21 s from clean against ~8 s for `light`, [§1](#1-what-has-to-be-produced)).
+
+**But a virtual name is a constraint, not a selector.** With seven crates providing `gnat`, a bare `gnat = "*"` dependency silently resolved to the *host* compiler — not an embedded one. The same would happen to an application depending only on `gnat_rts`: it would get an arbitrary SoC's runtime. So the division of labour is:
+
+- a **library** crate uses the virtual name to state its floor, which is satisfied by whichever concrete runtime the application already pulled in;
 - the **application** must still name its runtime crate concretely. The virtual name must never be the only runtime-shaped dependency in a solution.
 
 With that split, the compatibility matrix between library crates and runtime profiles stops being documentation and becomes something the resolver enforces. Without it, `provides` silently picks for you.
+
+*Status: the version-ordering scheme is reasoned, not measured.* [A.17](#a17) verifies `provides` against a bare `"*"`; whether a `>=` constraint on a **virtual** name resolves as it does on a real crate is [§8](#8-open-problems) item 5.
 
 **SMP is a variable, not a crate.** It flips which core sources compile, which feels like a crate-sized change — but the test is whether a *dependent* selects on it, and nothing outside the runtime does. Published practice agrees: `Max_CPUs` is an ordinary `Integer` configuration variable.
 
@@ -682,7 +701,7 @@ graph TD
     SRC --> LEAF
     CORE --> LEAF
     BOARD --> LEAF
-    LEAF -->|"provides gnat_rts_tasking"| APP
+    LEAF -->|"provides gnat_rts=&lt;floor&gt;"| APP
 ```
 
 | Tier | Crate | Contents | Buildable | Varies by |
@@ -802,7 +821,7 @@ So the recommendation is **tier 1 + tier 3 + leaf**, with tier 2 folded into tie
 2. **Staleness.** If only tier 1's version changes, the leaf is not refetched, so a `post-fetch`-emitted path list would go stale and binding would fail against the old path. This argues for `pre-build` if ordering permits, or a content check.
 3. **Source-only crates are unidiomatic.** Tiers 1–3 cannot be compiled by Alire at all — they need `-gnatg -nostdinc`, the cross compiler, and no runtime to compile against, which is a bootstrap cycle. The `abstract` project exporting `Project'Project_Dir` works (Appendix A), but Alire's own handling of a crate whose sources are compiled *by a dependent* is untested here: `alr build` inside such a crate is a no-op, and the usual hygiene (`alr gnatprove`, `alr test`, unit-level CI) does not apply. Expect to argue the pattern upstream.
 4. **Rebuild granularity.** Any configuration change alters Alire's build hash and rebuilds all ~400 units. Same cost as today, but newly visible as a penalty on a one-line clock-tree tweak.
-5. **Combinatorics of `provides`.** Only the runtime profile clearly warrants an alias ([§4](#4-where-each-axis-falls)). If architecture or family were added too, the alias namespace would need a convention before it accumulates one ad-hoc name per axis.
+5. **A version constraint against a *virtual* name is unverified.** [§4](#4-where-each-axis-falls) encodes the profile chain as `provides = ["gnat_rts=<1|2|3>"]` so a library can require `>=2.0.0` and accept either profile above its floor. `provides` itself is verified, but only against a bare `"*"` ([A.17](#a17)); the `>=` case is not. Check it before relying on the scheme. If it does not hold, the fallback is one virtual name per capability — which works, but loses the ordering and reintroduces the combinatorics problem this replaced: only the profile clearly warrants an alias, and adding architecture or family too would need a naming convention before the namespace accretes one ad-hoc name per axis.
 6. **Certification.** Silent basename shadowing ([§2.1](#21-gpr-source-resolution)) and sources arriving from three separately versioned crates both complicate "show me exactly what is in this runtime." The mitigation has three parts, and only the third is *evidence*: the `Source_List_File` manifest states the intended unit set, `alr show --solve` states which crate versions supplied it, and **the `.ali` files in `adalib/` record what was actually compiled** — one per unit, each with `D` lines naming every source used, with checksums. An auditor should be pointed at the `.ali` set, not at the project files. Whether that is sufficient for qualification is a question for someone who has taken a runtime through it.
 7. **A `with`ed project cannot force switches on its dependents.** This is a gap in GPR, not a design choice. `Compiler'Leading_Required_Switches` has exactly the right semantics — prepended to every compilation, unforgettable, immune to per-file `Switches` overrides — but is configuration-project-only, reachable only through `runtime.xml`. `Builder'Global_Compilation_Switches` has the reach but is root-project-only. So the runtime crate can guarantee the ABI of its own `libgnat`/`libgnarl`, and must ask the application to opt in for its own units by renaming the exported `Builder` ([§6](#6-the-proposed-hierarchy)).
 
@@ -839,7 +858,7 @@ Four concrete changes would align it with this document, in rough order of value
 1. **Make `AVR_MCU` an `Enum`, not a `String`.** Every supported device becomes a validated value, and a typo is rejected by Alire instead of reaching `avr-gcc` as an unknown `-mmcu=`. This is the same fix [§4.1](#41-the-device-and-board-dimension) recommends for `MCU_Flash_Memory_Size`.
 2. **Add the board level above the device.** A `Board` enum (`generic_board`, `arduino_uno`, `arduino_nano`, …) that sets `AVR_MCU` and `Clock_Frequency` together, with the individual knobs honoured only for `generic_board` — the [§4.1](#41-the-device-and-board-dimension) shape. Guard the ignored-knob case with `pragma Compile_Time_Error` ([§5.2](#52-derive-in-ada-not-in-the-generator)).
 3. **Prune the stale `ada_source_path` entry.** It lists `gnat_user`, which does not exist in the crate. Harmless today ([§1.1](#11-which-tool-consumes-which-metadata-file): missing directories are fatal, stale ones are ignored) but it will confuse the next reader.
-4. **Declare `provides`.** AVR's floor excludes tasking, so the honest declaration is a `light`-class alias only — never `gnat_rts_tasking`. With [§4](#4-where-each-axis-falls)'s split, a library crate requiring tasking then fails to resolve against AVR at solve time rather than failing to compile later.
+4. **Declare `provides`.** AVR's floor is `light`, so under [§4](#4-where-each-axis-falls)'s chain the honest declaration is `provides = ["gnat_rts=1.0.0"]` — the floor it does satisfy, not silence. A library crate requiring `>=2.0.0` then fails to resolve against AVR at solve time rather than failing to compile later. Declaring the floor rather than nothing is what makes the ordering usable: silence is indistinguishable from a crate that has not been classified.
 
 What AVR should *not* adopt: the tier-1 shared-snapshot dependency. Its runtime is a hand-maintained minimal ZFP with its own provenance (a GCC 9-vintage `System.Arith_64`, among other things), not a slice of a current `libgnat`. The version test puts it on the other side of that boundary.
 

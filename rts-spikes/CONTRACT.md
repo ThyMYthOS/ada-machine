@@ -126,7 +126,27 @@ output_dir = "gnat_config"
 generate_c = false
 ```
 
-Tasking leaves additionally declare `provides = ["gnat_rts_tasking=0.1.0"]`. `light_mpfs` must **not** — AVR-style, its floor excludes tasking ([RTS.md §4](../RTS.md#4-where-each-axis-falls)).
+**Every leaf declares its capability floor**, as a version on one shared virtual
+name. The profiles are ordered — `light` ⊆ `light-tasking` ⊆ `embedded`, because
+light code compiles unchanged on the profiles above it — so a version expresses
+the whole chain and a dependent states a *lower bound*
+([RTS.md §4](../RTS.md#4-where-each-axis-falls)):
+
+| Leaf | `provides` |
+|---|---|
+| `light_mpfs` | `["gnat_rts=1.0.0"]` |
+| `light_tasking_mpfs`, `light_tasking_pico` | `["gnat_rts=2.0.0"]` |
+| `embedded_mpfs` | `["gnat_rts=3.0.0"]` |
+
+**Changed from the earlier contract**, which said tasking leaves declare
+`gnat_rts_tasking=0.1.0` and `light_mpfs` must declare nothing. Silence is
+indistinguishable from a crate nobody has classified, and a boolean name throws
+away the field that carries the ordering. A library needing tasking now depends on
+`gnat_rts = ">=2.0.0"` and accepts `embedded` too.
+
+Only the *declaration* side is exercised here — no crate in this tree constrains a
+virtual name, so the `>=` half is untested ([RTS.md §8](../RTS.md#8-open-problems)
+item 5).
 
 ### 3.2 Configuration variables — names pinned
 

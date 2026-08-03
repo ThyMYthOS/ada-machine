@@ -20,10 +20,12 @@ maintainers-logins = ["thymythos"]
 
 project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
 
-#  This profile has tasking (unlike light_mpfs, whose floor excludes it,
-#  RTS.md §4) -- see README.md for why this declaration belongs here and
-#  not on light_mpfs.
-provides = ["gnat_rts_tasking=0.1.0"]
+#  Capability floor 2 = light-tasking, on the ordered scale of CONTRACT.md §3.1
+#  (1 light, 2 light-tasking, 3 embedded). A library depending on
+#  gnat_rts = ">=2.0.0" resolves against this leaf and against embedded_mpfs,
+#  which is the point of putting the ordering in the version rather than using a
+#  separate name per capability.
+provides = ["gnat_rts=2.0.0"]
 
 [[depends-on]]
 rts_sources_gcc15 = "*"
