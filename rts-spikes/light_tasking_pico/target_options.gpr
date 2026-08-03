@@ -63,9 +63,13 @@ abstract project Target_Options is
   end case;
 
   ------------------------------------------------------------------
-  --  The ISA / device axis. Device is a content selector into tier 1's
-  --  Armv6m/Armv8m sqrt overlay (rts_sources_gcc15_arm/README.md), NOT a
-  --  second crate. Only "rp2040" has populated sources in this toolchain.
+  --  The ISA / device axis. Device selects tier 3's src-rp2040/ or
+  --  src-rp2350/ board overlay (rts_support_pico serves both devices), NOT a
+  --  second crate. There is no per-device tier-1 overlay: the two units that
+  --  used to differ by ARM generation, s-lisisq.adb and s-lidosq.adb, are now
+  --  single merged bodies in rts_sources_gcc15/libgnat-patched/ that test
+  --  RTS_Capabilities in an expression the front end folds -- see
+  --  src/rts_capabilities.ads and RTS.md 5.5.
   ------------------------------------------------------------------
 
   type Device_Kind is ("rp2040", "rp2350");
@@ -78,12 +82,15 @@ abstract project Target_Options is
         Cpu := "cortex-m0plus";       --  ARMv6-M, matches this toolchain's
         Fpu := ("-mfloat-abi=soft");  --  light-tasking-rpi-pico exactly.
      when "rp2350" =>
-        --  RP2350's Cortex-M33 has an optional single-precision FPU; the
-        --  RP2350 Alire crates default to it disabled for the plain
-        --  "cortex-m33" runtime (see comparison in
-        --  ../rts_sources_gcc15_arm/README.md). Not exercised: no RP2350
-        --  sources are populated, so choosing this value fails at
-        --  Source_Dirs resolution before this switch would ever matter.
+        --  PLACEHOLDER, and known to be wrong: the published
+        --  light_tasking_rp2350 crate builds cortex-m33 with
+        --  -mfloat-abi=HARD, and its FPU is single-precision only. Left soft
+        --  here because nothing exercises it -- pico_config_checks.ads
+        --  rejects Device => rp2350 before these switches reach a compiler,
+        --  and changing them without the matching linker scripts and
+        --  rts_capabilities.ads would replace an honest refusal with a
+        --  half-correct build. Fix all three together
+        --  (rts_support_pico/README.md, "What is still missing").
         Cpu := "cortex-m33";
         Fpu := ("-mfloat-abi=soft");
   end case;

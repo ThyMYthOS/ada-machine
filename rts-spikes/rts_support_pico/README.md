@@ -1,7 +1,9 @@
-# rts_support_rp2040
+# rts_support_pico
 
-Tier 3 (source-only) of the `rts-spikes-rp2040` hierarchy: RP2040 board
-support, mirroring `rts-spikes/rts_support_mpfs`. 17 files in `src.lst`,
+Tier 3 (source-only) of the `rts-spikes` hierarchy: Raspberry Pi Pico board
+support for **both** RP2040 and RP2350, mirroring
+`rts-spikes/rts_support_mpfs`. Named for the family, not a device, because
+that is what tier 3 varies by (RTS.md §6). 17 files in `src.lst`,
 derived by diffing `light-tasking-rpi-pico/gnat` (398 files) against the
 generic, board-agnostic `light-cortex-m0p/gnat` (380 files) -- the 18-file
 difference, minus `s-parame.adb` (leaf-owned, differs in *content* rather
@@ -47,8 +49,42 @@ than being substituted and ignored: with the script's `ASSERT` threshold
 temporarily raised to `4M`, the link fails at `Flash_Size_KB = 2048` and
 succeeds at `4096`.
 
-Genuinely RP2040-only, unlike tier 1: this toolchain ships no RP2350 board
-runtime at all (only the generic, board-agnostic `light-cortex-m33f` etc.), so
-there is nothing to diff an RP2350 board-support variant against, and no
-overlay is attempted here. See `../rts_sources_gcc15_arm/README.md` for where
-the device axis actually lives (two sqrt files, tier 1).
+## The device axis
+
+This crate serves both devices, and the split is measured rather than guessed.
+`gnat_arm_elf` 15.1.2 ships no RP2350 board runtime at all (only the generic
+`light-cortex-m33f` and friends), so the RP2350 half was taken from the
+published `light_rp2350` / `light_tasking_rp2350` crates. Under this tree's
+ownership rule -- tier 1 tracks upstream, everything below it is ours
+(`../CONTRACT.md` §1) -- that is not a second kind of upstream needing its own
+assertion; it is simply ours, with no second copy to drift from.
+
+Measured against those crates: of ~400 units, **378 are byte-identical, 5
+differ, 18 are RP2040-only and 13 RP2350-only**, and the device-only names are
+**disjoint** (`i-rp2040-*.ads` versus `i-rp2350-*.ads`, `boot2-*.S` versus
+`image_def.S.inc`). Disjoint names need no overlay -- one directory holds them
+and each leaf's `Source_List_File` picks its own. So the layout is:
+
+```
+src/           19 device-neutral units, shared
+src-rp2040/    s-bbbopa.ads s-bbbosu.adb s-bbmcpa.ads setup_clocks.adb start-rom.S
+src-rp2350/    the same five names, RP2350 content
+```
+
+A leaf puts exactly one `src-<device>/` ahead of `src/` in `Source_Dirs`; both
+directories are exported by `rts_support_pico.gpr` as `Rp2040_Dir` and
+`Rp2350_Dir`.
+
+**What is still missing for an RP2350 leaf to build** — the overlay is here,
+the rest is not:
+
+- `ld/` holds only the RP2040 pair. The RP2350 scripts differ (six files versus
+  five in the published crates) and have not been compared.
+- `light_tasking_pico/target_options.gpr` maps `rp2350` to `-mcpu=cortex-m33`
+  with `-mfloat-abi=soft`; the published crate uses **hard**, and its M33 FPU is
+  single-precision — so an RP2350 leaf also needs its own
+  `rts_capabilities.ads` (`Has_Hw_Sqrt_Single => True`,
+  `Has_Hw_Sqrt_Double => False`; see that file's header).
+- `a-intnam.ads` is absent from the RP2350 crate's `gnat/` and `gnarl/`, and
+  that is unexplained.
+- `light_tasking_pico/src/pico_config_checks.ads` still rejects the value.

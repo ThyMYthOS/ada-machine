@@ -1,12 +1,21 @@
 name = "rts_core_cortexm"
 description = "Tier 2: ARM Cortex-M architecture core (source-only)"
 long-description = """
-Tier 2 of the rts-spikes-rp2040 hierarchy: the ARM Cortex-M architecture core
+Tier 2 of the rts-spikes hierarchy: the ARM Cortex-M architecture core
 -- System.BB, System.BB.CPU_Primitives, System.BB.CPU_Specific and
 System.BB.Armv6m_Atomic. Source-only and never built by Alire (these units
 need -gnatg -nostdinc, the cross compiler and no runtime, a bootstrap cycle);
-a leaf crate compiles them. Sources are populated from an installed
-gnat_arm_elf 15.1.2 by ../populate.sh rather than vendored -- see README.md.
+a leaf crate compiles them.
+
+Named for the Cortex-M family rather than one architecture generation, on the
+same reasoning as rts_support_pico but weaker evidence: only the M0+ path has
+been built, so an ARMv8-M leaf has not yet exercised the name (RTS.md 6).
+ARMv6-M lacking LDREX/STREX -- hence System.BB.Armv6m_Atomic -- is the kind of
+difference that belongs inside this crate rather than forking it.
+
+Owned, not populated: tier 1 tracks upstream and everything below it is ours
+(CONTRACT.md 1), so these sources are committed and hand-editable, and
+../populate.sh does not touch them.
 """
 version = "0.1.0-dev"
 licenses = "GPL-3.0-or-later WITH GCC-exception-3.1"
