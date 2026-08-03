@@ -17,6 +17,10 @@ package Light_Tasking_Pico_Config is
    type Build_Profile_Kind is (release, validation, development);
    Build_Profile : constant Build_Profile_Kind := release;
 
+   Flash_Size_KB_First : constant :=  2048;
+   Flash_Size_KB_Last : constant :=  16384;
+   Flash_Size_KB : constant :=  2048;
+
    type Device_Kind is (rp2040, rp2350);
    Device : constant Device_Kind := rp2040;
 

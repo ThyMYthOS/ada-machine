@@ -21,6 +21,10 @@ abstract project Light_Tasking_Pico_Config is
    type Build_Profile_Kind is ("release", "validation", "development");
    Build_Profile : Build_Profile_Kind := "release";
 
+   Flash_Size_KB_First := "2048";
+   Flash_Size_KB_Last := "16384";
+   Flash_Size_KB := "2048";
+
    type Device_Kind is ("rp2040", "rp2350");
    Device : Device_Kind := "rp2040";
 
