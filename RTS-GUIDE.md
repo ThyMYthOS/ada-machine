@@ -64,7 +64,7 @@ Note also that the profile — `light` versus `light-tasking` versus `embedded` 
 | bb-runtimes does this in Python | You do this instead |
 |---|---|
 | target-description classes declaring source lists and flags | `[configuration.variables]` in the leaf's manifest |
-| filename suffixes (`s-bbbosu__armv7m`) picking a variant | `Source_Dirs` **order** — a directory overlay shadows the generic file |
+| filename suffixes (`s-bbbosu__armv7m`) picking a variant | `Source_Dirs` **order** for many units × few variants; a **`Naming` rule** over the suffix for few units × many variants ([§6.1](#61-two-ways-to-pick-the-variant-directory-order-or-a-naming-rule)) |
 | `profiles.py` flag closure (`check_deps()`) computing a unit set | one `Source_List_File` per profile, closure evaluated once and committed |
 | feature flags deriving other feature flags | static expressions in a `Pure` Ada spec |
 | templating `runtime.xml` and linker scripts | `-Wl,--defsym=` for numbers; GPR selection for structure |
@@ -461,26 +461,71 @@ for Spec ("Ada.Interrupts.Names") use "a-intnam-" & Config.Device & ".ads";
 
 and the unselected variants go in `Excluded_Source_Files`. All of this is production code in a published crate today.
 
+This is the device axis's *natural* mechanism, and [§6.1](#61-two-ways-to-pick-the-variant-directory-order-or-a-naming-rule) explains why: a device axis is usually **one unit across many devices**, which is exactly where a naming rule beats a directory per device. Eight devices need eight files in one directory and one rule, not eight directories holding one file each.
+
 **What N devices in one crate costs:** N interrupt-name specs, N memory maps, an N-way `case` — all excluded from the build except the selected one, so the compiled artifact is unchanged. Adding a board is a row in an enumeration plus a row in each `case`.
 
 ## 6. Choosing between source variants
 
-A runtime carries the same unit in several forms — per profile, per word size, per console, per FPU. Four mechanisms choose between them, and they differ in **granularity**, which is what decides whether a given variation can use them at all:
+A runtime carries the same unit in several forms — per profile, per word size, per console, per FPU. Five mechanisms choose between them, and they differ in **granularity**, which is what decides whether a given variation can use them at all:
 
 | Mechanism | Granularity | Cannot express |
 |---|---|---|
-| `Source_Dirs` order / overlay directories | **directory** | nothing — but duplicates the whole unit |
+| `Source_Dirs` order / overlay directories | **directory** | nothing — but costs a directory per variant |
+| a `Naming` rule over suffixed filenames | **unit** | anything that is not an Ada unit — an `.S` file is not |
 | `Source_List_File` | **file** | content differences; it names basenames |
 | `separate` (subunits) | **subprogram** | anything in a **spec** |
 | static test in the body | **expression** | variation the unit cannot see a constant for |
 
 **Reach for the finest one the variation allows.** A directory pair duplicates an entire unit to vary a line; a subunit duplicates one subprogram; an in-body test duplicates nothing.
 
-### 6.1 `Source_Dirs` order replaces the filename suffixes
+### 6.1 Two ways to pick the variant: directory order, or a naming rule
 
-Where the same basename appears under two `Source_Dirs` values, the *earlier* one wins. Order the directories board → architecture → shared, and a board-specific `s-bbbosu.adb` shadows the architecture-generic one with **no filename suffix and no exclusion list**. That is bb-runtimes' `__armv7m` convention, natively.
+bb-runtimes writes `s-bbbosu__armv7m` and picks the suffix at generation time. GPR gives you two native replacements, and **which one is cheaper depends on the shape of the variation, not on taste.**
 
-**The hazard is in the same sentence: no error is reported.** See [§11.1](#111-silent-basename-shadowing).
+**Option A — directory order.** Where the same basename appears under two `Source_Dirs` values, the *earlier* one wins. Order the directories board → architecture → shared, and a board-specific `s-bbbosu.adb` shadows the architecture-generic one with no suffix and no exclusion list at all:
+
+```ada
+for Source_Dirs use ("gnat_config", "src", Board_Dir, Arch_Dir, Shared_Dir);
+```
+
+Every unit that varies together travels in one directory, and you declare nothing per unit. **The hazard is in the same sentence as the rule: no error is reported** ([§11.1](#111-silent-basename-shadowing)).
+
+**Option B — keep the suffix and add a `Naming` rule.** All variants live in *one* directory under distinguishing names, and the project says which one provides the unit:
+
+```ada
+package Naming is
+   for Spec ("Ada.Interrupts.Names") use "a-intnam-" & Config.Device & ".ads";
+end Naming;
+
+--  Mandatory companion, not optional tidying -- see below.
+for Excluded_Source_Files use (...the other seven a-intnam-*.ads...);
+```
+
+This is production code in a published crate, which uses it for eight sub-families.
+
+**The crossover.** Count what each scheme costs as the variation grows, because they scale along different axes:
+
+| | directories needed | per-unit declarations |
+|---|---|---|
+| Option A, directory order | **one per variant** | none |
+| Option B, naming rule | **one, total** | one rule + one exclusion list entry **per unit** |
+
+So the rule is: **many units varying together across few variants → directories. Few units varying across many variants → naming rules.** Worked on this guide's own examples:
+
+| What varies | Units | Variants | As directories | As naming rules | Pick |
+|---|---|---|---|---|---|
+| profile overlays ([§3](#3-the-crate-hierarchy)) | 18 | 3 | 3 directories | 54 rules | **A** |
+| interrupt names per device | 1 | 8 | 8 directories | 1 rule, 8 files | **B** |
+| board units per Pico device | 5 | 2 | 2 directories | 5 rules, 10 files | **A**, narrowly |
+
+The middle row is the one worth internalising: eight directories holding one file each is the shape the user's instinct rightly rejects. One directory with eight suffixed files and a single rule says the same thing.
+
+> **Why the exclusion list is mandatory rather than tidy.** Under GNAT's default naming scheme a `-` in a filename maps to a `.` in the unit name, so `a-intnam-g474.ads` reads as the *child unit* `Ada.Interrupts.Names.G474`. Leave the unselected variants visible and the project acquires seven bogus child units of the package you are trying to configure. The naming rule claims the one you want; the exclusion suppresses the rest. They always come as a pair.
+>
+> Two further limits. A `Naming` rule is **per project**, so on a tasking leaf a unit that varies in both libraries needs the rule in `runtime_build.gpr` *and* `ravenscar_build.gpr`. And it selects **Ada units** — an `.S` boot blob or a linker script is not a unit, so those keep to directory order or `Excluded_Source_Files` ([§7.2](#72-the-genuine-selection-case-is-content)).
+
+**One advantage of Option B is worth more than the file count:** selection is *explicit*. The filename records which variant it is and the project states which one it chose, so the [§11.1](#111-silent-basename-shadowing) silent-shadowing hazard does not apply to the units it covers. Where a variation is small in units and wide in variants, that is two wins for the price of one declaration.
 
 ### 6.2 `Source_List_File` decides membership
 
@@ -726,6 +771,8 @@ Everything in this section produces a working-looking build. Read it once, and c
 Where the same basename appears in two `Source_Dirs`, the earlier wins and **no error is reported**. Get the order wrong, or leave a stale file where a variant should be, and you compile different text with no diagnostic at all.
 
 Mitigations: keep the order comment in the project file (`ORDER IS LOAD-BEARING`), and check the `.ali` `D` lines when it matters. If you have a populate or vendoring step, make it **prune** rather than merely copy — a stale file left behind by a rename is exactly this failure.
+
+**Or sidestep it entirely where the shape allows.** A `Naming` rule over suffixed filenames makes the choice explicit — the filename states the variant, the project states the pick, and there is no shadowing to be silent about ([§6.1](#61-two-ways-to-pick-the-variant-directory-order-or-a-naming-rule)). It is not a general substitute, because it costs a declaration per unit, but for a variation that is few units wide it removes this hazard rather than mitigating it.
 
 ### 11.2 A missing `ada_source_path` entry is fatal, a stale one is silent
 
