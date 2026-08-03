@@ -289,6 +289,8 @@ The degenerate case is instructive: a `light` runtime has no support code at all
 
 **The current split does not follow that rule, and the evidence is in one repository.** `light_stm32g4xx` covers eight sub-families (G431 … G4A1) with a `MCU_Sub_Family` enum, five flash-size and three RAM-size linker-script directories, and the whole clock tree — one crate per profile for the entire family. Meanwhile `light_nrf52832`, `light_nrf52833` and `light_nrf52840` are three separate crates generated from a *single* `nrf52_src` overlay whose per-device content is `setup_board.adb`, `a-intnam.ads`, `handler.S`, a register subset, and a `memory-map_nrf52XXX.ld`. All three parts are Cortex-M4F. Every one of those differences is something the STM32G4 crate already handles as configuration within one crate. The nRF52 split is inherited from bb-runtimes' Python target table, not chosen — which is exactly the kind of accident a stated boundary rule prevents.
 
+Note what the STM32G4 crate pays to do it, though, because it is a separate mistake from the crate-boundary one: eight linker-script directories for two *numbers*. That is the [A.25](#a25) pattern — a committed file per value, where one script and two `-Wl,--defsym=` switches would do ([§5.3](#53-select-dont-generate-non-ada-artifacts)). Holding N devices in one crate is right; paying for it by directory is not.
+
 **The mechanisms needed to hold N devices in one crate are all verified.** Nothing here is speculative:
 
 - **Per-device unit selection** via the `Naming` package: `for Spec ("Ada.Interrupts.Names") use "a-intnam-" & Config.MCU_Sub_Family & ".ads";` — production code in the STM32G4 crate.
@@ -451,7 +453,14 @@ Per-board tables live in the same place, as static `case` expressions over the `
 
 ### 5.3 Select, don't generate, non-Ada artifacts
 
-Linker scripts and boot stages cannot read an Ada spec. Do not template them — pre-generate the variants and select a path in GPR from the configuration value:
+Linker scripts and boot stages cannot read an Ada spec, so they cannot be configured the way [§5.1](#51-generate-the-configuration-unit-into-a-runtime-source-directory) configures Ada. Two mechanisms cover them, and the line between the two is **numbers versus structure**:
+
+| Varies | Mechanism | Because |
+|---|---|---|
+| a value — a length, a base, an alignment | `-Wl,--defsym=` | `ld` accepts a symbol wherever it accepts a constant |
+| a *shape* — which files, which sections, what order | selection in GPR | no symbol can add an output section or swap a boot blob |
+
+**A different file per value is the failure mode to avoid**, and it is easy to fall into because the value often *looks* enumerable. `embedded_rp2040` derives a flash size from the chip and selects a directory by it:
 
 ```ada
 Flash_Size := "16";
@@ -467,7 +476,22 @@ Linker_Switches :=
    "-T", Project'Project_Dir & "/ld/common-ROM.ld");
 ```
 
-and for alternative bodies, negative selection over the candidate set:
+That is four committed directories, `ld/flash-{2,4,8,16}/memory-map.ld`, 46 lines each. **Exactly one line differs between any two of them** ([A.25](#a25)):
+
+```
+-  flash  (rx) : ORIGIN = 0x10000000, LENGTH = 2M
++  flash  (rx) : ORIGIN = 0x10000000, LENGTH = 16M
+```
+
+184 lines carrying 1 line of information, and `Flash_Size` — already a number — is stringified into a *path* rather than into a value. One script and one symbol replace all four, and the derivation in GPR gets shorter rather than longer:
+
+```
+flash (rx) : ORIGIN = 0x10000000, LENGTH = FLASH_LENGTH
+```
+
+`--defsym` accepts `ld`'s own size suffixes, so the switch is `-Wl,--defsym=FLASH_LENGTH=2M` with no unit conversion in GPR; `2M`, `2048k` and `0x200000` all work, and the symbol is genuinely the region length rather than a default that happens to fit — `ASSERT (LENGTH(flash) >= 2M)` passes at `2M` and fails the link at `1M` ([A.25](#a25)). `ORIGIN` takes a symbol the same way, verified ([A.20](#a20)), and derived symbols follow: `__heap_end` came out at exactly `ORIGIN + LENGTH`. A region at `LENGTH = 0` is legal, which makes zero a natural encoding for "absent" and turns any placement there into a link error.
+
+**The genuine selection case is the boot blob**, where the *content* differs and no symbol can express it — negative selection over the candidate set:
 
 ```ada
 case Flash_Chip is
@@ -479,21 +503,14 @@ end case;
 for Excluded_Source_Files use Excluded_Sources;
 ```
 
-GPR is doing the derivation `Board → Flash_Chip → Flash_Size → linker path + excluded sources` here, mirroring in GPR what [§5.2](#52-derive-in-ada-not-in-the-generator) does in Ada. Both are needed: Ada for anything the runtime *code* reads, GPR for anything the *build* reads.
+Same configuration variable, same `case`, different mechanism — because a second-stage bootloader for a different QSPI part is not a number. GPR is deriving `Board → Flash_Chip → {a length, a source set}`, mirroring in GPR what [§5.2](#52-derive-in-ada-not-in-the-generator) does in Ada. Both are needed: Ada for anything the runtime *code* reads, GPR for anything the *build* reads.
 
-**Selection covers placement, not sizes.** The pattern above works because "which flash chip" is a small enumeration. It fails as soon as a region's *size* is continuous — a configurable memory split, a board-dependent DRAM size — because the cross product of sizes cannot be enumerated as committed files. For those, `ld` accepts a **symbol** where a constant is expected, and `-Wl,--defsym=` supplies it:
+The rule generalises past sizes. A per-core memory window under a protection unit varies in base *and* length *and* permissions, and it still splits the same way: base and length are symbols, while the set of output sections a protection region must cover is structure and needs a fragment — worked through for RISC-V PMP in [RTS-POLARFIRE.md §6.5](RTS-POLARFIRE.md#65-pmp-restricts-what-a-hart-sees-not-what-it-may-do).
 
-```
-MEMORY
-{
-  ram        (wxa) : ORIGIN = 0x80000000,       LENGTH = RAM_LENGTH
-  local_sram (rwx) : ORIGIN = LOCAL_SRAM_ORIGIN, LENGTH = LOCAL_SRAM_LENGTH
-}
-```
+**Two things `ld` will not do for you.**
 
-Both `LENGTH` and `ORIGIN` work this way, verified ([A.20](#a20)), and derived symbols follow: `__heap_end` came out at exactly `ORIGIN + LENGTH`. So the division is **selection for placement, `--defsym` for sizes** — and a region set to `LENGTH = 0` is legal, which makes zero a natural encoding for "absent" and turns any placement into that region into a link-time error.
-
-**But `ld` checks overflow, never overlap.** A section too large for its region is reported precisely (`region 'ram' overflowed by 2096944 bytes`); two regions *declared* overlapping by 32 KB produce no diagnostic at all ([A.20](#a20)). Linker-side arrangement therefore buys "I placed something where I declared nothing" and never "my declarations collide" — anything needing the latter has to check it in Ada, per [§5.2](#52-derive-in-ada-not-in-the-generator).
+- **It checks overflow, never overlap.** A section too large for its region is reported precisely (`region 'ram' overflowed by 2096944 bytes`); two regions *declared* overlapping by 32 KB produce no diagnostic at all ([A.20](#a20)). Linker-side arrangement buys "I placed something where I declared nothing" and never "my declarations collide" — the latter has to be checked in Ada, per [§5.2](#52-derive-in-ada-not-in-the-generator).
+- **It does not enforce the region attributes.** The `(rx)` on `flash` above binds only *orphan* sections; with an explicit `> region`, writable data placed in an `(rx)` region links with exit 0 ([A.25](#a25)). Those letters are documentation. What `ld` *will* enforce on request is an explicit `ASSERT` in the script, which is how a permission or alignment constraint becomes a link error instead of a comment.
 
 ---
 
@@ -1006,7 +1023,7 @@ foreign_itim     0x0000000001810000 0x0000000000000000 xrw   <- zero-length, acc
 | section too big for region | `section '.bss' will not fit in region 'ram'`, `region 'ram' overflowed by 2096944 bytes` |
 | two regions overlapping by 32 KB | **no diagnostic whatsoever** — only Alire's own warnings appeared |
 
-→ [§5.3](#53-select-dont-generate-non-ada-artifacts): use selection for placement and `--defsym` for sizes; do not expect the linker to detect overlap. Measured on `gnat_riscv64_elf` 15.1.2 with a `light-polarfiresoc` runtime copy; the wider PolarFire SoC context is in [RTS-POLARFIRE.md](RTS-POLARFIRE.md).
+→ [§5.3](#53-select-dont-generate-non-ada-artifacts): `--defsym` for anything that is a number — including a base, since symbolic `ORIGIN` works too — and selection only for what a symbol cannot express; do not expect the linker to detect overlap. [A.25](#a25) puts a cost on ignoring the first half. Measured on `gnat_riscv64_elf` 15.1.2 with a `light-polarfiresoc` runtime copy; the wider PolarFire SoC context is in [RTS-POLARFIRE.md](RTS-POLARFIRE.md).
 
 <a id="a21"></a>
 **A.21 — What is actually in each tier?** Partitioning the three installed PolarFire SoC runtimes (`gnat_riscv64_elf` 15.1.2) by unit, classifying each file as shared / architecture / family / profile-owned:
@@ -1088,3 +1105,22 @@ Two results. First, duplication and divergence are unrelated: `a-except` and `a-
 The `a-strsup` diff is entirely the Ada 2022 `Put_Image` chain — a `with`, an aspect on the type, a declaration, and an eleven-line body. That is also [A.23](#a23) from a third angle: the union build failed on *content*, and here is the content.
 
 Supporting measurements: twelve units in the same tree are already subunits, among them `s-bbsuti.adb` and `s-dorepr.adb`, whose parent spec sits in the shared snapshot while only its subunit varies by word size. And the in-body alternative was checked for robustness rather than assumed — a soft-float RISC-V build of `s-lisisq.adb` at `-O0` compiles cleanly, so the `Standard'Target_Name` branch guarding a PowerPC `frsqrte` instruction is eliminated by the front end and not by the optimiser. → [§5.5](#55-four-ways-to-select-between-variants-and-what-each-cannot-express)
+
+<a id="a25"></a>
+**A.25 — When does a linker script variant earn its keep?** Measured on the published `embedded_rp2040` 15.4.0 crate, which selects one of four committed directories by flash size:
+
+| | Result |
+|---|---|
+| `ld/flash-{2,4,8,16}/` | one file each, `memory-map.ld`, 46 lines each — 184 lines total |
+| `diff` between any pair | **1 line** — the `LENGTH` of the `flash` region |
+| what the GPR passes | `Flash_Size` as a decimal *string*, concatenated into a `-L` path |
+
+So the four variants encode a single number. Replacing them with `LENGTH = FLASH_LENGTH` and one `-Wl,--defsym=` was checked against `arm-eabi-ld` 15.1.2 for the details that would have made it awkward:
+
+| Question | Result |
+|---|---|
+| does `--defsym` take `ld`'s size suffixes? | yes — `2M`, `2048k`, `0x200000` all accepted, so GPR needs no unit conversion |
+| is the symbol really the region length? | yes — `-Map` reports `flash … 0x01000000` for `16M`, and `ASSERT (LENGTH(flash) >= 2M)` passes at `2M`, fails the link at `1M` |
+| is the symbol usable in `LENGTH()`/`ORIGIN()` expressions? | yes — that assert is the proof |
+
+Also measured, on `riscv64-elf-ld` 15.1.2, because the `(rx)` in those scripts reads like a guarantee: **it is not one.** `.data` placed with an explicit `> romonly` into a region declared `romonly (rx)` links with exit 0; the sole diagnostic, `warning: has a LOAD segment with RWX permissions`, comes from the section flags, not from the attribute. `MEMORY` attributes bind only *orphan* sections. An explicit `ASSERT` is what turns a placement or alignment rule into a link error — both a containment and a naturally-aligned-power-of-two check were made to fail on demand. → [§5.3](#53-select-dont-generate-non-ada-artifacts), [RTS-POLARFIRE.md §6.5](RTS-POLARFIRE.md#65-pmp-restricts-what-a-hart-sees-not-what-it-may-do)
