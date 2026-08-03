@@ -30,9 +30,10 @@ maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
 project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
 
-#  This leaf has a tasking floor (Ravenscar) -- mirrors light_tasking_mpfs,
-#  not light_mpfs -- so it DOES declare gnat_rts_tasking (CONTRACT.md §3.1).
-provides = ["gnat_rts_tasking=0.1.0"]
+#  Capability floor 2 = light-tasking (Ravenscar), on the ordered scale of
+#  CONTRACT.md §3.1 -- same value as light_tasking_mpfs, since the floor is a
+#  property of the PROFILE and not of the target.
+provides = ["gnat_rts=2.0.0"]
 
 [[depends-on]]
 rts_sources_gcc15 = "*"

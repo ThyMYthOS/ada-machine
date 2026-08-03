@@ -17,8 +17,14 @@ comes from the three source-only tiers it depends on
 
 It is the critical-path leaf of this spike (CONTRACT.md §3.1): the only
 one of the three that must build in the first milestone, because it has
-no tasking floor to clear (RTS.md §4, matching AVR's `light` floor). It
-must **not** declare `provides = ["gnat_rts_tasking=..."]`.
+no tasking floor to clear (RTS.md §4, matching AVR's `light` floor).
+
+It declares `provides = ["gnat_rts=1.0.0"]` — the bottom of the ordered
+capability scale (1 light, 2 light-tasking, 3 embedded). It declares the
+floor it *does* satisfy rather than staying silent, because silence is
+indistinguishable from a leaf nobody has classified. A library requiring
+`gnat_rts = ">=2.0.0"` will not resolve against this leaf, which is the
+guarantee the earlier "declare nothing" rule was trying to express.
 
 `Source_Dirs` order is load-bearing (RTS.md §2.1): `gnat_config`/`src`
 (this leaf) shadow `rts_support_mpfs` (board) shadow `rts_core_riscv64`

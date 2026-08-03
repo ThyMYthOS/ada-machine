@@ -21,8 +21,15 @@ maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
 project-files = ["runtime_build.gpr"]
 
-#  light has no tasking (RTS.md §4: AVR-style floor), so this leaf must
-#  NOT declare provides = ["gnat_rts_tasking=..."] -- CONTRACT.md §3.1.
+#  The capability FLOOR this leaf satisfies (CONTRACT.md §3.1). The profiles are
+#  ORDERED -- light code compiles unchanged on light-tasking and embedded -- so
+#  the floor is a version on one shared name rather than a per-capability name:
+#  1 = light, 2 = light-tasking, 3 = embedded. A library needing tasking depends
+#  on gnat_rts = ">=2.0.0" and will not resolve against this leaf.
+#
+#  This leaf declares 1.0.0 rather than nothing, which is a change from the
+#  earlier contract: silence is indistinguishable from a leaf nobody classified.
+provides = ["gnat_rts=1.0.0"]
 
 [[depends-on]]
 rts_sources_gcc15 = "*"

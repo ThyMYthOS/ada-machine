@@ -103,7 +103,11 @@ the one place they differ. It lives in GPR because there is no
 | `Secondary_Stack_Size` | Integer | 2048 | bounds not pinned; chosen as 0 .. 1 MiB |
 | `MPFS_PARTITION` | String | `""` | empty = standalone mode; non-empty selects a generated `partition-<name>.ld` (RTS-POLARFIRE.md §6.1) |
 
-`provides = ["gnat_rts_tasking=0.1.0"]`, unlike `light_mpfs` (RTS.md §4).
+`provides = ["gnat_rts=3.0.0"]` — the top of the ordered capability scale
+(1 light, 2 light-tasking, 3 embedded; CONTRACT.md §3.1). Because the profiles
+are a chain, this leaf satisfies *every* floor: a library requiring `">=1.0.0"`
+or `">=2.0.0"` resolves against it as well, which a per-capability name could
+not express.
 
 ## Exported GPR variables (CONTRACT.md §3.7)
 

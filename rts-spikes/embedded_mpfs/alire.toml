@@ -18,11 +18,11 @@ maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
 project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
 
-# CONTRACT.md section 4: profile is a crate, and the mechanism is
-# `provides`. This is the `embedded` leaf, so -- like light_tasking_mpfs --
-# it satisfies any library's "I need a tasking runtime" dependency
-# (RTS.md section 4).
-provides = ["gnat_rts_tasking=0.1.0"]
+# Capability floor 3 = embedded, the top of the ordered scale in CONTRACT.md
+# section 3.1 (1 light, 2 light-tasking, 3 embedded). Because the profiles are a
+# chain, this leaf satisfies every floor: a library requiring ">=1.0.0" or
+# ">=2.0.0" resolves against it too, which a per-capability name could not say.
+provides = ["gnat_rts=3.0.0"]
 
 [configuration]
 output_dir = "gnat_config"
