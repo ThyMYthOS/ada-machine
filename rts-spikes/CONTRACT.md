@@ -320,7 +320,14 @@ Region bases (literal, from RTS-POLARFIRE §1.2): envm `0x20220100`, dtim `0x010
 
 ## 5. Validation — `pragma Compile_Time_Error`, not subtypes
 
-Subtypes only warn; the pragma is what enforces (RTS.md [A.15](../RTS.md#a15)). Put these in a tier-3 spec that reads `MPFS_Runtime_Config`:
+Subtypes only warn; the pragma is what enforces (RTS.md [A.15](../RTS.md#a15)). Put these in a tier-3 spec that reads `MPFS_Runtime_Config`.
+
+**That spec must carry `pragma Pure`.** It is not decoration: a
+`Compile_Time_Error` whose condition is not static is discarded in silence, and
+`Pure` is what converts that into a build failure
+([§7.4](#74-pragma-compile_time_error-silently-no-ops-on-non-static-conditions)).
+`mpfs_config_checks.ads` has it. A check unit without it is enforcing its own
+staticness rule by convention only.
 
 - `Hart_Class = e51` with a hard-float ABI → error (no FPU)
 - `Hart_Class = e51` and `Harts /= "0"` → error; `Hart_Class = u54` and hart 0 in the set → error
@@ -410,23 +417,38 @@ aggregate view separately, for ordinary non-static consumption. And after writin
 checks, deliberately break at least two and confirm each reports *your* message —
 an unexercised check is worse than none, because it reads as assurance.
 
-**A mitigation that converts the silence into a diagnostic**, measured in the
-same run and **not yet applied here**: if the *check-holding unit itself* carries
-`pragma Pure` or `pragma Preelaborate`, preelaboration legality rejects the
-non-static condition outright —
+**The discipline above is now enforced by the compiler, not by convention.**
+`mpfs_config_checks.ads` carries `pragma Pure`, and that is what makes its checks
+enforceable: preelaboration legality rejects a non-static expression outright,
+which is exactly the condition shape `Compile_Time_Error` would otherwise discard
+in silence. Measured in this exact context — tier-3 unit, reached through the
+`MPFS_Runtime_Config` renaming shim, compiled with `-gnatg` — by adding a
+selected component of a constant array of records and building `hello_mpfs`:
 
 ```
-error: non-static constant in preelaborated unit
-error: static expression must have scalar or string type (RM 4.9(2))
+mpfs_config_checks.ads:47:07: warning: non-static constant in preelaborated unit
+                              [enabled by default]
+compilation of mpfs_config_checks.ads failed
 ```
 
-— and under `-gnatg`, which is how a runtime unit is compiled, those become
-default-on *warnings* that `-gnatwe` would promote back to errors. The precision
-matters: merely `with`ing a `Pure` package does **not** do this.
-`mpfs_config_checks.ads` only withs one (`MPFS_Runtime_Config` →
-`Light_Mpfs_Config`, which Alire generates as `Pure`) and is not itself `Pure`,
-so it currently sits in the fully-silent case. Making it `Pure` would enforce the
-flat-constant discipline above mechanically instead of by convention.
+Three details worth keeping:
+
+- **It failed on warnings alone.** `-gnatg` promotes them, so no `-gnatwe` is
+  required here. Outside a runtime unit the same construct is a hard error
+  (`non-static constant in preelaborated unit`, `static expression must have
+  scalar or string type (RM 4.9(2))`).
+- **The unit carrying the pragma must be the `Pure` one.** Merely `with`ing a
+  `Pure` package does nothing — a plain client of one stays fully silent.
+- **`Pure` through the renaming shim is legal**, which was not obvious: the shim
+  is a renaming and a renaming cannot itself carry a categorization pragma
+  ([§7.3](#73-s-bbbopaads-swap-no_elaboration_code_all-for-restrictions-no_elaboration_code)
+  is the analogous limit for `No_Elaboration_Code_All`). Verified by building all
+  five applications, metrics unchanged.
+
+Do not remove the pragma to make something compile: a condition it rejects is a
+check that would not have worked. `pico_config_checks.ads` and
+`rts_capabilities.ads` already carried `pragma Pure` for their own reasons and
+get the same protection incidentally.
 
 Two things confirmed live in the tree while checking this, so neither §7.11 nor
 §7.12 is currently biting: `mpfs_config_checks.ads` **is** named in

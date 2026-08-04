@@ -36,6 +36,31 @@ with MPFS_Runtime_Config; use MPFS_Runtime_Config;
 
 package MPFS_Config_Checks is
 
+   pragma Pure;
+   --  NOT decoration -- this is what MAKES the checks below enforceable
+   --  (CONTRACT.md 7.4). A `pragma Compile_Time_Error` whose condition is
+   --  not static is silently discarded: no error, no warning, under any
+   --  switch. `Pure` closes that hole, because preelaboration legality
+   --  rejects the same non-static expression outright.
+   --
+   --  Measured in this exact context -- tier-3 unit, reached through the
+   --  MPFS_Runtime_Config renaming shim, compiled with -gnatg -- by adding
+   --  a deliberately non-static condition (a selected component of a
+   --  constant array of records) and building hello_mpfs:
+   --
+   --    mpfs_config_checks.ads:47:07: warning: non-static constant in
+   --                                  preelaborated unit [enabled by default]
+   --    compilation of mpfs_config_checks.ads failed
+   --
+   --  Note it FAILED on warnings alone: -gnatg promotes them, so no
+   --  -gnatwe is needed here. Without `Pure` the same condition compiles
+   --  clean and the check silently does not exist.
+   --
+   --  So the flat-named-scalar rule in the header below is now enforced by
+   --  the compiler rather than by discipline. Do not remove this pragma to
+   --  make something compile -- a condition it rejects is a check that
+   --  would not have worked.
+
    ---------------------------------------------------------------------
    --  1. (not implementable) e51 with a hard-float ABI
    ---------------------------------------------------------------------
