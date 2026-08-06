@@ -4,8 +4,6 @@
 
 Today a GNAT runtime for a microcontroller is produced by [bb-runtimes](https://github.com/AdaCore/bb-runtimes): a Python program walks a table of target descriptions and stamps out a directory per (target × profile × board). This guide shows how to get the same set of runtimes using **only Alire manifests, GPR project files, and Ada** — no generation step, no preprocessing, no code that writes code.
 
-The design is not hypothetical. Every mechanism it uses is either in production in a published crate or was measured directly; [RTS.md](RTS.md) is the evidence base and [Appendix B](#appendix-b--numbers-worth-knowing) repeats the numbers that matter most.
-
 ---
 
 ## In one page
@@ -885,7 +883,7 @@ If none of those three is worth anything to you, the submodule approach is a per
 
 ## Appendix B — Numbers worth knowing
 
-Anecdotal, from experiments on `alr 2.1.0` with `gnat_arm_elf` and `gnat_riscv64_elf` 15.1.2 on macOS/Apple Silicon. Full method and command output are in [RTS.md](RTS.md) Appendix A; these are the figures that changed a design decision.
+Anecdotal, from experiments on `alr 2.1.0` with `gnat_arm_elf` and `gnat_riscv64_elf` 15.1.2 on macOS/Apple Silicon.
 
 **On how much duplication there is to remove**
 
