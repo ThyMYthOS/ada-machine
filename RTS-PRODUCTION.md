@@ -46,6 +46,46 @@ That task is [A1](#a1-get-one-byte-out-of-qemu), and it is the first thing I wou
 
 The whole phase is cheap relative to its value, and it retires the largest unknown.
 
+### A0. Map the profile boundary with ACATS — compile-only, no hardware
+
+The [ACATS](http://www.ada-auth.org/acats.html) is 4,835 tests written by people with no stake in this design. That makes it a far better corpus than anything we would author for the one claim we have asserted and never tested: **`light` ⊆ `light-tasking` ⊆ `embedded`**, on which the whole `provides` capability-floor scheme rests.
+
+Measured from ACATS 4.2 (User's Guide dated 14 June 2024, the current baseline; Ada 2012):
+
+| Class | Files | Requires |
+|---|---:|---|
+| **B** | **1,903** | must be *rejected* — **compile-only** |
+| C | 2,661 | compile, execute, report |
+| A / D / E / L | 77 / 4 / 12 / 178 | execute, capacity, inapplicable, link-must-fail |
+
+Of the Specialized Needs Annex tests, **62 are Annex D (Real-Time)** — a hand-triageable shortlist for what Ravenscar permits.
+
+**Why this is A0 and not later:** it needs no execution, no QEMU, no ported `Report`, no `ImpDef`. A compiler is the entire dependency, so it runs today. And the method derives the answer instead of asserting it:
+
+1. Compile the corpus against `embedded`, then `light-tasking`, then `light`, recording each test's diagnostics.
+2. Tests that stop compiling at each step **are** the profile boundary, measured — which is also the feature matrix we currently do not have.
+3. **The assertion that matters:** anything compiling under `light` but *failing* under `light-tasking` or `embedded` is a **layering bug**, because the chain claims there can be none.
+
+> **Exit:** a committed harness, a boundary table for the three profiles, and either zero chain violations or a list of them.
+
+**Licensing is settled, so vendoring is available.** Every test file carries a *Grant of Unlimited Rights* — the notice appears in 4,856 of them — conferring rights to "use, duplicate, release or disclose … in whole or in part, in any manner and for any purpose whatsoever", AS-IS. Prefer a checksum-pinned fetch to keep 5,264 files out of the repo, and vendor only if CI proves flaky.
+
+**Three things ACATS gives us that I expected to have to invent**, all from the User's Guide:
+
+- **Bare targets are contemplated.** Appendix D refers to the customized suite "for bare target validations" outright.
+- **Retargeting `Report` is sanctioned** (§5.2.4): *"the target system for a cross-compiler may require a simpler I/O package than the standard package Text_IO."* One context clause, 18 I/O call sites in 591 lines — plus an `Ada.Calendar` dependency that a `light`-class runtime also lacks.
+- **`NOT_APPLICABLE` is a graded result**, and Appendix D enumerates the affected tests *by filename* per unsupported feature (text/sequential/direct/stream files, task attributes, reserved interrupts, multiprocessor systems). A grading tool ships as Ada source (§6).
+
+**Two limits to state up front.** ACATS 4.2 is **Ada 2012**; there is no Ada 2022 baseline, so the `Put_Image` chain — precisely what distinguishes `embedded`'s `a-strsup` from `light`'s — is not covered by it. And the ACAA is explicit: *"This test suite should not be used to make claims of conformance unless used in accordance with ISO/IEC 18009."* This is regression testing and boundary mapping, never a published pass rate.
+
+**Where to aim it.** Appendix D covers implementation-*dependent* features, not features a conforming implementation must have — so it has no vocabulary for "needs exception propagation" or "violates Ravenscar":
+
+| Profile | Fit |
+|---|---|
+| `embedded` | **a plausible target** — full exceptions, `Text_IO`, finalization, tasking |
+| `light-tasking` | partial; Ravenscar excludes much of Annex D |
+| `light` | not an ACATS target, but still the *lower bound* of the boundary map |
+
 ### A1. Get one byte out of QEMU
 
 Boot `clock_switch_e51` under `-M microchip-icicle-kit` and see a character on the console. Work the three suspicions above; expect to read QEMU's `hw/riscv/microchip_pfsoc.c` to find what the machine actually does at reset.
@@ -83,6 +123,10 @@ There are **no tests in `rts-spikes/`** today. The runtime's job is exactly the 
 | configuration checks | each `Compile_Time_Error` fires — build-time negative tests |
 
 The last row deserves emphasis: CONTRACT.md §7.4/§7.12 record that these checks have twice been silently dead. Negative build tests are the only thing that keeps them honest, and `pragma Pure` ([`d15429f`](rts-spikes/rts_support_mpfs/src/mpfs_config_checks.ads)) now covers only the staticness half.
+
+**Take the bodies from ACATS rather than writing them**, for everything except the last two rows. [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) has already vendored or fetched the corpus; what execution adds is the `Report` retarget (§5.2.4, sanctioned) and `ImpDef` tailoring — six files, of which `IMPDEFD.A` is the Real-Time one. Aim the executable run at **`embedded`**, where exception propagation and `Text_IO` are exactly the two things nothing here has ever exercised. The 62 Annex D files are the tasking shortlist.
+
+The last two rows have no ACATS equivalent and stay ours: the `light` floor is a claim about *our* profile chain, and the configuration checks are *our* pragmas.
 
 > **Exit:** the suite runs under QEMU in CI, and each `Compile_Time_Error` has a build that must fail.
 
@@ -181,7 +225,9 @@ Two known-open items sit inside D3/D4: `make amp` **fails by design** because bo
 
 ## Phase E — Only if certification is in scope
 
-Not assumed, and it changes Phase A and B rather than appending to them: requirements traceability from the SoC documentation through the configuration checks, `.ali`-based evidence packaging (the `Source_List_File` is the *claim*, the `.ali` set is the *evidence*), an ACATS subset argument for a configurable runtime, and a defensible answer to silent basename shadowing. Ask someone who has taken a runtime through qualification before committing to a route.
+Not assumed, and it changes Phase A and B rather than appending to them: requirements traceability from the SoC documentation through the configuration checks, `.ali`-based evidence packaging (the `Source_List_File` is the *claim*, the `.ali` set is the *evidence*), and a defensible answer to silent basename shadowing. Ask someone who has taken a runtime through qualification before committing to a route.
+
+Note what [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) does **not** buy here. ACATS is used there for regression testing, and the ACAA is explicit that conformance claims require ISO/IEC 18009 and an accredited ACAL — with `Report` body modifications needing advance approval. A formal assessment is a separate undertaking with a separate suite configuration; A0 makes it *cheaper to start*, not started.
 
 ---
 
@@ -189,14 +235,19 @@ Not assumed, and it changes Phase A and B rather than appending to them: require
 
 ```mermaid
 graph LR
-    A1["A1 QEMU boots"] --> A2["A2 golden metrics"] --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
+    A0["A0 ACATS boundary map<br/><i>compile-only</i>"] --> A2["A2 golden metrics"]
+    A1["A1 QEMU boots"] --> A2 --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
     A3 --> B1["B1 emit ada_source_path"] --> B2["B2 drop Config_Tag"] --> B4["B4 publish"]
     B3["B3 provenance + licence"] --> B4
     A4 --> C1["C1 generate leaves"] --> C3["C3 GCC upgrade drill"]
     A5 --> D1["D1 CLINT/PLIC"] --> D2["D2 SMP"] --> D3["D3 generator + AMP"] --> D4["D4 S-mode + PMP"]
 ```
 
-**A1 → A2 → A3 is the whole recommendation.** It converts a design that is argued into a design that is exercised, it is the cheapest work in the plan, and everything after it gets safer because a regression becomes visible the same day. A2 in particular is embarrassing to be missing: the numbers this project quotes as evidence are currently checked by eye.
+**A0 → A1 → A2 → A3 is the whole recommendation.** It converts a design that is argued into a design that is exercised, it is the cheapest work in the plan, and everything after it gets safer because a regression becomes visible the same day.
+
+A0 and A1 are independent and can run in either order or together. **A0 goes first because it has no dependencies at all** — a compiler is the whole prerequisite — and because it tests a claim we are currently relying on in `provides` without evidence. A1 is the bigger unknown but is open-ended debugging; A0 is mechanical.
+
+A2 is embarrassing to be missing and takes an afternoon: the numbers this project quotes as evidence are currently checked by eye.
 
 **B1 is the one that could invalidate something.** It is the only mechanism in the design that has never been demonstrated. If `pre-build` ordering turns out not to give the leaf a chance to write `ada_source_path` before binding, the fallback — vendoring tier 1 into each leaf — undoes most of the sharing the hierarchy exists for. Worth doing early *for information*, even out of order.
 
@@ -209,6 +260,7 @@ graph LR
 | Risk | Signal | Response |
 |---|---|---|
 | **B1 has no working mechanism** | `pre-build` runs too late, or before configuration exists | Vendor tier 1 per leaf; accept the duplication and keep the hierarchy for provenance only |
+| **A0 finds chain violations** | a test compiles on `light` and fails above it | Good outcome, badly timed: the `provides` floor scheme in RTS-GUIDE §2.2 needs revising before B4 publishes it |
 | QEMU cannot boot our images | A1 stalls past a couple of days | Hardware-in-the-loop runner; Phase A gets materially more expensive |
 | Tier 1 licensing blocks publication | Reviewer objects to redistributing GCC sources | Publish the *lists* plus a reproducible fetch, not the bytes |
 | The `>=` on a virtual name does not resolve | B4 experiment fails | One virtual name per capability; lose the floor ordering |
