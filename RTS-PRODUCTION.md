@@ -8,12 +8,13 @@ A plan for turning `rts-spikes/` into runtime crates other people can depend on.
 
 ## Where we actually are
 
-Honest reading of the spike as it stands: **268 tracked files, 42 commits, five applications that build, and not one instruction that has ever executed.**
+Honest reading of the spike as it stands: **276 tracked files, 47 commits, five applications that build, and not one instruction that has ever executed.**
 
 | | Status |
 |---|---|
 | The design composes | **proved.** Four crates, three profiles, two targets, one tier-1 snapshot |
 | Every mechanism it relies on | **measured**, except one ([B1](#b1-generate-ada_source_path--the-one-unproven-mechanism)) |
+| The profile chain (`light` ⊆ `light-tasking` ⊆ `embedded`) | **no counter-example**, on a weak sample — [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) ✔ |
 | The images run | **unknown.** Nothing has been executed, on hardware or emulator |
 | Regressions get caught | **no.** `make verify` prints a table; it asserts nothing |
 | Someone else can use it | **no.** Path pins, hand-written `ada_source_path`, `Config_Tag` |
@@ -38,7 +39,7 @@ microchip-icicle-kit Microchip PolarFire SoC Icicle Kit
 
 What I measured, so this is not oversold: QEMU accepts both `hello_mpfs` (U54, hard-float) and `clock_switch_e51` (E51, soft-float) via `-M microchip-icicle-kit -kernel <elf>` **without complaint** — no load error, no illegal-instruction abort — and produced **no console output** within ~15–20 s in either case. So the emulator is a real path, and getting the first byte out of it is a bounded piece of work, not a formality. Likely causes to work through, in order of suspicion: QEMU's Icicle model expects HSS in eNVM and may need `-bios none` for a direct `-kernel` boot; the machine's hart-release behaviour may not match what our startup assumes; and our MMUART base/divisor may disagree with QEMU's model.
 
-That task is [A1](#a1-get-one-byte-out-of-qemu), and it is the first thing I would do.
+That task is [A1](#a1-get-one-byte-out-of-qemu). With [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) done, it is the next thing to do and the largest remaining unknown in Phase A.
 
 ---
 
@@ -47,6 +48,25 @@ That task is [A1](#a1-get-one-byte-out-of-qemu), and it is the first thing I wou
 The whole phase is cheap relative to its value, and it retires the largest unknown.
 
 ### A0. Map the profile boundary with ACATS — compile-only, no hardware
+
+> ### ✔ DONE
+
+**Delivered** in `rts-spikes/acats/` — `select_tests.py`, `run_boundary.py`, committed `out/*.tsv` evidence, and [`BOUNDARY.md`](rts-spikes/acats/BOUNDARY.md) with the measurement. Reproduce with `cd rts-spikes/acats && python3 run_boundary.py --acats-root <unpacked ACATS>/x`.
+
+| Result | |
+|---|---|
+| Chain violations | **none** — no test compiles on a lower profile and fails on a higher one, across 386 × 3 compilations |
+| Supporting signal | monotone relaxation: restriction violations **40 → 37 → 36**, absent units **6 → 6 → 5**. Nothing gets stricter going up |
+| Boundary markers | `light` → `light-tasking` is `NO_TASKING` lifting to Ravenscar/Jorvik restrictions; `light-tasking` → `embedded` shows as `Storage_Size` on access types and `Ada.Streams` appearing |
+| Correctly *not* a chain finding | file I/O (`Sequential_IO`, `Direct_IO`, `Stream_IO`) is absent from **all three** — a target property, no filesystem |
+
+**Read the result as "no counter-example found", not "the chain is verified."** 348 of the 386 selected tests are Class B, which must be *rejected* to meet their own objective — so for nine tenths of the sample "compiles clean" is not success, and 29 of the 39 that did compile clean are themselves Class B. The compiles/does-not-compile axis the set-difference method rests on is close to meaningless for most of what was measured. `BOUNDARY.md` §3c states this. **The strong version needs Class C, which needs the `Report` retarget** — i.e. [A4](#a4-a-test-suite-that-exercises-the-runtimes-own-surface).
+
+The most valuable thing it produced is not in the results table: **without `-x ada`, gcc silently no-ops on ACATS's `.ADA`/`.A` extensions and exits 0 having compiled nothing.** The first full run showed 386/386 "ok" everywhere. Caught, fixed, and a permanent `harness_error` category added so it cannot recur silently. That is the third instance of this project's signature failure mode in one sitting — after a stale object and an uncompiled unit — and all three presented as "everything passes".
+
+Scaling blockers, in order: `gnatchop` for multi-unit files, foundation-code resolution, then the `Report` retarget.
+
+The original rationale, for anyone revisiting the choice:
 
 The [ACATS](http://www.ada-auth.org/acats.html) is 4,835 tests written by people with no stake in this design. That makes it a far better corpus than anything we would author for the one claim we have asserted and never tested: **`light` ⊆ `light-tasking` ⊆ `embedded`**, on which the whole `provides` capability-floor scheme rests.
 
@@ -235,19 +255,22 @@ Note what [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware
 
 ```mermaid
 graph LR
-    A0["A0 ACATS boundary map<br/><i>compile-only</i>"] --> A2["A2 golden metrics"]
-    A1["A1 QEMU boots"] --> A2 --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
+    A0["A0 ACATS boundary map ✔<br/><i>compile-only — done</i>"] --> A2["A2 golden metrics"]
+    A1["A1 QEMU boots<br/><b>next</b>"] --> A2 --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
     A3 --> B1["B1 emit ada_source_path"] --> B2["B2 drop Config_Tag"] --> B4["B4 publish"]
     B3["B3 provenance + licence"] --> B4
     A4 --> C1["C1 generate leaves"] --> C3["C3 GCC upgrade drill"]
     A5 --> D1["D1 CLINT/PLIC"] --> D2["D2 SMP"] --> D3["D3 generator + AMP"] --> D4["D4 S-mode + PMP"]
+    A4 -.->|"Class C makes A0's<br/>result strong"| A0
 ```
 
-**A0 → A1 → A2 → A3 is the whole recommendation.** It converts a design that is argued into a design that is exercised, it is the cheapest work in the plan, and everything after it gets safer because a regression becomes visible the same day.
+**A0 → A1 → A2 → A3 is the whole recommendation**, and A0 is done. It converts a design that is argued into a design that is exercised, it is the cheapest work in the plan, and everything after it gets safer because a regression becomes visible the same day.
 
-A0 and A1 are independent and can run in either order or together. **A0 goes first because it has no dependencies at all** — a compiler is the whole prerequisite — and because it tests a claim we are currently relying on in `provides` without evidence. A1 is the bigger unknown but is open-ended debugging; A0 is mechanical.
+**A1 is next**, and it is the largest remaining unknown in Phase A: open-ended debugging rather than mechanical work, which is why A0 went ahead of it.
 
-A2 is embarrassing to be missing and takes an afternoon: the numbers this project quotes as evidence are currently checked by eye.
+A2 is embarrassing to be missing and takes an afternoon: the numbers this project quotes as evidence are currently checked by eye. A0 reinforced why — its own first run reported 386/386 passing while compiling nothing at all.
+
+Note the dashed edge: **A4 loops back to A0.** Class C tests are what make the boundary map strong rather than merely negative, so A0 is worth re-running once the `Report` retarget exists.
 
 **B1 is the one that could invalidate something.** It is the only mechanism in the design that has never been demonstrated. If `pre-build` ordering turns out not to give the leaf a chance to write `ada_source_path` before binding, the fallback — vendoring tier 1 into each leaf — undoes most of the sharing the hierarchy exists for. Worth doing early *for information*, even out of order.
 
@@ -260,7 +283,8 @@ A2 is embarrassing to be missing and takes an afternoon: the numbers this projec
 | Risk | Signal | Response |
 |---|---|---|
 | **B1 has no working mechanism** | `pre-build` runs too late, or before configuration exists | Vendor tier 1 per leaf; accept the duplication and keep the hierarchy for provenance only |
-| **A0 finds chain violations** | a test compiles on `light` and fails above it | Good outcome, badly timed: the `provides` floor scheme in RTS-GUIDE §2.2 needs revising before B4 publishes it |
+| ~~A0 finds chain violations~~ | — | **retired:** none found, but on a sample too weak to settle it. Re-run after A4's `Report` retarget before treating the chain as verified |
+| **A test harness reports success without testing anything** | a suspiciously round pass rate; every case in one bucket | Happened three times in one sitting (stale object, unlisted unit, `-x ada` no-op). Every new harness needs a deliberately-broken case proving it can fail |
 | QEMU cannot boot our images | A1 stalls past a couple of days | Hardware-in-the-loop runner; Phase A gets materially more expensive |
 | Tier 1 licensing blocks publication | Reviewer objects to redistributing GCC sources | Publish the *lists* plus a reproducible fetch, not the bytes |
 | The `>=` on a virtual name does not resolve | B4 experiment fails | One virtual name per capability; lose the floor ordering |
@@ -269,6 +293,6 @@ A2 is embarrassing to be missing and takes an afternoon: the numbers this projec
 
 ## Housekeeping, worth doing today
 
-- **42 commits are unpushed** on `claude/gnat-runtimes-alire-crates-401089`.
+- **47 commits are unpushed** on `claude/gnat-runtimes-alire-crates-401089`.
 - `light_tasking_pico/alire/settings.toml` still names deleted crates (`rts_sources_gcc15_arm`, `rts_support_rp2040`) — generated and untracked, harmless, but it will confuse someone.
 - `rts_support_pico/ld/memory-map.ld`'s `(rx)` comment reads as a guarantee; `ld` does not enforce region attributes ([RTS.md A.25](RTS.md#a25)).
