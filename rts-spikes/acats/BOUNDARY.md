@@ -119,6 +119,34 @@ fail, fail everywhere. §5 explains why (sample composition), and shows —
 via diagnostics that change even where the overall verdict doesn't — that
 the boundary mechanism is very much alive underneath.
 
+### 3c. How much this sample can actually prove
+
+State the power plainly, because "0 violations" invites over-reading:
+
+| | |
+|---|---:|
+| tests selected | 386 |
+| of which **Class B — *must be rejected* to meet their own objective** | **348** |
+| Class C | 38 |
+| of the 39 that compile clean, Class B | 29 |
+
+For a Class B test, "compiles clean" is not success — it is the *test*
+failing. So roughly **nine tenths of this sample cannot contribute a
+meaningful "compiles" signal by construction**, and the 39 that do compile
+are mostly B tests whose intended illegality is presumably diagnosed at a
+stage `-gnatc` does not reach.
+
+That makes the result **real but weak**: zero chain violations is a genuine
+measurement — nothing gets *stricter* going up, verified across all
+386 × 3 compilations, and the monotone restriction counts (40 → 37 → 36)
+and `unit_absent` counts (6 → 6 → 5) point the same way — but it is far from
+the strong evidence the chain claim eventually needs.
+
+**The strong version needs Class C**, which is where library-level
+availability differences live, and Class C needs the `Report` retarget
+(§6). Until then, treat this as "the harness works and found no
+counter-example", not as "the chain is verified".
+
 ## 4. Chain violations: none found
 
 **Explicit answer: no chain violations were found in this run.** The 39
