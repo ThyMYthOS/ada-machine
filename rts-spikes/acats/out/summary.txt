@@ -1,0 +1,80 @@
+RTS-PRODUCTION.md A0 -- ACATS compile-only profile boundary map
+======================================================================
+ACATS root:      /private/tmp/claude-502/-Users-manuel-stahl-Repos-ADA-Ada-Machine--claude-worktrees-uart-logging-facility-680829/822e538d-b569-4561-a995-8a69c58dd4b3/scratchpad/acats/x
+Toolchain gcc:   /Users/manuel.stahl/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_3f5200a5/bin/riscv64-elf-gcc
+rts-spikes root: /Users/manuel.stahl/Repos/ADA/Ada Machine/.claude/worktrees/uart-logging-facility-680829/rts-spikes
+Tests selected:  386 (see manifest.tsv)
+
+Compiles cleanly (-c -gnatc exit 0), per profile:
+  light_mpfs             39 / 386
+  light_tasking_mpfs     39 / 386
+  embedded_mpfs          39 / 386
+
+Diagnostic categories, per profile:
+  light_mpfs:
+    other_error     301
+    restriction     40
+    ok              39
+    unit_absent     6
+  light_tasking_mpfs:
+    other_error     304
+    ok              39
+    restriction     37
+    unit_absent     6
+  embedded_mpfs:
+    other_error     306
+    ok              39
+    restriction     36
+    unit_absent     5
+
+----------------------------------------------------------------------
+CHAIN VIOLATIONS (compiles at lower tier, FAILS above -- our bug if any)
+----------------------------------------------------------------------
+  light compiles, light_tasking fails: 0
+  light_tasking compiles, embedded fails: 0
+  light compiles, embedded fails (transitive check): 0
+
+----------------------------------------------------------------------
+EXPECTED BOUNDARY (fails at lower tier, compiles above -- the boundary itself)
+----------------------------------------------------------------------
+  fails light, compiles light_tasking: 0
+  fails light_tasking, compiles embedded: 0
+  fails light, compiles embedded: 0
+
+----------------------------------------------------------------------
+'<unit> is not a predefined library unit' -- by profile, most common first
+----------------------------------------------------------------------
+  light_mpfs:
+       3  SEQUENTIAL_IO
+       2  ADA.STREAMS
+       1  ADA.DIRECT_IO
+  light_tasking_mpfs:
+       3  SEQUENTIAL_IO
+       2  ADA.STREAMS
+       1  ADA.DIRECT_IO
+  embedded_mpfs:
+       3  SEQUENTIAL_IO
+       1  ADA.DIRECT_IO
+       1  ADA.STREAMS.STREAM_IO
+
+----------------------------------------------------------------------
+Restriction violations -- by profile, most common first
+----------------------------------------------------------------------
+  light_mpfs:
+      35  NO_TASKING
+       4  configurable run-time mode
+       1  No_Tasking
+  light_tasking_mpfs:
+      15  NO_TASK_HIERARCHY (profile JORVIK)
+       8  MAX_TASK_ENTRIES = 0 (profile JORVIK)
+       6  MAX_TASK_ENTRIES = 0
+       3  NO_TASK_HIERARCHY
+       3  configurable run-time mode
+       2  No_Local_Protected_Objects (profile Jorvik)
+  embedded_mpfs:
+      15  NO_TASK_HIERARCHY (profile JORVIK)
+       8  MAX_TASK_ENTRIES = 0 (profile JORVIK)
+       6  MAX_TASK_ENTRIES = 0
+       3  NO_TASK_HIERARCHY
+       2  No_Local_Protected_Objects (profile Jorvik)
+       2  configurable run-time mode

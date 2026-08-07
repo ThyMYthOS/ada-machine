@@ -1,0 +1,1159 @@
+area	filename	profile	exit_code	category	detail
+B2	B22001H.ADA	light_mpfs	1	other_error	b22001h.ada:52:10: error: selector expected
+B2	B22001H.ADA	light_tasking_mpfs	1	other_error	b22001h.ada:52:10: error: selector expected
+B2	B22001H.ADA	embedded_mpfs	1	other_error	b22001h.ada:52:10: error: selector expected
+B2	B23002A.ADA	light_mpfs	1	other_error	b23002a.ada:34:08: error: two consecutive underlines not permitted
+B2	B23002A.ADA	light_tasking_mpfs	1	other_error	b23002a.ada:34:08: error: two consecutive underlines not permitted
+B2	B23002A.ADA	embedded_mpfs	1	other_error	b23002a.ada:34:08: error: two consecutive underlines not permitted
+B2	B23004B.ADA	light_mpfs	1	other_error	b23004b.ada:34:06: error: declaration expected
+B2	B23004B.ADA	light_tasking_mpfs	1	other_error	b23004b.ada:34:06: error: declaration expected
+B2	B23004B.ADA	embedded_mpfs	1	other_error	b23004b.ada:34:06: error: declaration expected
+B2	B24001A.ADA	light_mpfs	1	other_error	b24001a.ada:41:15: error: two consecutive underlines not permitted
+B2	B24001A.ADA	light_tasking_mpfs	1	other_error	b24001a.ada:41:15: error: two consecutive underlines not permitted
+B2	B24001A.ADA	embedded_mpfs	1	other_error	b24001a.ada:41:15: error: two consecutive underlines not permitted
+B2	B24001C.ADA	light_mpfs	1	other_error	b24001c.ada:42:14: error: two consecutive underlines not permitted
+B2	B24001C.ADA	light_tasking_mpfs	1	other_error	b24001c.ada:42:14: error: two consecutive underlines not permitted
+B2	B24001C.ADA	embedded_mpfs	1	other_error	b24001c.ada:42:14: error: two consecutive underlines not permitted
+B2	B24005A.ADA	light_mpfs	1	other_error	b24005a.ada:38:17: error: real literal cannot end with point
+B2	B24005A.ADA	light_tasking_mpfs	1	other_error	b24005a.ada:38:17: error: real literal cannot end with point
+B2	B24005A.ADA	embedded_mpfs	1	other_error	b24005a.ada:38:17: error: real literal cannot end with point
+B2	B24007A.ADA	light_mpfs	1	other_error	b24007a.ada:43:32: error: negative exponent not allowed for integer literal
+B2	B24007A.ADA	light_tasking_mpfs	1	other_error	b24007a.ada:43:32: error: negative exponent not allowed for integer literal
+B2	B24007A.ADA	embedded_mpfs	1	other_error	b24007a.ada:43:32: error: negative exponent not allowed for integer literal
+B2	B24009A.ADA	light_mpfs	1	other_error	b24009a.ada:35:32: error: expected an integer type
+B2	B24009A.ADA	light_tasking_mpfs	1	other_error	b24009a.ada:35:32: error: expected an integer type
+B2	B24009A.ADA	embedded_mpfs	1	other_error	b24009a.ada:35:32: error: expected an integer type
+B2	B24104A.ADA	light_mpfs	1	other_error	b24104a.ada:32:34: error: negative exponent not allowed for integer literal
+B2	B24104A.ADA	light_tasking_mpfs	1	other_error	b24104a.ada:32:34: error: negative exponent not allowed for integer literal
+B2	B24104A.ADA	embedded_mpfs	1	other_error	b24104a.ada:32:34: error: negative exponent not allowed for integer literal
+B2	B24204C.ADA	light_mpfs	1	other_error	b24204c.ada:45:14: error: identifier may not start with digit
+B2	B24204C.ADA	light_tasking_mpfs	1	other_error	b24204c.ada:45:14: error: identifier may not start with digit
+B2	B24204C.ADA	embedded_mpfs	1	other_error	b24204c.ada:45:14: error: identifier may not start with digit
+B2	B24204D.ADA	light_mpfs	1	other_error	b24204d.ada:38:14: error: identifier may not start with digit
+B2	B24204D.ADA	light_tasking_mpfs	1	other_error	b24204d.ada:38:14: error: identifier may not start with digit
+B2	B24204D.ADA	embedded_mpfs	1	other_error	b24204d.ada:38:14: error: identifier may not start with digit
+B2	B24205A.ADA	light_mpfs	1	other_error	b24205a.ada:32:37: error: negative exponent not allowed for integer literal
+B2	B24205A.ADA	light_tasking_mpfs	1	other_error	b24205a.ada:32:37: error: negative exponent not allowed for integer literal
+B2	B24205A.ADA	embedded_mpfs	1	other_error	b24205a.ada:32:37: error: negative exponent not allowed for integer literal
+B2	B24206A.ADA	light_mpfs	1	other_error	b24206a.ada:32:32: error: base not 2-16
+B2	B24206A.ADA	light_tasking_mpfs	1	other_error	b24206a.ada:32:32: error: base not 2-16
+B2	B24206A.ADA	embedded_mpfs	1	other_error	b24206a.ada:32:32: error: base not 2-16
+B2	B24211B.ADA	light_mpfs	1	other_error	b24211b.ada:35:36: error: this expression must be parenthesized
+B2	B24211B.ADA	light_tasking_mpfs	1	other_error	b24211b.ada:35:36: error: this expression must be parenthesized
+B2	B24211B.ADA	embedded_mpfs	1	other_error	b24211b.ada:35:36: error: this expression must be parenthesized
+B2	B25002A.ADA	light_mpfs	1	other_error	b25002a.ada:36:13: error: illegal character
+B2	B25002A.ADA	light_tasking_mpfs	1	other_error	b25002a.ada:36:13: error: illegal character
+B2	B25002A.ADA	embedded_mpfs	1	other_error	b25002a.ada:36:13: error: illegal character
+B2	B26001A.ADA	light_mpfs	1	other_error	b26001a.ada:33:71: error: missing string quote
+B2	B26001A.ADA	light_tasking_mpfs	1	other_error	b26001a.ada:33:71: error: missing string quote
+B2	B26001A.ADA	embedded_mpfs	1	other_error	b26001a.ada:33:71: error: missing string quote
+B2	B26005A.ADA	light_mpfs	1	other_error	b26005a.ada:40:15: error: control character not allowed in string
+B2	B26005A.ADA	light_tasking_mpfs	1	other_error	b26005a.ada:40:15: error: control character not allowed in string
+B2	B26005A.ADA	embedded_mpfs	1	other_error	b26005a.ada:40:15: error: control character not allowed in string
+B2	B28001A.ADA	light_mpfs	1	other_error	b28001a.ada:44:15: error: pragma not allowed here
+B2	B28001A.ADA	light_tasking_mpfs	1	other_error	b28001a.ada:44:15: error: pragma not allowed here
+B2	B28001A.ADA	embedded_mpfs	1	other_error	b28001a.ada:44:15: error: pragma not allowed here
+B2	B28001C.ADA	light_mpfs	1	other_error	b28001c.ada:43:09: error: pragma not allowed here
+B2	B28001C.ADA	light_tasking_mpfs	1	other_error	b28001c.ada:43:09: error: pragma not allowed here
+B2	B28001C.ADA	embedded_mpfs	1	other_error	b28001c.ada:43:09: error: pragma not allowed here
+B2	B28001D.ADA	light_mpfs	1	other_error	b28001d.ada:31:14: error: pragma not allowed here
+B2	B28001D.ADA	light_tasking_mpfs	1	other_error	b28001d.ada:31:14: error: pragma not allowed here
+B2	B28001D.ADA	embedded_mpfs	1	other_error	b28001d.ada:31:14: error: pragma not allowed here
+B2	B28001R.ADA	light_mpfs	1	other_error	b28001r.ada:39:11: error: component declaration expected
+B2	B28001R.ADA	light_tasking_mpfs	1	other_error	b28001r.ada:39:11: error: component declaration expected
+B2	B28001R.ADA	embedded_mpfs	1	other_error	b28001r.ada:39:11: error: component declaration expected
+B2	B28001S.ADA	light_mpfs	1	other_error	b28001s.ada:39:06: error: "WHEN" expected, must have at least one alternative in case
+B2	B28001S.ADA	light_tasking_mpfs	1	other_error	b28001s.ada:39:06: error: "WHEN" expected, must have at least one alternative in case
+B2	B28001S.ADA	embedded_mpfs	1	other_error	b28001s.ada:39:06: error: "WHEN" expected, must have at least one alternative in case
+B2	B28001U.ADA	light_mpfs	1	other_error	b28001u.ada:41:11: error: select alternative ("ACCEPT", "ABORT", "DELAY") expected
+B2	B28001U.ADA	light_tasking_mpfs	1	other_error	b28001u.ada:41:11: error: select alternative ("ACCEPT", "ABORT", "DELAY") expected
+B2	B28001U.ADA	embedded_mpfs	1	other_error	b28001u.ada:41:11: error: select alternative ("ACCEPT", "ABORT", "DELAY") expected
+B2	B28001W.ADA	light_mpfs	1	other_error	b28001w.ada:39:06: error: must have at least one exception handler
+B2	B28001W.ADA	light_tasking_mpfs	1	other_error	b28001w.ada:39:06: error: must have at least one exception handler
+B2	B28001W.ADA	embedded_mpfs	1	other_error	b28001w.ada:39:06: error: must have at least one exception handler
+B2	B2A003A.ADA	light_mpfs	1	other_error	b2a003a.ada:43:16: error: digit >= base
+B2	B2A003A.ADA	light_tasking_mpfs	1	other_error	b2a003a.ada:43:16: error: digit >= base
+B2	B2A003A.ADA	embedded_mpfs	1	other_error	b2a003a.ada:43:16: error: digit >= base
+B2	B2A003C.ADA	light_mpfs	1	other_error	b2a003c.ada:46:14: error: identifier may not start with digit
+B2	B2A003C.ADA	light_tasking_mpfs	1	other_error	b2a003c.ada:46:14: error: identifier may not start with digit
+B2	B2A003C.ADA	embedded_mpfs	1	other_error	b2a003c.ada:46:14: error: identifier may not start with digit
+B2	B2A003D.ADA	light_mpfs	1	other_error	b2a003d.ada:39:14: error: identifier may not start with digit
+B2	B2A003D.ADA	light_tasking_mpfs	1	other_error	b2a003d.ada:39:14: error: identifier may not start with digit
+B2	B2A003D.ADA	embedded_mpfs	1	other_error	b2a003d.ada:39:14: error: identifier may not start with digit
+B2	B2A003F.ADA	light_mpfs	1	other_error	b2a003f.ada:42:16: error: digit >= base
+B2	B2A003F.ADA	light_tasking_mpfs	1	other_error	b2a003f.ada:42:16: error: digit >= base
+B2	B2A003F.ADA	embedded_mpfs	1	other_error	b2a003f.ada:42:16: error: digit >= base
+B2	B2A005A.ADA	light_mpfs	1	other_error	b2a005a.ada:33:32: error: base not 2-16
+B2	B2A005A.ADA	light_tasking_mpfs	1	other_error	b2a005a.ada:33:32: error: base not 2-16
+B2	B2A005A.ADA	embedded_mpfs	1	other_error	b2a005a.ada:33:32: error: base not 2-16
+B2	B2A007A.ADA	light_mpfs	1	other_error	b2a007a.ada:33:30: error: digit expected
+B2	B2A007A.ADA	light_tasking_mpfs	1	other_error	b2a007a.ada:33:30: error: digit expected
+B2	B2A007A.ADA	embedded_mpfs	1	other_error	b2a007a.ada:33:30: error: digit expected
+B3	B32103A.ADA	light_mpfs	1	other_error	b32103a.ada:41:06: error: constant declaration requires initialization expression
+B3	B32103A.ADA	light_tasking_mpfs	1	other_error	b32103a.ada:41:06: error: constant declaration requires initialization expression
+B3	B32103A.ADA	embedded_mpfs	1	other_error	b32103a.ada:41:06: error: constant declaration requires initialization expression
+B3	B32202A.ADA	light_mpfs	1	other_error	b32202a.ada:50:26: error: incompatible types in range
+B3	B32202A.ADA	light_tasking_mpfs	1	other_error	b32202a.ada:50:26: error: incompatible types in range
+B3	B32202A.ADA	embedded_mpfs	1	other_error	b32202a.ada:50:26: error: incompatible types in range
+B3	B33102A.ADA	light_mpfs	1	other_error	b33102a.ada:47:21: error: missing body for "F"
+B3	B33102A.ADA	light_tasking_mpfs	1	other_error	b33102a.ada:47:21: error: missing body for "F"
+B3	B33102A.ADA	embedded_mpfs	1	other_error	b33102a.ada:47:21: error: missing body for "F"
+B3	B33102E.ADA	light_mpfs	1	other_error	b33102e.ada:47:11: error: missing body for "F"
+B3	B33102E.ADA	light_tasking_mpfs	1	other_error	b33102e.ada:47:11: error: missing body for "F"
+B3	B33102E.ADA	embedded_mpfs	1	other_error	b33102e.ada:47:11: error: missing body for "F"
+B3	B33201C.ADA	light_mpfs	1	restriction	NO_TASKING
+B3	B33201C.ADA	light_tasking_mpfs	1	other_error	b33201c.ada:63:24: error: incorrect constraint for this kind of type
+B3	B33201C.ADA	embedded_mpfs	1	other_error	b33201c.ada:63:24: error: incorrect constraint for this kind of type
+B3	B33205A.ADA	light_mpfs	1	restriction	NO_TASKING
+B3	B33205A.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+B3	B33205A.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+B3	B34002B.ADA	light_mpfs	1	other_error	b34002b.ada:82:12: error: illegal operand for numeric conversion
+B3	B34002B.ADA	light_tasking_mpfs	1	other_error	b34002b.ada:82:12: error: illegal operand for numeric conversion
+B3	B34002B.ADA	embedded_mpfs	1	other_error	b34002b.ada:82:12: error: illegal operand for numeric conversion
+B3	B34005H.ADA	light_mpfs	1	other_error	b34005h.ada:87:12: error: illegal operand for array conversion
+B3	B34005H.ADA	light_tasking_mpfs	1	other_error	b34005h.ada:87:12: error: illegal operand for array conversion
+B3	B34005H.ADA	embedded_mpfs	1	other_error	b34005h.ada:87:12: error: illegal operand for array conversion
+B3	B34005T.ADA	light_mpfs	1	other_error	b34005t.ada:131:06: error: left hand of assignment must not be limited type
+B3	B34005T.ADA	light_tasking_mpfs	1	other_error	b34005t.ada:131:06: error: left hand of assignment must not be limited type
+B3	B34005T.ADA	embedded_mpfs	1	other_error	b34005t.ada:131:06: error: left hand of assignment must not be limited type
+B3	B34007N.ADA	light_mpfs	1	other_error	b34007n.ada:84:09: error: invalid conversion, not compatible with type "Standard.Integer"
+B3	B34007N.ADA	light_tasking_mpfs	1	other_error	b34007n.ada:84:09: error: invalid conversion, not compatible with type "Standard.Integer"
+B3	B34007N.ADA	embedded_mpfs	1	other_error	b34007n.ada:84:09: error: invalid conversion, not compatible with type "Standard.Integer"
+B3	B34009H.ADA	light_mpfs	1	other_error	b34009h.ada:97:06: error: left hand of assignment must not be limited type
+B3	B34009H.ADA	light_tasking_mpfs	1	other_error	b34009h.ada:97:06: error: left hand of assignment must not be limited type
+B3	B34009H.ADA	embedded_mpfs	1	other_error	b34009h.ada:97:06: error: left hand of assignment must not be limited type
+B3	B34014F.ADA	light_mpfs	1	other_error	b34014f.ada:73:37: error: expected type "QT" defined at line 62
+B3	B34014F.ADA	light_tasking_mpfs	1	other_error	b34014f.ada:73:37: error: expected type "QT" defined at line 62
+B3	B34014F.ADA	embedded_mpfs	1	other_error	b34014f.ada:73:37: error: expected type "QT" defined at line 62
+B3	B34014Q.ADA	light_mpfs	1	other_error	b34014q.ada:68:37: error: expected type "QT" defined at line 60
+B3	B34014Q.ADA	light_tasking_mpfs	1	other_error	b34014q.ada:68:37: error: expected type "QT" defined at line 60
+B3	B34014Q.ADA	embedded_mpfs	1	other_error	b34014q.ada:68:37: error: expected type "QT" defined at line 60
+B3	B34014Z.ADA	light_mpfs	1	restriction	NO_TASKING
+B3	B34014Z.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY
+B3	B34014Z.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY
+B3	B35103B.ADA	light_mpfs	1	other_error	b35103b.ada:32:28: error: "ab" conflicts with declaration at line 32
+B3	B35103B.ADA	light_tasking_mpfs	1	other_error	b35103b.ada:32:28: error: "ab" conflicts with declaration at line 32
+B3	B35103B.ADA	embedded_mpfs	1	other_error	b35103b.ada:32:28: error: "ab" conflicts with declaration at line 32
+B3	B35403A.ADA	light_mpfs	1	other_error	b35403a.ada:34:19: error: integer type definition bounds out of range
+B3	B35403A.ADA	light_tasking_mpfs	1	other_error	b35403a.ada:34:19: error: integer type definition bounds out of range
+B3	B35403A.ADA	embedded_mpfs	1	other_error	b35403a.ada:34:19: error: integer type definition bounds out of range
+B3	B35506A.ADA	light_mpfs	1	other_error	b35506a.ada:66:31: error: expected type "NEW_I" defined at line 43
+B3	B35506A.ADA	light_tasking_mpfs	1	other_error	b35506a.ada:66:31: error: expected type "NEW_I" defined at line 43
+B3	B35506A.ADA	embedded_mpfs	1	other_error	b35506a.ada:66:31: error: expected type "NEW_I" defined at line 43
+B3	B35709A.ADA	light_mpfs	1	other_error	b35709a.ada:36:17: error: expected type "D2" defined at line 34
+B3	B35709A.ADA	light_tasking_mpfs	1	other_error	b35709a.ada:36:17: error: expected type "D2" defined at line 34
+B3	B35709A.ADA	embedded_mpfs	1	other_error	b35709a.ada:36:17: error: expected type "D2" defined at line 34
+B3	B35A01A.ADA	light_mpfs	1	other_error	b35a01a.ada:36:11: error: prefix of "DELTA" attribute must be fixed point type
+B3	B35A01A.ADA	light_tasking_mpfs	1	other_error	b35a01a.ada:36:11: error: prefix of "DELTA" attribute must be fixed point type
+B3	B35A01A.ADA	embedded_mpfs	1	other_error	b35a01a.ada:36:11: error: prefix of "DELTA" attribute must be fixed point type
+B3	B36101A.ADA	light_mpfs	1	other_error	b36101a.ada:57:40: error: incompatible types in range
+B3	B36101A.ADA	light_tasking_mpfs	1	other_error	b36101a.ada:57:40: error: incompatible types in range
+B3	B36101A.ADA	embedded_mpfs	1	other_error	b36101a.ada:57:40: error: incompatible types in range
+B3	B36171B.ADA	light_mpfs	1	other_error	b36171b.ada:44:19: error: unconstrained element type in array declaration
+B3	B36171B.ADA	light_tasking_mpfs	1	other_error	b36171b.ada:44:19: error: unconstrained element type in array declaration
+B3	B36171B.ADA	embedded_mpfs	1	other_error	b36171b.ada:44:19: error: unconstrained element type in array declaration
+B3	B36171F.ADA	light_mpfs	1	other_error	b36171f.ada:33:25: error: missing operand
+B3	B36171F.ADA	light_tasking_mpfs	1	other_error	b36171f.ada:33:25: error: missing operand
+B3	B36171F.ADA	embedded_mpfs	1	other_error	b36171f.ada:33:25: error: missing operand
+B3	B36171I.ADA	light_mpfs	1	other_error	b36171i.ada:35:11: error: identifier expected
+B3	B36171I.ADA	light_tasking_mpfs	1	other_error	b36171i.ada:35:11: error: identifier expected
+B3	B36171I.ADA	embedded_mpfs	1	other_error	b36171i.ada:35:11: error: identifier expected
+B3	B37004C.ADA	light_mpfs	1	other_error	b37004c.ada:34:24: error: component declaration expected
+B3	B37004C.ADA	light_tasking_mpfs	1	other_error	b37004c.ada:34:24: error: component declaration expected
+B3	B37004C.ADA	embedded_mpfs	1	other_error	b37004c.ada:34:24: error: component declaration expected
+B3	B37004G.ADA	light_mpfs	1	other_error	b37004g.ada:35:16: error: anonymous array not allowed as component
+B3	B37004G.ADA	light_tasking_mpfs	1	other_error	b37004g.ada:35:16: error: anonymous array not allowed as component
+B3	B37004G.ADA	embedded_mpfs	1	other_error	b37004g.ada:35:16: error: anonymous array not allowed as component
+B3	B37104A.ADA	light_mpfs	1	other_error	b37104a.ada:38:34: error: expected type "CHAR1" defined at line 32
+B3	B37104A.ADA	light_tasking_mpfs	1	other_error	b37104a.ada:38:34: error: expected type "CHAR1" defined at line 32
+B3	B37104A.ADA	embedded_mpfs	1	other_error	b37104a.ada:38:34: error: expected type "CHAR1" defined at line 32
+B3	B37301J.ADA	light_mpfs	1	other_error	b37301j.ada:37:21: error: component declaration expected
+B3	B37301J.ADA	light_tasking_mpfs	1	other_error	b37301j.ada:37:21: error: component declaration expected
+B3	B37301J.ADA	embedded_mpfs	1	other_error	b37301j.ada:37:21: error: component declaration expected
+B3	B37310B.ADA	light_mpfs	1	other_error	b37310b.ada:50:16: error: missing case values: character'val(0) .. character'val(31)
+B3	B37310B.ADA	light_tasking_mpfs	1	other_error	b37310b.ada:50:16: error: missing case values: character'val(0) .. character'val(31)
+B3	B37310B.ADA	embedded_mpfs	1	other_error	b37310b.ada:50:16: error: missing case values: character'val(0) .. character'val(31)
+B3	B38008B.ADA	light_mpfs	1	other_error	b38008b.ada:49:13: error: array type is already constrained
+B3	B38008B.ADA	light_tasking_mpfs	1	other_error	b38008b.ada:49:13: error: array type is already constrained
+B3	B38008B.ADA	embedded_mpfs	1	other_error	b38008b.ada:49:13: error: array type is already constrained
+B3	B392010.A	light_mpfs	1	other_error	b392010.a:52:19: error: operation can be dispatching in only one type
+B3	B392010.A	light_tasking_mpfs	1	other_error	b392010.a:52:19: error: operation can be dispatching in only one type
+B3	B392010.A	embedded_mpfs	1	other_error	b392010.a:52:19: error: operation can be dispatching in only one type
+B4	B41101A.ADA	light_mpfs	1	other_error	b41101a.ada:46:15: error: too many subscripts in array reference
+B4	B41101A.ADA	light_tasking_mpfs	1	other_error	b41101a.ada:46:15: error: too many subscripts in array reference
+B4	B41101A.ADA	embedded_mpfs	1	other_error	b41101a.ada:46:15: error: too many subscripts in array reference
+B4	B41201C.ADA	light_mpfs	1	other_error	b41201c.ada:50:15: error: expected type "Standard.Integer"
+B4	B41201C.ADA	light_tasking_mpfs	1	other_error	b41201c.ada:50:15: error: expected type "Standard.Integer"
+B4	B41201C.ADA	embedded_mpfs	1	other_error	b41201c.ada:50:15: error: expected type "Standard.Integer"
+B4	B41324B.ADA	light_mpfs	1	other_error	b41324b.ada:45:20: error: incompatible arguments for operator
+B4	B41324B.ADA	light_tasking_mpfs	1	other_error	b41324b.ada:45:20: error: incompatible arguments for operator
+B4	B41324B.ADA	embedded_mpfs	1	other_error	b41324b.ada:45:20: error: incompatible arguments for operator
+B4	B420001.A	light_mpfs	1	other_error	b420001.a:48:34: error: null string literal not allowed for type "String_1" defined at line 47
+B4	B420001.A	light_tasking_mpfs	1	other_error	b420001.a:48:34: error: null string literal not allowed for type "String_1" defined at line 47
+B4	B420001.A	embedded_mpfs	1	other_error	b420001.a:48:34: error: null string literal not allowed for type "String_1" defined at line 47
+B4	B43002H.ADA	light_mpfs	1	other_error	b43002h.ada:45:24: error: "OTHERS" must appear last in an aggregate
+B4	B43002H.ADA	light_tasking_mpfs	1	other_error	b43002h.ada:45:24: error: "OTHERS" must appear last in an aggregate
+B4	B43002H.ADA	embedded_mpfs	1	other_error	b43002h.ada:45:24: error: "OTHERS" must appear last in an aggregate
+B4	B43005A.ADA	light_mpfs	1	other_error	b43005a.ada:53:06: error: ambiguous expression (cannot resolve "P")
+B4	B43005A.ADA	light_tasking_mpfs	1	other_error	b43005a.ada:53:06: error: ambiguous expression (cannot resolve "P")
+B4	B43005A.ADA	embedded_mpfs	1	other_error	b43005a.ada:53:06: error: ambiguous expression (cannot resolve "P")
+B4	B43102B.ADA	light_mpfs	1	other_error	b43102b.ada:100:06: error: ambiguous expression (cannot resolve "PROC_VR")
+B4	B43102B.ADA	light_tasking_mpfs	1	other_error	b43102b.ada:100:06: error: ambiguous expression (cannot resolve "PROC_VR")
+B4	B43102B.ADA	embedded_mpfs	1	other_error	b43102b.ada:100:06: error: ambiguous expression (cannot resolve "PROC_VR")
+B4	B43201C.ADA	light_mpfs	1	other_error	b43201c.ada:49:23: error: missing index value in array aggregate
+B4	B43201C.ADA	light_tasking_mpfs	1	other_error	b43201c.ada:49:23: error: missing index value in array aggregate
+B4	B43201C.ADA	embedded_mpfs	1	other_error	b43201c.ada:49:23: error: missing index value in array aggregate
+B4	B43221B.ADA	light_mpfs	1	other_error	b43221b.ada:49:06: error: ambiguous expression (cannot resolve "PROC_VR")
+B4	B43221B.ADA	light_tasking_mpfs	1	other_error	b43221b.ada:49:06: error: ambiguous expression (cannot resolve "PROC_VR")
+B4	B43221B.ADA	embedded_mpfs	1	other_error	b43221b.ada:49:06: error: ambiguous expression (cannot resolve "PROC_VR")
+B4	B44002C.ADA	light_mpfs	1	other_error	b44002c.ada:38:11: error: expected type "Standard.Integer"
+B4	B44002C.ADA	light_tasking_mpfs	1	other_error	b44002c.ada:38:11: error: expected type "Standard.Integer"
+B4	B44002C.ADA	embedded_mpfs	1	other_error	b44002c.ada:38:11: error: expected type "Standard.Integer"
+B4	B44004C.ADA	light_mpfs	1	other_error	b44004c.ada:34:39: error: accuracy definition not allowed in membership test
+B4	B44004C.ADA	light_tasking_mpfs	1	other_error	b44004c.ada:34:39: error: accuracy definition not allowed in membership test
+B4	B44004C.ADA	embedded_mpfs	1	other_error	b44004c.ada:34:39: error: accuracy definition not allowed in membership test
+B4	B45102A.ADA	light_mpfs	1	other_error	b45102a.ada:71:22: error: invalid operand types for operator "AND"
+B4	B45102A.ADA	light_tasking_mpfs	1	other_error	b45102a.ada:71:22: error: invalid operand types for operator "AND"
+B4	B45102A.ADA	embedded_mpfs	1	other_error	b45102a.ada:71:22: error: invalid operand types for operator "AND"
+B4	B45204A.ADA	light_mpfs	1	other_error	b45204a.ada:34:24: error: expected type "BOOLEAN" defined at line 32
+B4	B45204A.ADA	light_tasking_mpfs	1	other_error	b45204a.ada:34:24: error: expected type "BOOLEAN" defined at line 32
+B4	B45204A.ADA	embedded_mpfs	1	other_error	b45204a.ada:34:24: error: expected type "BOOLEAN" defined at line 32
+B4	B45209C.ADA	light_mpfs	1	other_error	b45209c.ada:41:14: error: incompatible types
+B4	B45209C.ADA	light_tasking_mpfs	1	other_error	b45209c.ada:41:14: error: incompatible types
+B4	B45209C.ADA	embedded_mpfs	1	other_error	b45209c.ada:41:14: error: incompatible types
+B4	B45209F.ADA	light_mpfs	1	other_error	b45209f.ada:41:13: error: incompatible types
+B4	B45209F.ADA	light_tasking_mpfs	1	other_error	b45209f.ada:41:13: error: incompatible types
+B4	B45209F.ADA	embedded_mpfs	1	other_error	b45209f.ada:41:13: error: incompatible types
+B4	B45209I.ADA	light_mpfs	1	other_error	b45209i.ada:49:12: error: incompatible types
+B4	B45209I.ADA	light_tasking_mpfs	1	other_error	b45209i.ada:49:12: error: incompatible types
+B4	B45209I.ADA	embedded_mpfs	1	other_error	b45209i.ada:49:12: error: incompatible types
+B4	B45221A.ADA	light_mpfs	1	other_error	b45221a.ada:35:40: error: invalid operand types for operator "="
+B4	B45221A.ADA	light_tasking_mpfs	1	other_error	b45221a.ada:35:40: error: invalid operand types for operator "="
+B4	B45221A.ADA	embedded_mpfs	1	other_error	b45221a.ada:35:40: error: invalid operand types for operator "="
+B4	B45261C.ADA	light_mpfs	1	other_error	b45261c.ada:64:17: error: there is no applicable operator ">" for type "ARR" defined at line 58
+B4	B45261C.ADA	light_tasking_mpfs	1	other_error	b45261c.ada:64:17: error: there is no applicable operator ">" for type "ARR" defined at line 58
+B4	B45261C.ADA	embedded_mpfs	1	other_error	b45261c.ada:64:17: error: there is no applicable operator ">" for type "ARR" defined at line 58
+B4	B45301C.ADA	light_mpfs	1	other_error	b45301c.ada:42:21: error: invalid operand types for operator "+"
+B4	B45301C.ADA	light_tasking_mpfs	1	other_error	b45301c.ada:42:21: error: invalid operand types for operator "+"
+B4	B45301C.ADA	embedded_mpfs	1	other_error	b45301c.ada:42:21: error: invalid operand types for operator "+"
+B4	B455002.A	light_mpfs	1	other_error	b455002.a:51:13: error: type cannot be determined from context
+B4	B455002.A	light_tasking_mpfs	1	other_error	b455002.a:51:13: error: type cannot be determined from context
+B4	B455002.A	embedded_mpfs	1	other_error	b455002.a:51:13: error: type cannot be determined from context
+B4	B45501C.ADA	light_mpfs	1	other_error	b45501c.ada:45:13: error: there is no applicable operator "REM" for type "Standard.Float"
+B4	B45501C.ADA	light_tasking_mpfs	1	other_error	b45501c.ada:45:13: error: there is no applicable operator "REM" for type "Standard.Float"
+B4	B45501C.ADA	embedded_mpfs	1	other_error	b45501c.ada:45:13: error: there is no applicable operator "REM" for type "Standard.Float"
+B4	B45601A.ADA	light_mpfs	1	other_error	b45601a.ada:42:13: error: invalid operand types for operator "**"
+B4	B45601A.ADA	light_tasking_mpfs	1	other_error	b45601a.ada:42:13: error: invalid operand types for operator "**"
+B4	B45601A.ADA	embedded_mpfs	1	other_error	b45601a.ada:42:13: error: invalid operand types for operator "**"
+B4	B46004A.ADA	light_mpfs	1	other_error	b46004a.ada:66:17: error: illegal operand for array conversion
+B4	B46004A.ADA	light_tasking_mpfs	1	other_error	b46004a.ada:66:17: error: illegal operand for array conversion
+B4	B46004A.ADA	embedded_mpfs	1	other_error	b46004a.ada:66:17: error: illegal operand for array conversion
+B4	B46004D.ADA	light_mpfs	1	other_error	b46004d.ada:60:18: error: incompatible component types for array conversion
+B4	B46004D.ADA	light_tasking_mpfs	1	other_error	b46004d.ada:60:18: error: incompatible component types for array conversion
+B4	B46004D.ADA	embedded_mpfs	1	other_error	b46004d.ada:60:18: error: incompatible component types for array conversion
+B4	B48001A.ADA	light_mpfs	1	other_error	b48001a.ada:120:18: error: uninitialized unconstrained allocation not allowed
+B4	B48001A.ADA	light_tasking_mpfs	1	other_error	b48001a.ada:120:18: error: uninitialized unconstrained allocation not allowed
+B4	B48001A.ADA	embedded_mpfs	1	other_error	b48001a.ada:120:18: error: uninitialized unconstrained allocation not allowed
+B4	B48002C.ADA	light_mpfs	1	other_error	b48002c.ada:50:20: error: constraint not allowed here
+B4	B48002C.ADA	light_tasking_mpfs	1	other_error	b48002c.ada:50:20: error: constraint not allowed here
+B4	B48002C.ADA	embedded_mpfs	1	other_error	b48002c.ada:50:20: error: constraint not allowed here
+B4	B490002.A	light_mpfs	1	other_error	b490002.a:86:33: error: null string literal not allowed for type "Array_Str" defined at line 69
+B4	B490002.A	light_tasking_mpfs	1	other_error	b490002.a:86:33: error: null string literal not allowed for type "Array_Str" defined at line 69
+B4	B490002.A	embedded_mpfs	1	other_error	b490002.a:86:33: error: null string literal not allowed for type "Array_Str" defined at line 69
+B4	B49005A.ADA	light_mpfs	1	other_error	b49005a.ada:54:34: error: non-static expression used for integer type bound
+B4	B49005A.ADA	light_tasking_mpfs	1	other_error	b49005a.ada:54:34: error: non-static expression used for integer type bound
+B4	B49005A.ADA	embedded_mpfs	1	other_error	b49005a.ada:54:34: error: non-static expression used for integer type bound
+B4	B49008C.ADA	light_mpfs	1	other_error	b49008c.ada:38:30: error: non-static expression used for integer type bound
+B4	B49008C.ADA	light_tasking_mpfs	1	other_error	b49008c.ada:38:30: error: non-static expression used for integer type bound
+B4	B49008C.ADA	embedded_mpfs	1	other_error	b49008c.ada:38:30: error: non-static expression used for integer type bound
+B4	B49010A.ADA	light_mpfs	1	other_error	b49010a.ada:48:22: error: choice given in case statement is not static
+B4	B49010A.ADA	light_tasking_mpfs	1	other_error	b49010a.ada:48:22: error: choice given in case statement is not static
+B4	B49010A.ADA	embedded_mpfs	1	other_error	b49010a.ada:48:22: error: choice given in case statement is not static
+B5	B51004B.ADA	light_mpfs	1	restriction	NO_TASKING
+B5	B51004B.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY
+B5	B51004B.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY
+B5	B52002A.ADA	light_mpfs	1	other_error	b52002a.ada:55:11: error: assignment to "IN" mode parameter not allowed
+B5	B52002A.ADA	light_tasking_mpfs	1	other_error	b52002a.ada:55:11: error: assignment to "IN" mode parameter not allowed
+B5	B52002A.ADA	embedded_mpfs	1	other_error	b52002a.ada:55:11: error: assignment to "IN" mode parameter not allowed
+B5	B52002D.ADA	light_mpfs	1	other_error	b52002d.ada:42:05: error: statement expected
+B5	B52002D.ADA	light_tasking_mpfs	1	other_error	b52002d.ada:42:05: error: statement expected
+B5	B52002D.ADA	embedded_mpfs	1	other_error	b52002d.ada:42:05: error: statement expected
+B5	B52002G.ADA	light_mpfs	1	other_error	b52002g.ada:45:08: error: left hand side of assignment must be a variable
+B5	B52002G.ADA	light_tasking_mpfs	1	other_error	b52002g.ada:45:08: error: left hand side of assignment must be a variable
+B5	B52002G.ADA	embedded_mpfs	1	other_error	b52002g.ada:45:08: error: left hand side of assignment must be a variable
+B5	B52004B.ADA	light_mpfs	1	other_error	b52004b.ada:46:12: error: expected type "Standard.Integer"
+B5	B52004B.ADA	light_tasking_mpfs	1	other_error	b52004b.ada:46:12: error: expected type "Standard.Integer"
+B5	B52004B.ADA	embedded_mpfs	1	other_error	b52004b.ada:46:12: error: expected type "Standard.Integer"
+B5	B53002A.ADA	light_mpfs	1	other_error	b53002a.ada:44:18: error: "ELSIF" cannot appear after "ELSE"
+B5	B53002A.ADA	light_tasking_mpfs	1	other_error	b53002a.ada:44:18: error: "ELSIF" cannot appear after "ELSE"
+B5	B53002A.ADA	embedded_mpfs	1	other_error	b53002a.ada:44:18: error: "ELSIF" cannot appear after "ELSE"
+B5	B53009B.ADA	light_mpfs	1	other_error	b53009b.ada:44:08: error: "L1" conflicts with declaration at line 36
+B5	B53009B.ADA	light_tasking_mpfs	1	other_error	b53009b.ada:44:08: error: "L1" conflicts with declaration at line 36
+B5	B53009B.ADA	embedded_mpfs	1	other_error	b53009b.ada:44:08: error: "L1" conflicts with declaration at line 36
+B5	B54A01F.ADA	light_mpfs	1	other_error	b54a01f.ada:39:06: error: "END CASE;" expected for "CASE" at line 37
+B5	B54A01F.ADA	light_tasking_mpfs	1	other_error	b54a01f.ada:39:06: error: "END CASE;" expected for "CASE" at line 37
+B5	B54A01F.ADA	embedded_mpfs	1	other_error	b54a01f.ada:39:06: error: "END CASE;" expected for "CASE" at line 37
+B5	B54A01L.ADA	light_mpfs	1	other_error	b54a01l.ada:39:16: error: the choice "OTHERS" must appear alone and last
+B5	B54A01L.ADA	light_tasking_mpfs	1	other_error	b54a01l.ada:39:16: error: the choice "OTHERS" must appear alone and last
+B5	B54A01L.ADA	embedded_mpfs	1	other_error	b54a01l.ada:39:16: error: the choice "OTHERS" must appear alone and last
+B5	B54A05B.ADA	light_mpfs	1	other_error	b54a05b.ada:39:11: error: expected a discrete type
+B5	B54A05B.ADA	light_tasking_mpfs	1	other_error	b54a05b.ada:39:11: error: expected a discrete type
+B5	B54A05B.ADA	embedded_mpfs	1	other_error	b54a05b.ada:39:11: error: expected a discrete type
+B5	B54A21A.ADA	light_mpfs	1	other_error	b54a21a.ada:48:16: error: choice given in case statement is not static
+B5	B54A21A.ADA	light_tasking_mpfs	1	other_error	b54a21a.ada:48:16: error: choice given in case statement is not static
+B5	B54A21A.ADA	embedded_mpfs	1	other_error	b54a21a.ada:48:16: error: choice given in case statement is not static
+B5	B54A60A.ADA	light_mpfs	1	other_error	b54a60a.ada:51:11: error: ambiguous expression (cannot resolve "RED")
+B5	B54A60A.ADA	light_tasking_mpfs	1	other_error	b54a60a.ada:51:11: error: ambiguous expression (cannot resolve "RED")
+B5	B54A60A.ADA	embedded_mpfs	1	other_error	b54a60a.ada:51:11: error: ambiguous expression (cannot resolve "RED")
+B5	B54B02B.ADA	light_mpfs	1	other_error	b54b02b.ada:84:11: error: missing case value: 1
+B5	B54B02B.ADA	light_tasking_mpfs	1	other_error	b54b02b.ada:84:11: error: missing case value: 1
+B5	B54B02B.ADA	embedded_mpfs	1	other_error	b54b02b.ada:84:11: error: missing case value: 1
+B5	B54B02D.ADA	light_mpfs	1	other_error	b54b02d.ada:63:16: error: missing case values: -16#8000_0000# .. 0
+B5	B54B02D.ADA	light_tasking_mpfs	1	other_error	b54b02d.ada:63:16: error: missing case values: -16#8000_0000# .. 0
+B5	B54B02D.ADA	embedded_mpfs	1	other_error	b54b02d.ada:63:16: error: missing case values: -16#8000_0000# .. 0
+B5	B54B05A.ADA	light_mpfs	1	other_error	b54b05a.ada:48:11: error: missing case value: 1
+B5	B54B05A.ADA	light_tasking_mpfs	1	other_error	b54b05a.ada:48:11: error: missing case value: 1
+B5	B54B05A.ADA	embedded_mpfs	1	other_error	b54b05a.ada:48:11: error: missing case value: 1
+B5	B55A01A.ADA	light_mpfs	1	other_error	b55a01a.ada:51:06: error: "END LOOP L2;" expected
+B5	B55A01A.ADA	light_tasking_mpfs	1	other_error	b55a01a.ada:51:06: error: "END LOOP L2;" expected
+B5	B55A01A.ADA	embedded_mpfs	1	other_error	b55a01a.ada:51:06: error: "END LOOP L2;" expected
+B5	B55A01E.ADA	light_mpfs	1	other_error	b55a01e.ada:37:15: error: missing "LOOP"
+B5	B55A01E.ADA	light_tasking_mpfs	1	other_error	b55a01e.ada:37:15: error: missing "LOOP"
+B5	B55A01E.ADA	embedded_mpfs	1	other_error	b55a01e.ada:37:15: error: missing "LOOP"
+B5	B55A01N.ADA	light_mpfs	1	other_error	b55a01n.ada:38:22: error: missing "LOOP"
+B5	B55A01N.ADA	light_tasking_mpfs	1	other_error	b55a01n.ada:38:22: error: missing "LOOP"
+B5	B55A01N.ADA	embedded_mpfs	1	other_error	b55a01n.ada:38:22: error: missing "LOOP"
+B5	B55A01T.ADA	light_mpfs	1	other_error	b55a01t.ada:38:06: error: reserved word "LOOP" cannot be used as identifier
+B5	B55A01T.ADA	light_tasking_mpfs	1	other_error	b55a01t.ada:38:06: error: reserved word "LOOP" cannot be used as identifier
+B5	B55A01T.ADA	embedded_mpfs	1	other_error	b55a01t.ada:38:06: error: reserved word "LOOP" cannot be used as identifier
+B5	B55B01A.ADA	light_mpfs	1	other_error	b55b01a.ada:43:11: error: assignment to loop parameter not allowed
+B5	B55B01A.ADA	light_tasking_mpfs	1	other_error	b55b01a.ada:43:11: error: assignment to loop parameter not allowed
+B5	B55B01A.ADA	embedded_mpfs	1	other_error	b55b01a.ada:43:11: error: assignment to loop parameter not allowed
+B5	B55B09B.ADA	light_mpfs	1	other_error	b55b09b.ada:55:24: error: expected type "T" defined at line 36
+B5	B55B09B.ADA	light_tasking_mpfs	1	other_error	b55b09b.ada:55:24: error: expected type "T" defined at line 36
+B5	B55B09B.ADA	embedded_mpfs	1	other_error	b55b09b.ada:55:24: error: expected type "T" defined at line 36
+B5	B55B17A.ADA	light_mpfs	1	other_error	b55b17a.ada:37:15: error: subscripted loop parameter not allowed
+B5	B55B17A.ADA	light_tasking_mpfs	1	other_error	b55b17a.ada:37:15: error: subscripted loop parameter not allowed
+B5	B55B17A.ADA	embedded_mpfs	1	other_error	b55b17a.ada:37:15: error: subscripted loop parameter not allowed
+B5	B55B17C.ADA	light_mpfs	1	other_error	b55b17c.ada:37:16: error: selected loop parameter not allowed
+B5	B55B17C.ADA	light_tasking_mpfs	1	other_error	b55b17c.ada:37:16: error: selected loop parameter not allowed
+B5	B55B17C.ADA	embedded_mpfs	1	other_error	b55b17c.ada:37:16: error: selected loop parameter not allowed
+B5	B56001A.ADA	light_mpfs	1	other_error	b56001a.ada:37:06: error: "END B1;" expected
+B5	B56001A.ADA	light_tasking_mpfs	1	other_error	b56001a.ada:37:06: error: "END B1;" expected
+B5	B56001A.ADA	embedded_mpfs	1	other_error	b56001a.ada:37:06: error: "END B1;" expected
+B5	B56001F.ADA	light_mpfs	1	other_error	b56001f.ada:33:14: error: statement not allowed in declarative part
+B5	B56001F.ADA	light_tasking_mpfs	1	other_error	b56001f.ada:33:14: error: statement not allowed in declarative part
+B5	B56001F.ADA	embedded_mpfs	1	other_error	b56001f.ada:33:14: error: statement not allowed in declarative part
+B5	B56001H.ADA	light_mpfs	1	other_error	b56001h.ada:39:05: error: missing "END;" for "BEGIN" at line 35
+B5	B56001H.ADA	light_tasking_mpfs	1	other_error	b56001h.ada:39:05: error: missing "END;" for "BEGIN" at line 35
+B5	B56001H.ADA	embedded_mpfs	1	other_error	b56001h.ada:39:05: error: missing "END;" for "BEGIN" at line 35
+B5	B57001C.ADA	light_mpfs	1	restriction	NO_TASKING
+B5	B57001C.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B5	B57001C.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B5	B58003B.ADA	light_mpfs	1	other_error	b58003b.ada:50:18: error: expected type "Standard.Integer"
+B5	B58003B.ADA	light_tasking_mpfs	1	other_error	b58003b.ada:50:18: error: expected type "Standard.Integer"
+B5	B58003B.ADA	embedded_mpfs	1	other_error	b58003b.ada:50:18: error: expected type "Standard.Integer"
+B5	B59001D.ADA	light_mpfs	1	other_error	b59001d.ada:36:17: error: target of goto statement is not reachable
+B5	B59001D.ADA	light_tasking_mpfs	1	other_error	b59001d.ada:36:17: error: target of goto statement is not reachable
+B5	B59001D.ADA	embedded_mpfs	1	other_error	b59001d.ada:36:17: error: target of goto statement is not reachable
+B5	B59001G.ADA	light_mpfs	1	restriction	NO_TASKING
+B5	B59001G.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B5	B59001G.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B6	B61001F.ADA	light_mpfs	1	other_error	b61001f.ada:32:33: error: "," should be ";"
+B6	B61001F.ADA	light_tasking_mpfs	1	other_error	b61001f.ada:32:33: error: "," should be ";"
+B6	B61001F.ADA	embedded_mpfs	1	other_error	b61001f.ada:32:33: error: "," should be ";"
+B6	B61005A.ADA	light_mpfs	1	other_error	b61005a.ada:34:27: error: default initialization only allowed for "IN" parameters
+B6	B61005A.ADA	light_tasking_mpfs	1	other_error	b61005a.ada:34:27: error: default initialization only allowed for "IN" parameters
+B6	B61005A.ADA	embedded_mpfs	1	other_error	b61005a.ada:34:27: error: default initialization only allowed for "IN" parameters
+B6	B61011A.ADA	light_mpfs	1	other_error	b61011a.ada:60:50: error: formal parameter "I1" cannot be used before end of specification
+B6	B61011A.ADA	light_tasking_mpfs	1	other_error	b61011a.ada:60:50: error: formal parameter "I1" cannot be used before end of specification
+B6	B61011A.ADA	embedded_mpfs	1	other_error	b61011a.ada:60:50: error: formal parameter "I1" cannot be used before end of specification
+B6	B62001A.ADA	light_mpfs	1	other_error	b62001a.ada:89:11: error: assignment to "IN" mode parameter not allowed
+B6	B62001A.ADA	light_tasking_mpfs	1	other_error	b62001a.ada:89:11: error: assignment to "IN" mode parameter not allowed
+B6	B62001A.ADA	embedded_mpfs	1	other_error	b62001a.ada:89:11: error: assignment to "IN" mode parameter not allowed
+B6	B62001B.ADA	light_mpfs	1	other_error	b62001b.ada:33:24: error: "LABEL" is undefined
+B6	B62001B.ADA	light_tasking_mpfs	1	other_error	b62001b.ada:33:24: error: "LABEL" is undefined
+B6	B62001B.ADA	embedded_mpfs	1	other_error	b62001b.ada:33:24: error: "LABEL" is undefined
+B6	B62001C.ADA	light_mpfs	1	other_error	b62001c.ada:33:25: error: formal subprogram parameter not allowed
+B6	B62001C.ADA	light_tasking_mpfs	1	other_error	b62001c.ada:33:25: error: formal subprogram parameter not allowed
+B6	B62001C.ADA	embedded_mpfs	1	other_error	b62001c.ada:33:25: error: formal subprogram parameter not allowed
+B6	B62001D.ADA	light_mpfs	1	other_error	b62001d.ada:34:25: error: formal subprogram parameter not allowed
+B6	B62001D.ADA	light_tasking_mpfs	1	other_error	b62001d.ada:34:25: error: formal subprogram parameter not allowed
+B6	B62001D.ADA	embedded_mpfs	1	other_error	b62001d.ada:34:25: error: formal subprogram parameter not allowed
+B6	B63001A.ADA	light_mpfs	1	other_error	b63001a.ada:35:10: error: misspelling of "PROC1"
+B6	B63001A.ADA	light_tasking_mpfs	1	other_error	b63001a.ada:35:10: error: misspelling of "PROC1"
+B6	B63001A.ADA	embedded_mpfs	1	other_error	b63001a.ada:35:10: error: misspelling of "PROC1"
+B6	B63001B.ADA	light_mpfs	1	other_error	b63001b.ada:40:10: error: misspelling of "PROC1"
+B6	B63001B.ADA	light_tasking_mpfs	1	other_error	b63001b.ada:40:10: error: misspelling of "PROC1"
+B6	B63001B.ADA	embedded_mpfs	1	other_error	b63001b.ada:40:10: error: misspelling of "PROC1"
+B6	B63005A.ADA	light_mpfs	1	other_error	b63005a.ada:51:27: error: missing body for "PR1"
+B6	B63005A.ADA	light_tasking_mpfs	1	other_error	b63005a.ada:51:27: error: missing body for "PR1"
+B6	B63005A.ADA	embedded_mpfs	1	other_error	b63005a.ada:51:27: error: missing body for "PR1"
+B6	B63005B.ADA	light_mpfs	1	other_error	b63005b.ada:51:27: error: missing body for "PR1"
+B6	B63005B.ADA	light_tasking_mpfs	1	other_error	b63005b.ada:51:27: error: missing body for "PR1"
+B6	B63005B.ADA	embedded_mpfs	1	other_error	b63005b.ada:51:27: error: missing body for "PR1"
+B6	B63006A.ADA	light_mpfs	1	other_error	b63006a.ada:39:01: error: must have at least one exception handler
+B6	B63006A.ADA	light_tasking_mpfs	1	other_error	b63006a.ada:39:01: error: must have at least one exception handler
+B6	B63006A.ADA	embedded_mpfs	1	other_error	b63006a.ada:39:01: error: must have at least one exception handler
+B6	B63009C0.ADA	light_mpfs	0	ok	
+B6	B63009C0.ADA	light_tasking_mpfs	0	ok	
+B6	B63009C0.ADA	embedded_mpfs	0	ok	
+B6	B63009C2.ADA	light_mpfs	1	other_error	b63009c2.ada:30:14: error: file "b63009c1.ads" not found
+B6	B63009C2.ADA	light_tasking_mpfs	1	other_error	b63009c2.ada:30:14: error: file "b63009c1.ads" not found
+B6	B63009C2.ADA	embedded_mpfs	1	other_error	b63009c2.ada:30:14: error: file "b63009c1.ads" not found
+B6	B63103A.ADA	light_mpfs	1	other_error	b63103a.ada:41:21: error: not fully conformant with declaration at line 35
+B6	B63103A.ADA	light_tasking_mpfs	1	other_error	b63103a.ada:41:21: error: not fully conformant with declaration at line 35
+B6	B63103A.ADA	embedded_mpfs	1	other_error	b63103a.ada:41:21: error: not fully conformant with declaration at line 35
+B6	B64002A.ADA	light_mpfs	1	other_error	b64002a.ada:53:06: error: missing argument for parameter "X" in call to "P1" declared at line 36
+B6	B64002A.ADA	light_tasking_mpfs	1	other_error	b64002a.ada:53:06: error: missing argument for parameter "X" in call to "P1" declared at line 36
+B6	B64002A.ADA	embedded_mpfs	1	other_error	b64002a.ada:53:06: error: missing argument for parameter "X" in call to "P1" declared at line 36
+B6	B64002C.ADA	light_mpfs	1	other_error	b64002c.ada:115:17: error: expected type "Standard.Integer"
+B6	B64002C.ADA	light_tasking_mpfs	1	other_error	b64002c.ada:115:17: error: expected type "Standard.Integer"
+B6	B64002C.ADA	embedded_mpfs	1	other_error	b64002c.ada:115:17: error: expected type "Standard.Integer"
+B6	B64004A.ADA	light_mpfs	1	other_error	b64004a.ada:52:11: error: missing argument for parameter "X2" in call to "F" declared at line 45
+B6	B64004A.ADA	light_tasking_mpfs	1	other_error	b64004a.ada:52:11: error: missing argument for parameter "X2" in call to "F" declared at line 45
+B6	B64004A.ADA	embedded_mpfs	1	other_error	b64004a.ada:52:11: error: missing argument for parameter "X2" in call to "F" declared at line 45
+B6	B64004B.ADA	light_mpfs	1	other_error	b64004b.ada:54:10: error: extra "," ignored
+B6	B64004B.ADA	light_tasking_mpfs	1	other_error	b64004b.ada:54:10: error: extra "," ignored
+B6	B64004B.ADA	embedded_mpfs	1	other_error	b64004b.ada:54:10: error: extra "," ignored
+B6	B64004C.ADA	light_mpfs	1	other_error	b64004c.ada:54:10: error: extra "," ignored
+B6	B64004C.ADA	light_tasking_mpfs	1	other_error	b64004c.ada:54:10: error: extra "," ignored
+B6	B64004C.ADA	embedded_mpfs	1	other_error	b64004c.ada:54:10: error: extra "," ignored
+B6	B64004D.ADA	light_mpfs	1	other_error	b64004d.ada:54:12: error: extra "," ignored
+B6	B64004D.ADA	light_tasking_mpfs	1	other_error	b64004d.ada:54:12: error: extra "," ignored
+B6	B64004D.ADA	embedded_mpfs	1	other_error	b64004d.ada:54:12: error: extra "," ignored
+B6	B64004E.ADA	light_mpfs	1	other_error	b64004e.ada:54:10: error: extra "," ignored
+B6	B64004E.ADA	light_tasking_mpfs	1	other_error	b64004e.ada:54:10: error: extra "," ignored
+B6	B64004E.ADA	embedded_mpfs	1	other_error	b64004e.ada:54:10: error: extra "," ignored
+B6	B64004F.ADA	light_mpfs	1	other_error	b64004f.ada:54:13: error: missing operand
+B6	B64004F.ADA	light_tasking_mpfs	1	other_error	b64004f.ada:54:13: error: missing operand
+B6	B64004F.ADA	embedded_mpfs	1	other_error	b64004f.ada:54:13: error: missing operand
+B6	B65002A.ADA	light_mpfs	1	other_error	b65002a.ada:34:06: error: missing "RETURN" statement in function body
+B6	B65002A.ADA	light_tasking_mpfs	1	other_error	b65002a.ada:34:06: error: missing "RETURN" statement in function body
+B6	B65002A.ADA	embedded_mpfs	1	other_error	b65002a.ada:34:06: error: missing "RETURN" statement in function body
+B6	B660003.A	light_mpfs	1	other_error	b660003.a:45:20: error: operators can only have "in" parameters
+B6	B660003.A	light_tasking_mpfs	1	other_error	b660003.a:45:20: error: operators can only have "in" parameters
+B6	B660003.A	embedded_mpfs	1	other_error	b660003.a:45:20: error: operators can only have "in" parameters
+B6	B66001A.ADA	light_mpfs	1	other_error	b66001a.ada:72:11: error: duplicate body for "PA" declared at line 66
+B6	B66001A.ADA	light_tasking_mpfs	1	other_error	b66001a.ada:72:11: error: duplicate body for "PA" declared at line 66
+B6	B66001A.ADA	embedded_mpfs	1	other_error	b66001a.ada:72:11: error: duplicate body for "PA" declared at line 66
+B6	B66001B.ADA	light_mpfs	1	restriction	NO_TASKING
+B6	B66001B.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B6	B66001B.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B6	B66001C.ADA	light_mpfs	1	other_error	b66001c.ada:37:21: error: "P" conflicts with declaration at line 36
+B6	B66001C.ADA	light_tasking_mpfs	1	other_error	b66001c.ada:37:21: error: "P" conflicts with declaration at line 36
+B6	B66001C.ADA	embedded_mpfs	1	other_error	b66001c.ada:37:21: error: "P" conflicts with declaration at line 36
+B7	B71001A.ADA	light_mpfs	1	other_error	b71001a.ada:35:11: error: "END P3;" expected
+B7	B71001A.ADA	light_tasking_mpfs	1	other_error	b71001a.ada:35:11: error: "END P3;" expected
+B7	B71001A.ADA	embedded_mpfs	1	other_error	b71001a.ada:35:11: error: "END P3;" expected
+B7	B71001B.ADA	light_mpfs	1	other_error	b71001b.ada:36:11: error: proper body not allowed in package spec
+B7	B71001B.ADA	light_tasking_mpfs	1	other_error	b71001b.ada:36:11: error: proper body not allowed in package spec
+B7	B71001B.ADA	embedded_mpfs	1	other_error	b71001b.ada:36:11: error: proper body not allowed in package spec
+B7	B71001C.ADA	light_mpfs	1	other_error	b71001c.ada:34:11: error: proper body not allowed in package spec
+B7	B71001C.ADA	light_tasking_mpfs	1	other_error	b71001c.ada:34:11: error: proper body not allowed in package spec
+B7	B71001C.ADA	embedded_mpfs	1	other_error	b71001c.ada:34:11: error: proper body not allowed in package spec
+B7	B71001F.ADA	light_mpfs	1	other_error	b71001f.ada:33:11: error: proper body not allowed in package spec
+B7	B71001F.ADA	light_tasking_mpfs	1	other_error	b71001f.ada:33:11: error: proper body not allowed in package spec
+B7	B71001F.ADA	embedded_mpfs	1	other_error	b71001f.ada:33:11: error: proper body not allowed in package spec
+B7	B71001G.ADA	light_mpfs	1	other_error	b71001g.ada:37:11: error: "END P3;" expected
+B7	B71001G.ADA	light_tasking_mpfs	1	other_error	b71001g.ada:37:11: error: "END P3;" expected
+B7	B71001G.ADA	embedded_mpfs	1	other_error	b71001g.ada:37:11: error: "END P3;" expected
+B7	B71001I.ADA	light_mpfs	1	other_error	b71001i.ada:34:11: error: proper body not allowed in package spec
+B7	B71001I.ADA	light_tasking_mpfs	1	other_error	b71001i.ada:34:11: error: proper body not allowed in package spec
+B7	B71001I.ADA	embedded_mpfs	1	other_error	b71001i.ada:34:11: error: proper body not allowed in package spec
+B7	B71001J.ADA	light_mpfs	1	other_error	b71001j.ada:33:06: error: body stub not allowed in package spec
+B7	B71001J.ADA	light_tasking_mpfs	1	other_error	b71001j.ada:33:06: error: body stub not allowed in package spec
+B7	B71001J.ADA	embedded_mpfs	1	other_error	b71001j.ada:33:06: error: body stub not allowed in package spec
+B7	B71001M.ADA	light_mpfs	1	other_error	b71001m.ada:39:11: error: "END P3;" expected
+B7	B71001M.ADA	light_tasking_mpfs	1	other_error	b71001m.ada:39:11: error: "END P3;" expected
+B7	B71001M.ADA	embedded_mpfs	1	other_error	b71001m.ada:39:11: error: "END P3;" expected
+B7	B71001N.ADA	light_mpfs	1	other_error	b71001n.ada:39:11: error: proper body not allowed in package spec
+B7	B71001N.ADA	light_tasking_mpfs	1	other_error	b71001n.ada:39:11: error: proper body not allowed in package spec
+B7	B71001N.ADA	embedded_mpfs	1	other_error	b71001n.ada:39:11: error: proper body not allowed in package spec
+B7	B71001P.ADA	light_mpfs	1	other_error	b71001p.ada:36:06: error: body stub not allowed in package spec
+B7	B71001P.ADA	light_tasking_mpfs	1	other_error	b71001p.ada:36:06: error: body stub not allowed in package spec
+B7	B71001P.ADA	embedded_mpfs	1	other_error	b71001p.ada:36:06: error: body stub not allowed in package spec
+B7	B71001R.ADA	light_mpfs	1	other_error	b71001r.ada:32:06: error: body stub not allowed in package spec
+B7	B71001R.ADA	light_tasking_mpfs	1	other_error	b71001r.ada:32:06: error: body stub not allowed in package spec
+B7	B71001R.ADA	embedded_mpfs	1	other_error	b71001r.ada:32:06: error: body stub not allowed in package spec
+B7	B71001U.ADA	light_mpfs	1	other_error	b71001u.ada:37:11: error: proper body not allowed in package spec
+B7	B71001U.ADA	light_tasking_mpfs	1	other_error	b71001u.ada:37:11: error: proper body not allowed in package spec
+B7	B71001U.ADA	embedded_mpfs	1	other_error	b71001u.ada:37:11: error: proper body not allowed in package spec
+B7	B71001V.ADA	light_mpfs	1	other_error	b71001v.ada:36:06: error: body stub not allowed in package spec
+B7	B71001V.ADA	light_tasking_mpfs	1	other_error	b71001v.ada:36:06: error: body stub not allowed in package spec
+B7	B71001V.ADA	embedded_mpfs	1	other_error	b71001v.ada:36:06: error: body stub not allowed in package spec
+B7	B7300062.A	light_mpfs	1	other_error	b7300062.a:47:23: error: file "b730006_0-child3.ads" not found
+B7	B7300062.A	light_tasking_mpfs	1	other_error	b7300062.a:47:23: error: file "b730006_0-child3.ads" not found
+B7	B7300062.A	embedded_mpfs	1	other_error	b7300062.a:47:23: error: file "b730006_0-child3.ads" not found
+B7	B730013.A	light_mpfs	1	other_error	b730013.a:109:09: error: invalid conversion, not compatible with type "Standard.Float"
+B7	B730013.A	light_tasking_mpfs	1	other_error	b730013.a:109:09: error: invalid conversion, not compatible with type "Standard.Float"
+B7	B730013.A	embedded_mpfs	1	other_error	b730013.a:109:09: error: invalid conversion, not compatible with type "Standard.Float"
+B7	B73001B.ADA	light_mpfs	1	restriction	NO_TASKING
+B7	B73001B.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B7	B73001B.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B7	B73001C.ADA	light_mpfs	1	other_error	b73001c.ada:47:06: error: missing body for "PACK1"
+B7	B73001C.ADA	light_tasking_mpfs	1	other_error	b73001c.ada:47:06: error: missing body for "PACK1"
+B7	B73001C.ADA	embedded_mpfs	1	other_error	b73001c.ada:47:06: error: missing body for "PACK1"
+B7	B73001D.ADA	light_mpfs	1	restriction	NO_TASKING
+B7	B73001D.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B7	B73001D.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B7	B73001F.ADA	light_mpfs	1	restriction	NO_TASKING
+B7	B73001F.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+B7	B73001F.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+B7	B73001G.ADA	light_mpfs	1	other_error	b73001g.ada:48:06: error: missing body for "PACK1"
+B7	B73001G.ADA	light_tasking_mpfs	1	other_error	b73001g.ada:48:06: error: missing body for "PACK1"
+B7	B73001G.ADA	embedded_mpfs	1	other_error	b73001g.ada:48:06: error: missing body for "PACK1"
+B7	B73004A.ADA	light_mpfs	1	other_error	b73004a.ada:81:15: error: "INT" is not a visible entity of "PACK"
+B7	B73004A.ADA	light_tasking_mpfs	1	other_error	b73004a.ada:81:15: error: "INT" is not a visible entity of "PACK"
+B7	B73004A.ADA	embedded_mpfs	1	other_error	b73004a.ada:81:15: error: "INT" is not a visible entity of "PACK"
+B7	B7310013.A	light_mpfs	1	other_error	b7310013.a:50:33: error: file "b7310016_1-places-p-q.ads" not found
+B7	B7310013.A	light_tasking_mpfs	1	other_error	b7310013.a:50:33: error: file "b7310016_1-places-p-q.ads" not found
+B7	B7310013.A	embedded_mpfs	1	other_error	b7310013.a:50:33: error: file "b7310016_1-places-p-q.ads" not found
+B7	B74101A.ADA	light_mpfs	1	restriction	NO_TASKING
+B7	B74101A.ADA	light_tasking_mpfs	1	other_error	b74101a.ada:110:16: error: completion of nonlimited type cannot be limited
+B7	B74101A.ADA	embedded_mpfs	1	other_error	b74101a.ada:110:16: error: completion of nonlimited type cannot be limited
+B7	B74101B.ADA	light_mpfs	1	other_error	b74101b.ada:45:16: error: completion of nonlimited type cannot be limited
+B7	B74101B.ADA	light_tasking_mpfs	1	other_error	b74101b.ada:45:16: error: completion of nonlimited type cannot be limited
+B7	B74101B.ADA	embedded_mpfs	1	other_error	b74101b.ada:45:16: error: completion of nonlimited type cannot be limited
+B7	B74202B.ADA	light_mpfs	1	other_error	b74202b.ada:87:12: error: there is no applicable operator "=" for type "ARR" defined at line 41
+B7	B74202B.ADA	light_tasking_mpfs	1	other_error	b74202b.ada:87:12: error: there is no applicable operator "=" for type "ARR" defined at line 41
+B7	B74202B.ADA	embedded_mpfs	1	other_error	b74202b.ada:87:12: error: there is no applicable operator "=" for type "ARR" defined at line 41
+B7	B74202C.ADA	light_mpfs	1	other_error	b74202c.ada:69:11: error: array type required in indexed component
+B7	B74202C.ADA	light_tasking_mpfs	1	other_error	b74202c.ada:69:11: error: array type required in indexed component
+B7	B74202C.ADA	embedded_mpfs	1	other_error	b74202c.ada:69:11: error: array type required in indexed component
+B7	B74304A.ADA	light_mpfs	1	other_error	b74304a.ada:53:37: error: deferred constant is frozen before completion
+B7	B74304A.ADA	light_tasking_mpfs	1	other_error	b74304a.ada:53:37: error: deferred constant is frozen before completion
+B7	B74304A.ADA	embedded_mpfs	1	other_error	b74304a.ada:53:37: error: deferred constant is frozen before completion
+B7	B74304B.ADA	light_mpfs	1	other_error	b74304b.ada:49:33: error: premature use of private type
+B7	B74304B.ADA	light_tasking_mpfs	1	other_error	b74304b.ada:49:33: error: premature use of private type
+B7	B74304B.ADA	embedded_mpfs	1	other_error	b74304b.ada:49:33: error: premature use of private type
+B7	B74404A.ADA	light_mpfs	1	other_error	b74404a.ada:57:23: error: initialization of limited object requires aggregate or function call
+B7	B74404A.ADA	light_tasking_mpfs	1	other_error	b74404a.ada:57:23: error: initialization of limited object requires aggregate or function call
+B7	B74404A.ADA	embedded_mpfs	1	other_error	b74404a.ada:57:23: error: initialization of limited object requires aggregate or function call
+B7	B74404B.ADA	light_mpfs	1	other_error	b74404b.ada:66:18: error: initialization not allowed for limited types
+B7	B74404B.ADA	light_tasking_mpfs	1	other_error	b74404b.ada:66:18: error: initialization not allowed for limited types
+B7	B74404B.ADA	embedded_mpfs	1	other_error	b74404b.ada:66:18: error: initialization not allowed for limited types
+B8	B8300045.A	light_mpfs	1	other_error	b8300045.a:52:14: error: file "b830004_pack2b.ads" not found
+B8	B8300045.A	light_tasking_mpfs	1	other_error	b8300045.a:52:14: error: file "b830004_pack2b.ads" not found
+B8	B8300045.A	embedded_mpfs	1	other_error	b8300045.a:52:14: error: file "b830004_pack2b.ads" not found
+B8	B83003A.ADA	light_mpfs	1	restriction	NO_TASKING
+B8	B83003A.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B8	B83003A.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B8	B83003C.ADA	light_mpfs	1	restriction	NO_TASKING
+B8	B83003C.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+B8	B83003C.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+B8	B83008A.ADA	light_mpfs	1	restriction	NO_TASKING
+B8	B83008A.ADA	light_tasking_mpfs	1	other_error	b83008a.ada:46:16: error: "D1" conflicts with declaration at line 42
+B8	B83008A.ADA	embedded_mpfs	1	other_error	b83008a.ada:46:16: error: "D1" conflicts with declaration at line 42
+B8	B83023B.ADA	light_mpfs	1	restriction	NO_TASKING
+B8	B83023B.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B8	B83023B.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B8	B83024F1.ADA	light_mpfs	1	other_error	b83024f1.ada:41:14: error: file "b83024f_p1.ads" not found
+B8	B83024F1.ADA	light_tasking_mpfs	1	other_error	b83024f1.ada:41:14: error: file "b83024f_p1.ads" not found
+B8	B83024F1.ADA	embedded_mpfs	1	other_error	b83024f1.ada:41:14: error: file "b83024f_p1.ads" not found
+B8	B83024F3.ADA	light_mpfs	1	other_error	b83024f3.ada:41:14: error: file "b83024f_p3.ads" not found
+B8	B83024F3.ADA	light_tasking_mpfs	1	other_error	b83024f3.ada:41:14: error: file "b83024f_p3.ads" not found
+B8	B83024F3.ADA	embedded_mpfs	1	other_error	b83024f3.ada:41:14: error: file "b83024f_p3.ads" not found
+B8	B83027B.ADA	light_mpfs	1	other_error	b83027b.ada:61:31: error: component "F" cannot be used before end of record declaration
+B8	B83027B.ADA	light_tasking_mpfs	1	other_error	b83027b.ada:61:31: error: component "F" cannot be used before end of record declaration
+B8	B83027B.ADA	embedded_mpfs	1	other_error	b83027b.ada:61:31: error: component "F" cannot be used before end of record declaration
+B8	B83029B.ADA	light_mpfs	1	other_error	b83029b.ada:61:21: error: expected type "Standard.Float"
+B8	B83029B.ADA	light_tasking_mpfs	1	other_error	b83029b.ada:61:21: error: expected type "Standard.Float"
+B8	B83029B.ADA	embedded_mpfs	1	other_error	b83029b.ada:61:21: error: expected type "Standard.Float"
+B8	B83031D.ADA	light_mpfs	1	other_error	b83031d.ada:58:21: error: no candidate interpretations match the actuals:
+B8	B83031D.ADA	light_tasking_mpfs	1	other_error	b83031d.ada:58:21: error: no candidate interpretations match the actuals:
+B8	B83031D.ADA	embedded_mpfs	1	other_error	b83031d.ada:58:21: error: no candidate interpretations match the actuals:
+B8	B83033B.ADA	light_mpfs	1	other_error	b83033b.ada:67:26: error: expected type "STMT2" defined at line 62
+B8	B83033B.ADA	light_tasking_mpfs	1	other_error	b83033b.ada:67:26: error: expected type "STMT2" defined at line 62
+B8	B83033B.ADA	embedded_mpfs	1	other_error	b83033b.ada:67:26: error: expected type "STMT2" defined at line 62
+B8	B83A01C.ADA	light_mpfs	1	other_error	b83a01c.ada:62:19: error: "LAB_OUTSIDE_INACCEPT" conflicts with label at line 45
+B8	B83A01C.ADA	light_tasking_mpfs	1	other_error	b83a01c.ada:62:19: error: "LAB_OUTSIDE_INACCEPT" conflicts with label at line 45
+B8	B83A01C.ADA	embedded_mpfs	1	other_error	b83a01c.ada:62:19: error: "LAB_OUTSIDE_INACCEPT" conflicts with label at line 45
+B8	B83A06B.ADA	light_mpfs	1	other_error	b83a06b.ada:97:14: error: "LAB_LOOP_1" conflicts with label at line 75
+B8	B83A06B.ADA	light_tasking_mpfs	1	other_error	b83a06b.ada:97:14: error: "LAB_LOOP_1" conflicts with label at line 75
+B8	B83A06B.ADA	embedded_mpfs	1	other_error	b83a06b.ada:97:14: error: "LAB_LOOP_1" conflicts with label at line 75
+B8	B83A07B.ADA	light_mpfs	1	other_error	b83a07b.ada:93:18: error: "L" conflicts with label at line 90
+B8	B83A07B.ADA	light_tasking_mpfs	1	other_error	b83a07b.ada:93:18: error: "L" conflicts with label at line 90
+B8	B83A07B.ADA	embedded_mpfs	1	other_error	b83a07b.ada:93:18: error: "L" conflicts with label at line 90
+B8	B83A08B.ADA	light_mpfs	1	other_error	b83a08b.ada:51:21: error: target of goto statement must be a label
+B8	B83A08B.ADA	light_tasking_mpfs	1	other_error	b83a08b.ada:51:21: error: target of goto statement must be a label
+B8	B83A08B.ADA	embedded_mpfs	1	other_error	b83a08b.ada:51:21: error: target of goto statement must be a label
+B8	B83B02C.ADA	light_mpfs	1	other_error	b83b02c.ada:43:21: error: expected type universal integer
+B8	B83B02C.ADA	light_tasking_mpfs	1	other_error	b83b02c.ada:43:21: error: expected type universal integer
+B8	B83B02C.ADA	embedded_mpfs	1	other_error	b83b02c.ada:43:21: error: expected type universal integer
+B8	B83E01F0.ADA	light_mpfs	0	ok	
+B8	B83E01F0.ADA	light_tasking_mpfs	0	ok	
+B8	B83E01F0.ADA	embedded_mpfs	0	ok	
+B8	B83F02B.ADA	light_mpfs	1	other_error	b83f02b.ada:71:14: error: "X1" conflicts with declaration at line 37
+B8	B83F02B.ADA	light_tasking_mpfs	1	other_error	b83f02b.ada:71:14: error: "X1" conflicts with declaration at line 37
+B8	B83F02B.ADA	embedded_mpfs	1	other_error	b83f02b.ada:71:14: error: "X1" conflicts with declaration at line 37
+B8	B84001A.ADA	light_mpfs	1	restriction	NO_TASKING
+B8	B84001A.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B8	B84001A.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B8	B84005B.ADA	light_mpfs	1	other_error	b84005b.ada:75:11: error: ambiguous expression (cannot resolve "FUNK")
+B8	B84005B.ADA	light_tasking_mpfs	1	other_error	b84005b.ada:75:11: error: ambiguous expression (cannot resolve "FUNK")
+B8	B84005B.ADA	embedded_mpfs	1	other_error	b84005b.ada:75:11: error: ambiguous expression (cannot resolve "FUNK")
+B8	B84007A.ADA	light_mpfs	1	other_error	b84007a.ada:40:10: error: "PACK2" is not visible (more references follow)
+B8	B84007A.ADA	light_tasking_mpfs	1	other_error	b84007a.ada:40:10: error: "PACK2" is not visible (more references follow)
+B8	B84007A.ADA	embedded_mpfs	1	other_error	b84007a.ada:40:10: error: "PACK2" is not visible (more references follow)
+B8	B85001A.ADA	light_mpfs	1	other_error	b85001a.ada:35:26: error: name expected
+B8	B85001A.ADA	light_tasking_mpfs	1	other_error	b85001a.ada:35:26: error: name expected
+B8	B85001A.ADA	embedded_mpfs	1	other_error	b85001a.ada:35:26: error: name expected
+B8	B85001C.ADA	light_mpfs	1	other_error	b85001c.ada:35:25: error: name expected
+B8	B85001C.ADA	light_tasking_mpfs	1	other_error	b85001c.ada:35:25: error: name expected
+B8	B85001C.ADA	embedded_mpfs	1	other_error	b85001c.ada:35:25: error: name expected
+B8	B85001F.ADA	light_mpfs	1	restriction	NO_TASKING
+B8	B85001F.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B8	B85001F.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B8	B85001H.ADA	light_mpfs	1	other_error	b85001h.ada:39:26: error: expected type "Standard.Integer"
+B8	B85001H.ADA	light_tasking_mpfs	1	other_error	b85001h.ada:39:26: error: expected type "Standard.Integer"
+B8	B85001H.ADA	embedded_mpfs	1	other_error	b85001h.ada:39:26: error: expected type "Standard.Integer"
+B8	B85008F.ADA	light_mpfs	1	other_error	b85008f.ada:47:29: error: invalid exception name in renaming
+B8	B85008F.ADA	light_tasking_mpfs	1	other_error	b85008f.ada:47:29: error: invalid exception name in renaming
+B8	B85008F.ADA	embedded_mpfs	1	other_error	b85008f.ada:47:29: error: invalid exception name in renaming
+B8	B85008H.ADA	light_mpfs	1	other_error	b85008h.ada:47:34: error: invalid exception name in renaming
+B8	B85008H.ADA	light_tasking_mpfs	1	other_error	b85008h.ada:47:34: error: invalid exception name in renaming
+B8	B85008H.ADA	embedded_mpfs	1	other_error	b85008h.ada:47:34: error: invalid exception name in renaming
+B8	B85010B.ADA	light_mpfs	1	other_error	b85010b.ada:40:28: error: identifier expected
+B8	B85010B.ADA	light_tasking_mpfs	1	other_error	b85010b.ada:40:28: error: identifier expected
+B8	B85010B.ADA	embedded_mpfs	1	other_error	b85010b.ada:40:28: error: identifier expected
+B8	B85015A.ADA	light_mpfs	1	restriction	NO_TASKING
+B8	B85015A.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B8	B85015A.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B8	B8510011.A	light_mpfs	1	other_error	b8510011.a:44:14: error: file "b851001_0.ads" not found
+B8	B8510011.A	light_tasking_mpfs	1	other_error	b8510011.a:44:14: error: file "b851001_0.ads" not found
+B8	B8510011.A	embedded_mpfs	1	other_error	b8510011.a:44:14: error: file "b851001_0.ads" not found
+B9	B91001B.ADA	light_mpfs	1	other_error	b91001b.ada:33:13: error: discriminant part not allowed for single task
+B9	B91001B.ADA	light_tasking_mpfs	1	other_error	b91001b.ada:33:13: error: discriminant part not allowed for single task
+B9	B91001B.ADA	embedded_mpfs	1	other_error	b91001b.ada:33:13: error: discriminant part not allowed for single task
+B9	B91001G.ADA	light_mpfs	1	other_error	b91001g.ada:37:11: error: the only representation clause allowed here is an address clause
+B9	B91001G.ADA	light_tasking_mpfs	1	other_error	b91001g.ada:37:11: error: the only representation clause allowed here is an address clause
+B9	B91001G.ADA	embedded_mpfs	1	other_error	b91001g.ada:37:11: error: the only representation clause allowed here is an address clause
+B9	B91002C.ADA	light_mpfs	1	other_error	b91002c.ada:39:11: error: illegal declaration in task definition
+B9	B91002C.ADA	light_tasking_mpfs	1	other_error	b91002c.ada:39:11: error: illegal declaration in task definition
+B9	B91002C.ADA	embedded_mpfs	1	other_error	b91002c.ada:39:11: error: illegal declaration in task definition
+B9	B91002F.ADA	light_mpfs	1	other_error	b91002f.ada:39:11: error: illegal declaration in task definition
+B9	B91002F.ADA	light_tasking_mpfs	1	other_error	b91002f.ada:39:11: error: illegal declaration in task definition
+B9	B91002F.ADA	embedded_mpfs	1	other_error	b91002f.ada:39:11: error: illegal declaration in task definition
+B9	B91002I.ADA	light_mpfs	1	other_error	b91002i.ada:39:11: error: illegal declaration in task definition
+B9	B91002I.ADA	light_tasking_mpfs	1	other_error	b91002i.ada:39:11: error: illegal declaration in task definition
+B9	B91002I.ADA	embedded_mpfs	1	other_error	b91002i.ada:39:11: error: illegal declaration in task definition
+B9	B91003A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B91003A.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B91003A.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B91003D.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B91003D.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B91003D.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B91005A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B91005A.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B91005A.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B940001.A	light_mpfs	1	other_error	b940001.a:45:17: error: anonymous array not allowed as component
+B9	B940001.A	light_tasking_mpfs	1	other_error	b940001.a:45:17: error: anonymous array not allowed as component
+B9	B940001.A	embedded_mpfs	1	other_error	b940001.a:45:17: error: anonymous array not allowed as component
+B9	B95001A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B95001A.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95001A.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95002A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B95002A.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95002A.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95004B.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B95004B.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95004B.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95006C.ADA	light_mpfs	1	other_error	b95006c.ada:44:11: error: "END E2;" expected
+B9	B95006C.ADA	light_tasking_mpfs	1	other_error	b95006c.ada:44:11: error: "END E2;" expected
+B9	B95006C.ADA	embedded_mpfs	1	other_error	b95006c.ada:44:11: error: "END E2;" expected
+B9	B95020B0.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B95020B0.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+B9	B95020B0.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+B9	B95031A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B95031A.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B95031A.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B95061C.ADA	light_mpfs	1	other_error	b95061c.ada:34:32: error: constraint not allowed here
+B9	B95061C.ADA	light_tasking_mpfs	1	other_error	b95061c.ada:34:32: error: constraint not allowed here
+B9	B95061C.ADA	embedded_mpfs	1	other_error	b95061c.ada:34:32: error: constraint not allowed here
+B9	B95061F.ADA	light_mpfs	1	other_error	b95061f.ada:37:30: error: constraint not allowed here
+B9	B95061F.ADA	light_tasking_mpfs	1	other_error	b95061f.ada:37:30: error: constraint not allowed here
+B9	B95061F.ADA	embedded_mpfs	1	other_error	b95061f.ada:37:30: error: constraint not allowed here
+B9	B95063A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B95063A.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY
+B9	B95063A.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY
+B9	B95080C.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B95080C.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95080C.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95082C.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B95082C.ADA	light_tasking_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95082C.ADA	embedded_mpfs	1	restriction	NO_TASK_HIERARCHY (profile JORVIK)
+B9	B95082F.ADA	light_mpfs	1	other_error	b95082f.ada:50:11: error: missing operand
+B9	B95082F.ADA	light_tasking_mpfs	1	other_error	b95082f.ada:50:11: error: missing operand
+B9	B95082F.ADA	embedded_mpfs	1	other_error	b95082f.ada:50:11: error: missing operand
+B9	B951001.A	light_mpfs	1	restriction	configurable run-time mode
+B9	B951001.A	light_tasking_mpfs	1	restriction	No_Local_Protected_Objects (profile Jorvik)
+B9	B951001.A	embedded_mpfs	1	restriction	No_Local_Protected_Objects (profile Jorvik)
+B9	B954004.A	light_mpfs	1	restriction	No_Tasking
+B9	B954004.A	light_tasking_mpfs	1	restriction	No_Local_Protected_Objects (profile Jorvik)
+B9	B954004.A	embedded_mpfs	1	restriction	No_Local_Protected_Objects (profile Jorvik)
+B9	B97103A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B97103A.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B97103A.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B97103E.ADA	light_mpfs	1	other_error	b97103e.ada:47:15: error: missing "END TT2;"
+B9	B97103E.ADA	light_tasking_mpfs	1	other_error	b97103e.ada:47:15: error: missing "END TT2;"
+B9	B97103E.ADA	embedded_mpfs	1	other_error	b97103e.ada:47:15: error: missing "END TT2;"
+B9	B97104A.ADA	light_mpfs	1	other_error	b97104a.ada:44:16: error: reserved word "TERMINATE" cannot be used as identifier
+B9	B97104A.ADA	light_tasking_mpfs	1	other_error	b97104a.ada:44:16: error: reserved word "TERMINATE" cannot be used as identifier
+B9	B97104A.ADA	embedded_mpfs	1	other_error	b97104a.ada:44:16: error: reserved word "TERMINATE" cannot be used as identifier
+B9	B97104E.ADA	light_mpfs	1	other_error	b97104e.ada:61:21: error: reserved word "TERMINATE" cannot be used as identifier
+B9	B97104E.ADA	light_tasking_mpfs	1	other_error	b97104e.ada:61:21: error: reserved word "TERMINATE" cannot be used as identifier
+B9	B97104E.ADA	embedded_mpfs	1	other_error	b97104e.ada:61:21: error: reserved word "TERMINATE" cannot be used as identifier
+B9	B97107A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B97107A.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B97107A.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B99001A.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B99001A.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B99001A.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B99002B.ADA	light_mpfs	1	restriction	NO_TASKING
+B9	B99002B.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+B9	B99002B.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0 (profile JORVIK)
+BA	BA1001A1.ADA	light_mpfs	1	other_error	ba1001a1.ada:32:10: error: operator symbol not allowed at library level
+BA	BA1001A1.ADA	light_tasking_mpfs	1	other_error	ba1001a1.ada:32:10: error: operator symbol not allowed at library level
+BA	BA1001A1.ADA	embedded_mpfs	1	other_error	ba1001a1.ada:32:10: error: operator symbol not allowed at library level
+BA	BA1010A2.ADA	light_mpfs	0	ok	
+BA	BA1010A2.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010A2.ADA	embedded_mpfs	0	ok	
+BA	BA1010B4.ADA	light_mpfs	0	ok	
+BA	BA1010B4.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010B4.ADA	embedded_mpfs	0	ok	
+BA	BA1010C0.ADA	light_mpfs	0	ok	
+BA	BA1010C0.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010C0.ADA	embedded_mpfs	0	ok	
+BA	BA1010C4.ADA	light_mpfs	0	ok	
+BA	BA1010C4.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010C4.ADA	embedded_mpfs	0	ok	
+BA	BA1010D2.ADA	light_mpfs	0	ok	
+BA	BA1010D2.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010D2.ADA	embedded_mpfs	0	ok	
+BA	BA1010E3.ADA	light_mpfs	0	ok	
+BA	BA1010E3.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010E3.ADA	embedded_mpfs	0	ok	
+BA	BA1010F0.ADA	light_mpfs	0	ok	
+BA	BA1010F0.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010F0.ADA	embedded_mpfs	0	ok	
+BA	BA1010F6.ADA	light_mpfs	0	ok	
+BA	BA1010F6.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010F6.ADA	embedded_mpfs	0	ok	
+BA	BA1010G3.ADA	light_mpfs	0	ok	
+BA	BA1010G3.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010G3.ADA	embedded_mpfs	0	ok	
+BA	BA1010I0.ADA	light_mpfs	0	ok	
+BA	BA1010I0.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010I0.ADA	embedded_mpfs	0	ok	
+BA	BA1010J0.ADA	light_mpfs	0	ok	
+BA	BA1010J0.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010J0.ADA	embedded_mpfs	0	ok	
+BA	BA1010J6.ADA	light_mpfs	0	ok	
+BA	BA1010J6.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010J6.ADA	embedded_mpfs	0	ok	
+BA	BA1010K2.ADA	light_mpfs	0	ok	
+BA	BA1010K2.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010K2.ADA	embedded_mpfs	0	ok	
+BA	BA1010K6.ADA	light_mpfs	0	ok	
+BA	BA1010K6.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010K6.ADA	embedded_mpfs	0	ok	
+BA	BA1010L4.ADA	light_mpfs	0	ok	
+BA	BA1010L4.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010L4.ADA	embedded_mpfs	0	ok	
+BA	BA1010M3.ADA	light_mpfs	0	ok	
+BA	BA1010M3.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010M3.ADA	embedded_mpfs	0	ok	
+BA	BA1010M7.ADA	light_mpfs	0	ok	
+BA	BA1010M7.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010M7.ADA	embedded_mpfs	0	ok	
+BA	BA1010N4.ADA	light_mpfs	0	ok	
+BA	BA1010N4.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010N4.ADA	embedded_mpfs	0	ok	
+BA	BA1010Q1.ADA	light_mpfs	0	ok	
+BA	BA1010Q1.ADA	light_tasking_mpfs	0	ok	
+BA	BA1010Q1.ADA	embedded_mpfs	0	ok	
+BA	BA1011B3.ADA	light_mpfs	0	ok	
+BA	BA1011B3.ADA	light_tasking_mpfs	0	ok	
+BA	BA1011B3.ADA	embedded_mpfs	0	ok	
+BA	BA1011B7.ADA	light_mpfs	0	ok	
+BA	BA1011B7.ADA	light_tasking_mpfs	0	ok	
+BA	BA1011B7.ADA	embedded_mpfs	0	ok	
+BA	BA1011C4.ADA	light_mpfs	1	other_error	ba1011c4.ada:29:24: error: "ITEM" is undefined (more references follow)
+BA	BA1011C4.ADA	light_tasking_mpfs	1	other_error	ba1011c4.ada:29:24: error: "ITEM" is undefined (more references follow)
+BA	BA1011C4.ADA	embedded_mpfs	1	other_error	ba1011c4.ada:29:24: error: "ITEM" is undefined (more references follow)
+BA	BA1020A1.ADA	light_mpfs	0	ok	
+BA	BA1020A1.ADA	light_tasking_mpfs	0	ok	
+BA	BA1020A1.ADA	embedded_mpfs	0	ok	
+BA	BA1020C1.ADA	light_mpfs	0	ok	
+BA	BA1020C1.ADA	light_tasking_mpfs	0	ok	
+BA	BA1020C1.ADA	embedded_mpfs	0	ok	
+BA	BA1020F0.ADA	light_mpfs	0	ok	
+BA	BA1020F0.ADA	light_tasking_mpfs	0	ok	
+BA	BA1020F0.ADA	embedded_mpfs	0	ok	
+BA	BA1101B0.ADA	light_mpfs	0	ok	
+BA	BA1101B0.ADA	light_tasking_mpfs	0	ok	
+BA	BA1101B0.ADA	embedded_mpfs	0	ok	
+BA	BA1101C2.ADA	light_mpfs	1	other_error	ba1101c2.ada:42:06: error: file "standard.ads" not found
+BA	BA1101C2.ADA	light_tasking_mpfs	1	other_error	ba1101c2.ada:42:06: error: file "standard.ads" not found
+BA	BA1101C2.ADA	embedded_mpfs	1	other_error	ba1101c2.ada:42:06: error: file "standard.ads" not found
+BA	BA2001F0.ADA	light_mpfs	0	ok	
+BA	BA2001F0.ADA	light_tasking_mpfs	0	ok	
+BA	BA2001F0.ADA	embedded_mpfs	0	ok	
+BA	BA3001E0.ADA	light_mpfs	0	ok	
+BA	BA3001E0.ADA	light_tasking_mpfs	0	ok	
+BA	BA3001E0.ADA	embedded_mpfs	0	ok	
+BB	BB10001.A	light_mpfs	1	other_error	bb10001.a:74:15: error: exception choice duplicates "Constraint_Error" at line 72
+BB	BB10001.A	light_tasking_mpfs	1	other_error	bb10001.a:74:15: error: exception choice duplicates "Constraint_Error" at line 72
+BB	BB10001.A	embedded_mpfs	1	other_error	bb10001.a:74:15: error: exception choice duplicates "Constraint_Error" at line 72
+BB	BB2003A.ADA	light_mpfs	1	other_error	bb2003a.ada:41:21: error: "OTHERS" must appear alone and last
+BB	BB2003A.ADA	light_tasking_mpfs	1	other_error	bb2003a.ada:41:21: error: "OTHERS" must appear alone and last
+BB	BB2003A.ADA	embedded_mpfs	1	other_error	bb2003a.ada:41:21: error: "OTHERS" must appear alone and last
+BB	BB2003B.ADA	light_mpfs	1	other_error	bb2003b.ada:41:16: error: "OTHERS" must appear alone and last
+BB	BB2003B.ADA	light_tasking_mpfs	1	other_error	bb2003b.ada:41:16: error: "OTHERS" must appear alone and last
+BB	BB2003B.ADA	embedded_mpfs	1	other_error	bb2003b.ada:41:16: error: "OTHERS" must appear alone and last
+BB	BB2003C.ADA	light_mpfs	1	other_error	bb2003c.ada:39:11: error: "OTHERS" must appear alone and last
+BB	BB2003C.ADA	light_tasking_mpfs	1	other_error	bb2003c.ada:39:11: error: "OTHERS" must appear alone and last
+BB	BB2003C.ADA	embedded_mpfs	1	other_error	bb2003c.ada:39:11: error: "OTHERS" must appear alone and last
+BB	BB3002A.ADA	light_mpfs	1	other_error	bb3002a.ada:36:11: error: reraise statement must appear directly in a handler
+BB	BB3002A.ADA	light_tasking_mpfs	1	other_error	bb3002a.ada:36:11: error: reraise statement must appear directly in a handler
+BB	BB3002A.ADA	embedded_mpfs	1	other_error	bb3002a.ada:36:11: error: reraise statement must appear directly in a handler
+BC	BC1002A.ADA	light_mpfs	1	other_error	bc1002a.ada:59:26: error: choice given in variant part is not static
+BC	BC1002A.ADA	light_tasking_mpfs	1	other_error	bc1002a.ada:59:26: error: choice given in variant part is not static
+BC	BC1002A.ADA	embedded_mpfs	1	other_error	bc1002a.ada:59:26: error: choice given in variant part is not static
+BC	BC1008C.ADA	light_mpfs	1	other_error	bc1008c.ada:31:25: error: missing ";"
+BC	BC1008C.ADA	light_tasking_mpfs	1	other_error	bc1008c.ada:31:25: error: missing ";"
+BC	BC1008C.ADA	embedded_mpfs	1	other_error	bc1008c.ada:31:25: error: missing ";"
+BC	BC1011C.ADA	light_mpfs	1	other_error	bc1011c.ada:51:16: error: generic subprogram cannot be called
+BC	BC1011C.ADA	light_tasking_mpfs	1	other_error	bc1011c.ada:51:16: error: generic subprogram cannot be called
+BC	BC1011C.ADA	embedded_mpfs	1	other_error	bc1011c.ada:51:16: error: generic subprogram cannot be called
+BC	BC1014B.ADA	light_mpfs	1	other_error	bc1014b.ada:36:06: error: missing body for "CHECK"
+BC	BC1014B.ADA	light_tasking_mpfs	1	other_error	bc1014b.ada:36:06: error: missing body for "CHECK"
+BC	BC1014B.ADA	embedded_mpfs	1	other_error	bc1014b.ada:36:06: error: missing body for "CHECK"
+BC	BC1101A.ADA	light_mpfs	1	other_error	bc1101a.ada:35:16: error: formal generic objects cannot have mode "OUT"
+BC	BC1101A.ADA	light_tasking_mpfs	1	other_error	bc1101a.ada:35:16: error: formal generic objects cannot have mode "OUT"
+BC	BC1101A.ADA	embedded_mpfs	1	other_error	bc1101a.ada:35:16: error: formal generic objects cannot have mode "OUT"
+BC	BC1106A.ADA	light_mpfs	1	other_error	bc1106a.ada:42:16: error: left hand side of assignment must be a variable
+BC	BC1106A.ADA	light_tasking_mpfs	1	other_error	bc1106a.ada:42:16: error: left hand side of assignment must be a variable
+BC	BC1106A.ADA	embedded_mpfs	1	other_error	bc1106a.ada:42:16: error: left hand side of assignment must be a variable
+BC	BC1109D.ADA	light_mpfs	1	other_error	bc1109d.ada:38:31: error: constraint not allowed here
+BC	BC1109D.ADA	light_tasking_mpfs	1	other_error	bc1109d.ada:38:31: error: constraint not allowed here
+BC	BC1109D.ADA	embedded_mpfs	1	other_error	bc1109d.ada:38:31: error: constraint not allowed here
+BC	BC1201C.ADA	light_mpfs	1	other_error	bc1201c.ada:35:29: error: missing "<>"
+BC	BC1201C.ADA	light_tasking_mpfs	1	other_error	bc1201c.ada:35:29: error: missing "<>"
+BC	BC1201C.ADA	embedded_mpfs	1	other_error	bc1201c.ada:35:29: error: missing "<>"
+BC	BC1201F.ADA	light_mpfs	1	other_error	bc1201f.ada:42:19: error: in a formal, a subtype indication can only be a subtype mark (RM 12.5.3(3))
+BC	BC1201F.ADA	light_tasking_mpfs	1	other_error	bc1201f.ada:42:19: error: in a formal, a subtype indication can only be a subtype mark (RM 12.5.3(3))
+BC	BC1201F.ADA	embedded_mpfs	1	other_error	bc1201f.ada:42:19: error: in a formal, a subtype indication can only be a subtype mark (RM 12.5.3(3))
+BC	BC1201J.ADA	light_mpfs	1	other_error	bc1201j.ada:37:25: error: only a subtype mark is allowed in a formal
+BC	BC1201J.ADA	light_tasking_mpfs	1	other_error	bc1201j.ada:37:25: error: only a subtype mark is allowed in a formal
+BC	BC1201J.ADA	embedded_mpfs	1	other_error	bc1201j.ada:37:25: error: only a subtype mark is allowed in a formal
+BC	BC1202A.ADA	light_mpfs	1	other_error	bc1202a.ada:35:16: error: record not allowed in generic type definition
+BC	BC1202A.ADA	light_tasking_mpfs	1	other_error	bc1202a.ada:35:16: error: record not allowed in generic type definition
+BC	BC1202A.ADA	embedded_mpfs	1	other_error	bc1202a.ada:35:16: error: record not allowed in generic type definition
+BC	BC1205A.ADA	light_mpfs	1	other_error	bc1205a.ada:69:23: error: expected private type "PR" defined at line 57
+BC	BC1205A.ADA	light_tasking_mpfs	1	other_error	bc1205a.ada:69:23: error: expected private type "PR" defined at line 57
+BC	BC1205A.ADA	embedded_mpfs	1	other_error	bc1205a.ada:69:23: error: expected private type "PR" defined at line 57
+BC	BC2004A.ADA	light_mpfs	1	other_error	bc2004a.ada:37:06: error: missing specification for package body
+BC	BC2004A.ADA	light_tasking_mpfs	1	other_error	bc2004a.ada:37:06: error: missing specification for package body
+BC	BC2004A.ADA	embedded_mpfs	1	other_error	bc2004a.ada:37:06: error: missing specification for package body
+BC	BC3002B.ADA	light_mpfs	1	other_error	bc3002b.ada:40:39: error: unmatched actual in instantiation of "P" declared at line 37
+BC	BC3002B.ADA	light_tasking_mpfs	1	other_error	bc3002b.ada:40:39: error: unmatched actual in instantiation of "P" declared at line 37
+BC	BC3002B.ADA	embedded_mpfs	1	other_error	bc3002b.ada:40:39: error: unmatched actual in instantiation of "P" declared at line 37
+BC	BC3006A.ADA	light_mpfs	1	other_error	bc3006a.ada:57:37: error: "PROCINST" is not the name of a generic procedure
+BC	BC3006A.ADA	light_tasking_mpfs	1	other_error	bc3006a.ada:57:37: error: "PROCINST" is not the name of a generic procedure
+BC	BC3006A.ADA	embedded_mpfs	1	other_error	bc3006a.ada:57:37: error: "PROCINST" is not the name of a generic procedure
+BC	BC3101B.ADA	light_mpfs	1	other_error	bc3101b.ada:101:34: error: expected type "ENUM" defined at line 34
+BC	BC3101B.ADA	light_tasking_mpfs	1	other_error	bc3101b.ada:101:34: error: expected type "ENUM" defined at line 34
+BC	BC3101B.ADA	embedded_mpfs	1	other_error	bc3101b.ada:101:34: error: expected type "ENUM" defined at line 34
+BC	BC3201C.ADA	light_mpfs	1	other_error	bc3201c.ada:65:31: error: actual for non-limited "PV" cannot be a limited type
+BC	BC3201C.ADA	light_tasking_mpfs	1	other_error	bc3201c.ada:65:31: error: actual for non-limited "PV" cannot be a limited type
+BC	BC3201C.ADA	embedded_mpfs	1	other_error	bc3201c.ada:65:31: error: actual for non-limited "PV" cannot be a limited type
+BC	BC3202C.ADA	light_mpfs	1	other_error	bc3202c.ada:71:35: error: types of actual discriminants must match formal
+BC	BC3202C.ADA	light_tasking_mpfs	1	other_error	bc3202c.ada:71:35: error: types of actual discriminants must match formal
+BC	BC3202C.ADA	embedded_mpfs	1	other_error	bc3202c.ada:71:35: error: types of actual discriminants must match formal
+BC	BC3302A.ADA	light_mpfs	1	other_error	bc3302a.ada:70:27: error: expect signed integer type in instantiation of "GFT"
+BC	BC3302A.ADA	light_tasking_mpfs	1	other_error	bc3302a.ada:70:27: error: expect signed integer type in instantiation of "GFT"
+BC	BC3302A.ADA	embedded_mpfs	1	other_error	bc3302a.ada:70:27: error: expect signed integer type in instantiation of "GFT"
+BC	BC3304A.ADA	light_mpfs	1	other_error	bc3304a.ada:71:27: error: expect ordinary fixed point type in instantiation of "GFT"
+BC	BC3304A.ADA	light_tasking_mpfs	1	other_error	bc3304a.ada:71:27: error: expect ordinary fixed point type in instantiation of "GFT"
+BC	BC3304A.ADA	embedded_mpfs	1	other_error	bc3304a.ada:71:27: error: expect ordinary fixed point type in instantiation of "GFT"
+BC	BC3402A.ADA	light_mpfs	1	other_error	bc3402a.ada:65:28: error: dimensions of actual do not match formal "GFT1"
+BC	BC3402A.ADA	light_tasking_mpfs	1	other_error	bc3402a.ada:65:28: error: dimensions of actual do not match formal "GFT1"
+BC	BC3402A.ADA	embedded_mpfs	1	other_error	bc3402a.ada:65:28: error: dimensions of actual do not match formal "GFT1"
+BC	BC3403C.ADA	light_mpfs	1	other_error	bc3403c.ada:55:32: error: index types of actual do not match those of formal "AR"
+BC	BC3403C.ADA	light_tasking_mpfs	1	other_error	bc3403c.ada:55:32: error: index types of actual do not match those of formal "AR"
+BC	BC3403C.ADA	embedded_mpfs	1	other_error	bc3403c.ada:55:32: error: index types of actual do not match those of formal "AR"
+BC	BC3404C.ADA	light_mpfs	1	other_error	bc3404c.ada:57:32: error: component subtype of actual does not match that of formal "FT"
+BC	BC3404C.ADA	light_tasking_mpfs	1	other_error	bc3404c.ada:57:32: error: component subtype of actual does not match that of formal "FT"
+BC	BC3404C.ADA	embedded_mpfs	1	other_error	bc3404c.ada:57:32: error: component subtype of actual does not match that of formal "FT"
+BC	BC3404F.ADA	light_mpfs	1	restriction	NO_TASKING
+BC	BC3404F.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+BC	BC3404F.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+BC	BC3501D.ADA	light_mpfs	1	other_error	bc3501d.ada:46:51: error: expect access type in instantiation of "FT"
+BC	BC3501D.ADA	light_tasking_mpfs	1	other_error	bc3501d.ada:46:51: error: expect access type in instantiation of "FT"
+BC	BC3501D.ADA	embedded_mpfs	1	other_error	bc3501d.ada:46:51: error: expect access type in instantiation of "FT"
+BC	BC3501G.ADA	light_mpfs	1	other_error	bc3501g.ada:85:28: error: expect access type in instantiation of "FT"
+BC	BC3501G.ADA	light_tasking_mpfs	1	other_error	bc3501g.ada:85:28: error: expect access type in instantiation of "FT"
+BC	BC3501G.ADA	embedded_mpfs	1	other_error	bc3501g.ada:85:28: error: expect access type in instantiation of "FT"
+BC	BC3501J.ADA	light_mpfs	1	other_error	bc3501j.ada:47:27: error: expect access type in instantiation of "FT"
+BC	BC3501J.ADA	light_tasking_mpfs	1	other_error	bc3501j.ada:47:27: error: expect access type in instantiation of "FT"
+BC	BC3501J.ADA	embedded_mpfs	1	other_error	bc3501j.ada:47:27: error: expect access type in instantiation of "FT"
+BC	BC3502E.ADA	light_mpfs	1	other_error	bc3502e.ada:137:33: error: designated type of actual does not match that of formal "FT"
+BC	BC3502E.ADA	light_tasking_mpfs	1	other_error	bc3502e.ada:137:33: error: designated type of actual does not match that of formal "FT"
+BC	BC3502E.ADA	embedded_mpfs	1	other_error	bc3502e.ada:137:33: error: designated type of actual does not match that of formal "FT"
+BC	BC3502H.ADA	light_mpfs	1	other_error	bc3502h.ada:96:33: error: designated type of actual does not match that of formal "FT"
+BC	BC3502H.ADA	light_tasking_mpfs	1	other_error	bc3502h.ada:96:33: error: designated type of actual does not match that of formal "FT"
+BC	BC3502H.ADA	embedded_mpfs	1	other_error	bc3502h.ada:96:33: error: designated type of actual does not match that of formal "FT"
+BC	BC3502L.ADA	light_mpfs	1	other_error	bc3502l.ada:54:35: error: designated type of actual does not match that of formal "FT"
+BC	BC3502L.ADA	light_tasking_mpfs	1	other_error	bc3502l.ada:54:35: error: designated type of actual does not match that of formal "FT"
+BC	BC3502L.ADA	embedded_mpfs	1	other_error	bc3502l.ada:54:35: error: designated type of actual does not match that of formal "FT"
+BD	BD1B06J.ADA	light_mpfs	1	other_error	bd1b06j.ada:44:11: error: representation item appears too late
+BD	BD1B06J.ADA	light_tasking_mpfs	1	other_error	bd1b06j.ada:44:11: error: representation item appears too late
+BD	BD1B06J.ADA	embedded_mpfs	1	other_error	bd1b06j.ada:44:11: error: representation item appears too late
+BD	BD2001B.ADA	light_mpfs	1	other_error	bd2001b.ada:34:10: error: entity must be declared in this scope
+BD	BD2001B.ADA	light_tasking_mpfs	1	other_error	bd2001b.ada:34:10: error: entity must be declared in this scope
+BD	BD2001B.ADA	embedded_mpfs	1	other_error	bd2001b.ada:34:10: error: entity must be declared in this scope
+BD	BD2A03A.ADA	light_mpfs	1	other_error	bd2a03a.ada:51:15: error: entity must be declared in this scope
+BD	BD2A03A.ADA	light_tasking_mpfs	1	other_error	bd2a03a.ada:51:15: error: entity must be declared in this scope
+BD	BD2A03A.ADA	embedded_mpfs	1	other_error	bd2a03a.ada:51:15: error: entity must be declared in this scope
+BD	BD2A06A.ADA	light_mpfs	1	restriction	NO_TASKING
+BD	BD2A06A.ADA	light_tasking_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+BD	BD2A06A.ADA	embedded_mpfs	1	restriction	MAX_TASK_ENTRIES = 0
+BD	BD2A25A.ADA	light_mpfs	1	other_error	bd2a25a.ada:38:30: error: size for "BASIC_ENUM" too small, minimum allowed is 5
+BD	BD2A25A.ADA	light_tasking_mpfs	1	other_error	bd2a25a.ada:38:30: error: size for "BASIC_ENUM" too small, minimum allowed is 5
+BD	BD2A25A.ADA	embedded_mpfs	1	other_error	bd2a25a.ada:38:30: error: size for "BASIC_ENUM" too small, minimum allowed is 5
+BD	BD2A45A.ADA	light_mpfs	1	other_error	bd2a45a.ada:35:30: error: size for "FLOAT_TYPE" too small, minimum allowed is 32
+BD	BD2A45A.ADA	light_tasking_mpfs	1	other_error	bd2a45a.ada:35:30: error: size for "FLOAT_TYPE" too small, minimum allowed is 32
+BD	BD2A45A.ADA	embedded_mpfs	1	other_error	bd2a45a.ada:35:30: error: size for "FLOAT_TYPE" too small, minimum allowed is 32
+BD	BD2A55B.ADA	light_mpfs	1	other_error	bd2a55b.ada:37:06: error: size given (4) for type "FIXED_TYPE" too small, minimum allowed is 5
+BD	BD2A55B.ADA	light_tasking_mpfs	1	other_error	bd2a55b.ada:37:06: error: size given (4) for type "FIXED_TYPE" too small, minimum allowed is 5
+BD	BD2A55B.ADA	embedded_mpfs	1	other_error	bd2a55b.ada:37:06: error: size given (4) for type "FIXED_TYPE" too small, minimum allowed is 5
+BD	BD2A67A.ADA	light_mpfs	1	other_error	bd2a67a.ada:35:06: error: size for "ARRAY_TYPE" too small, minimum allowed is 128
+BD	BD2A67A.ADA	light_tasking_mpfs	1	other_error	bd2a67a.ada:35:06: error: size for "ARRAY_TYPE" too small, minimum allowed is 128
+BD	BD2A67A.ADA	embedded_mpfs	1	other_error	bd2a67a.ada:35:06: error: size for "ARRAY_TYPE" too small, minimum allowed is 128
+BD	BD2A85A.ADA	light_mpfs	1	other_error	bd2a85a.ada:37:31: error: size for "ACCESS_TYPE" too small, minimum allowed is 64
+BD	BD2A85A.ADA	light_tasking_mpfs	1	other_error	bd2a85a.ada:37:31: error: size for "ACCESS_TYPE" too small, minimum allowed is 64
+BD	BD2A85A.ADA	embedded_mpfs	1	other_error	bd2a85a.ada:37:31: error: size for "ACCESS_TYPE" too small, minimum allowed is 64
+BD	BD2B01C.ADA	light_mpfs	1	other_error	bd2b01c.ada:37:10: error: storage size cannot be given for a derived access type
+BD	BD2B01C.ADA	light_tasking_mpfs	1	other_error	bd2b01c.ada:37:10: error: storage size cannot be given for a derived access type
+BD	BD2B01C.ADA	embedded_mpfs	1	other_error	bd2b01c.ada:37:10: error: storage size cannot be given for a derived access type
+BD	BD2B02A.ADA	light_mpfs	1	restriction	configurable run-time mode
+BD	BD2B02A.ADA	light_tasking_mpfs	1	restriction	configurable run-time mode
+BD	BD2B02A.ADA	embedded_mpfs	1	other_error	bd2b02a.ada:37:06: error: aspect "STORAGE_SIZE" for "ACCESS_TYPE" previously given at line 36
+BD	BD2B03B.ADA	light_mpfs	1	other_error	bd2b03b.ada:46:16: error: the only representation clause allowed here is an address clause
+BD	BD2B03B.ADA	light_tasking_mpfs	1	other_error	bd2b03b.ada:46:16: error: the only representation clause allowed here is an address clause
+BD	BD2B03B.ADA	embedded_mpfs	1	other_error	bd2b03b.ada:46:16: error: the only representation clause allowed here is an address clause
+BD	BD2D01C.ADA	light_mpfs	1	other_error	bd2d01c.ada:43:10: error: small requires an ordinary fixed point type
+BD	BD2D01C.ADA	light_tasking_mpfs	1	other_error	bd2d01c.ada:43:10: error: small requires an ordinary fixed point type
+BD	BD2D01C.ADA	embedded_mpfs	1	other_error	bd2d01c.ada:43:10: error: small requires an ordinary fixed point type
+BD	BD2D01D.ADA	light_mpfs	1	other_error	bd2d01d.ada:40:06: error: representation item must be after full type declaration
+BD	BD2D01D.ADA	light_tasking_mpfs	1	other_error	bd2d01d.ada:40:06: error: representation item must be after full type declaration
+BD	BD2D01D.ADA	embedded_mpfs	1	other_error	bd2d01d.ada:40:06: error: representation item must be after full type declaration
+BD	BD2D03A.ADA	light_mpfs	1	other_error	bd2d03a.ada:55:16: error: the only representation clause allowed here is an address clause
+BD	BD2D03A.ADA	light_tasking_mpfs	1	other_error	bd2d03a.ada:55:16: error: the only representation clause allowed here is an address clause
+BD	BD2D03A.ADA	embedded_mpfs	1	other_error	bd2d03a.ada:55:16: error: the only representation clause allowed here is an address clause
+BD	BD3001A.ADA	light_mpfs	1	other_error	bd3001a.ada:36:17: error: representation clause requires simple name
+BD	BD3001A.ADA	light_tasking_mpfs	1	other_error	bd3001a.ada:36:17: error: representation clause requires simple name
+BD	BD3001A.ADA	embedded_mpfs	1	other_error	bd3001a.ada:36:17: error: representation clause requires simple name
+BD	BD3001B.ADA	light_mpfs	1	other_error	bd3001b.ada:40:06: error: cannot give enumeration rep clause for subtype
+BD	BD3001B.ADA	light_tasking_mpfs	1	other_error	bd3001b.ada:40:06: error: cannot give enumeration rep clause for subtype
+BD	BD3001B.ADA	embedded_mpfs	1	other_error	bd3001b.ada:40:06: error: cannot give enumeration rep clause for subtype
+BD	BD3002A.ADA	light_mpfs	1	other_error	bd3002a.ada:37:06: error: duplicate enumeration rep clause ignored
+BD	BD3002A.ADA	light_tasking_mpfs	1	other_error	bd3002a.ada:37:06: error: duplicate enumeration rep clause ignored
+BD	BD3002A.ADA	embedded_mpfs	1	other_error	bd3002a.ada:37:06: error: duplicate enumeration rep clause ignored
+BD	BD3003B.ADA	light_mpfs	1	other_error	bd3003b.ada:43:11: error: representation item appears too late
+BD	BD3003B.ADA	light_tasking_mpfs	1	other_error	bd3003b.ada:43:11: error: representation item appears too late
+BD	BD3003B.ADA	embedded_mpfs	1	other_error	bd3003b.ada:43:11: error: representation item appears too late
+BD	BD3012A.ADA	light_mpfs	1	other_error	bd3012a.ada:40:25: error: expected an integer type
+BD	BD3012A.ADA	light_tasking_mpfs	1	other_error	bd3012a.ada:40:25: error: expected an integer type
+BD	BD3012A.ADA	embedded_mpfs	1	other_error	bd3012a.ada:40:25: error: expected an integer type
+BD	BD4001A.ADA	light_mpfs	1	other_error	bd4001a.ada:39:17: error: representation clause requires simple name
+BD	BD4001A.ADA	light_tasking_mpfs	1	other_error	bd4001a.ada:39:17: error: representation clause requires simple name
+BD	BD4001A.ADA	embedded_mpfs	1	other_error	bd4001a.ada:39:17: error: representation clause requires simple name
+BD	BD4003A.ADA	light_mpfs	1	other_error	bd4003a.ada:81:16: error: the only representation clause allowed here is an address clause
+BD	BD4003A.ADA	light_tasking_mpfs	1	other_error	bd4003a.ada:81:16: error: the only representation clause allowed here is an address clause
+BD	BD4003A.ADA	embedded_mpfs	1	other_error	bd4003a.ada:81:16: error: the only representation clause allowed here is an address clause
+BD	BD4003B.ADA	light_mpfs	1	other_error	bd4003b.ada:58:16: error: the only representation clause allowed here is an address clause
+BD	BD4003B.ADA	light_tasking_mpfs	1	other_error	bd4003b.ada:58:16: error: the only representation clause allowed here is an address clause
+BD	BD4003B.ADA	embedded_mpfs	1	other_error	bd4003b.ada:58:16: error: the only representation clause allowed here is an address clause
+BD	BD4007A.ADA	light_mpfs	1	other_error	bd4007a.ada:59:16: error: component clause previously given at line 58
+BD	BD4007A.ADA	light_tasking_mpfs	1	other_error	bd4007a.ada:59:16: error: component clause previously given at line 58
+BD	BD4007A.ADA	embedded_mpfs	1	other_error	bd4007a.ada:59:16: error: component clause previously given at line 58
+BD	BD4011A.ADA	light_mpfs	1	other_error	bd4011a.ada:49:27: error: range attribute cannot be used in expression
+BD	BD4011A.ADA	light_tasking_mpfs	1	other_error	bd4011a.ada:49:27: error: range attribute cannot be used in expression
+BD	BD4011A.ADA	embedded_mpfs	1	other_error	bd4011a.ada:49:27: error: range attribute cannot be used in expression
+BD	BD5001A.ADA	light_mpfs	1	other_error	bd5001a.ada:44:25: error: expected private type "System.Address"
+BD	BD5001A.ADA	light_tasking_mpfs	1	other_error	bd5001a.ada:44:25: error: expected private type "System.Address"
+BD	BD5001A.ADA	embedded_mpfs	1	other_error	bd5001a.ada:44:25: error: expected private type "System.Address"
+BD	BD7201C.ADA	light_mpfs	1	other_error	bd7201c.ada:43:11: error: invalid prefix for "ADDRESS" attribute
+BD	BD7201C.ADA	light_tasking_mpfs	1	other_error	bd7201c.ada:43:11: error: invalid prefix for "ADDRESS" attribute
+BD	BD7201C.ADA	embedded_mpfs	1	other_error	bd7201c.ada:43:11: error: invalid prefix for "ADDRESS" attribute
+BD	BD7204A.ADA	light_mpfs	1	other_error	bd7204a.ada:48:11: error: prefix for "POSITION" attribute must be selected component
+BD	BD7204A.ADA	light_tasking_mpfs	1	other_error	bd7204a.ada:48:11: error: prefix for "POSITION" attribute must be selected component
+BD	BD7204A.ADA	embedded_mpfs	1	other_error	bd7204a.ada:48:11: error: prefix for "POSITION" attribute must be selected component
+BD	BD7205A.ADA	light_mpfs	1	other_error	bd7205a.ada:48:11: error: prefix of "STORAGE_SIZE" attribute must be access or task type
+BD	BD7205A.ADA	light_tasking_mpfs	1	other_error	bd7205a.ada:48:11: error: prefix of "STORAGE_SIZE" attribute must be access or task type
+BD	BD7205A.ADA	embedded_mpfs	1	other_error	bd7205a.ada:48:11: error: prefix of "STORAGE_SIZE" attribute must be access or task type
+BD	BD7302A.ADA	light_mpfs	1	other_error	bd7302a.ada:48:21: error: prefix of "MACHINE_RADIX" attribute must be real type
+BD	BD7302A.ADA	light_tasking_mpfs	1	other_error	bd7302a.ada:48:21: error: prefix of "MACHINE_RADIX" attribute must be real type
+BD	BD7302A.ADA	embedded_mpfs	1	other_error	bd7302a.ada:48:21: error: prefix of "MACHINE_RADIX" attribute must be real type
+BE	BE2114A.ADA	light_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE2114A.ADA	light_tasking_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE2114A.ADA	embedded_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE2116A.ADA	light_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE2116A.ADA	light_tasking_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE2116A.ADA	embedded_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE2208A.ADA	light_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE2208A.ADA	light_tasking_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE2208A.ADA	embedded_mpfs	1	unit_absent	SEQUENTIAL_IO
+BE	BE3002A.ADA	light_mpfs	1	other_error	be3002a.ada:39:13: error: "FILE_TYPE" is undefined (more references follow)
+BE	BE3002A.ADA	light_tasking_mpfs	1	other_error	be3002a.ada:39:13: error: "FILE_TYPE" is undefined (more references follow)
+BE	BE3002A.ADA	embedded_mpfs	1	other_error	be3002a.ada:39:13: error: "FILE_TYPE" is undefined (more references follow)
+BE	BE3002E.ADA	light_mpfs	1	other_error	be3002e.ada:36:10: error: "COUNT" is undefined (more references follow)
+BE	BE3002E.ADA	light_tasking_mpfs	1	other_error	be3002e.ada:36:10: error: "COUNT" is undefined (more references follow)
+BE	BE3002E.ADA	embedded_mpfs	1	other_error	be3002e.ada:36:10: error: "COUNT" is undefined (more references follow)
+BE	BE3205A.ADA	light_mpfs	1	other_error	be3205a.ada:37:06: error: "OPEN" is undefined (more references follow)
+BE	BE3205A.ADA	light_tasking_mpfs	1	other_error	be3205a.ada:37:06: error: "OPEN" is undefined (more references follow)
+BE	BE3205A.ADA	embedded_mpfs	1	other_error	be3205a.ada:37:06: error: "OPEN" is undefined (more references follow)
+BE	BE3301C.ADA	light_mpfs	1	other_error	be3301c.ada:43:06: error: "SET_LINE_LENGTH" is undefined
+BE	BE3301C.ADA	light_tasking_mpfs	1	other_error	be3301c.ada:43:06: error: "SET_LINE_LENGTH" is undefined
+BE	BE3301C.ADA	embedded_mpfs	1	other_error	be3301c.ada:43:06: error: "SET_LINE_LENGTH" is undefined
+BE	BE3606C.ADA	light_mpfs	1	other_error	be3606c.ada:32:11: error: "FILE_TYPE" is undefined
+BE	BE3606C.ADA	light_tasking_mpfs	1	other_error	be3606c.ada:32:11: error: "FILE_TYPE" is undefined
+BE	BE3606C.ADA	embedded_mpfs	1	other_error	be3606c.ada:32:11: error: "FILE_TYPE" is undefined
+BE	BE3703A.ADA	light_mpfs	1	restriction	configurable run-time mode
+BE	BE3703A.ADA	light_tasking_mpfs	1	restriction	configurable run-time mode
+BE	BE3703A.ADA	embedded_mpfs	1	restriction	configurable run-time mode
+BE	BE3803A.ADA	light_mpfs	1	other_error	be3803a.ada:43:10: error: "FILE_TYPE" is undefined
+BE	BE3803A.ADA	light_tasking_mpfs	1	other_error	be3803a.ada:43:10: error: "FILE_TYPE" is undefined
+BE	BE3803A.ADA	embedded_mpfs	1	other_error	be3803a.ada:43:10: error: "FILE_TYPE" is undefined
+BE	BE3902A.ADA	light_mpfs	1	restriction	configurable run-time mode
+BE	BE3902A.ADA	light_tasking_mpfs	1	restriction	configurable run-time mode
+BE	BE3902A.ADA	embedded_mpfs	1	restriction	configurable run-time mode
+BE	BE3903A.ADA	light_mpfs	1	other_error	be3903a.ada:38:11: error: "FILE_TYPE" is undefined
+BE	BE3903A.ADA	light_tasking_mpfs	1	other_error	be3903a.ada:38:11: error: "FILE_TYPE" is undefined
+BE	BE3903A.ADA	embedded_mpfs	1	other_error	be3903a.ada:38:11: error: "FILE_TYPE" is undefined
+BXA	BXA8001.A	light_mpfs	1	unit_absent	ADA.DIRECT_IO
+BXA	BXA8001.A	light_tasking_mpfs	1	unit_absent	ADA.DIRECT_IO
+BXA	BXA8001.A	embedded_mpfs	1	unit_absent	ADA.DIRECT_IO
+BXA	BXAC001.A	light_mpfs	1	unit_absent	ADA.STREAMS
+BXA	BXAC001.A	light_tasking_mpfs	1	unit_absent	ADA.STREAMS
+BXA	BXAC001.A	embedded_mpfs	1	unit_absent	ADA.STREAMS.STREAM_IO
+BXE	BXE2008.A	light_mpfs	1	unit_absent	ADA.STREAMS
+BXE	BXE2008.A	light_tasking_mpfs	1	unit_absent	ADA.STREAMS
+BXE	BXE2008.A	embedded_mpfs	1	other_error	bxe2008.a:80:03: error: visible variable not allowed in remote types unit
+C3	C35508K.ADA	light_mpfs	1	other_error	c35508k.ada:31:06: error: file "report.ads" not found
+C3	C35508K.ADA	light_tasking_mpfs	1	other_error	c35508k.ada:31:06: error: file "report.ads" not found
+C3	C35508K.ADA	embedded_mpfs	1	other_error	c35508k.ada:31:06: error: file "report.ads" not found
+C3	C37310A.ADA	light_mpfs	1	other_error	c37310a.ada:33:06: error: file "report.ads" not found
+C3	C37310A.ADA	light_tasking_mpfs	1	other_error	c37310a.ada:33:06: error: file "report.ads" not found
+C3	C37310A.ADA	embedded_mpfs	1	other_error	c37310a.ada:33:06: error: file "report.ads" not found
+C3	C38102E.ADA	light_mpfs	1	other_error	c38102e.ada:32:06: error: file "report.ads" not found
+C3	C38102E.ADA	light_tasking_mpfs	1	other_error	c38102e.ada:32:06: error: file "report.ads" not found
+C3	C38102E.ADA	embedded_mpfs	1	other_error	c38102e.ada:32:06: error: file "report.ads" not found
+C3	C39006F1.ADA	light_mpfs	0	ok	
+C3	C39006F1.ADA	light_tasking_mpfs	0	ok	
+C3	C39006F1.ADA	embedded_mpfs	0	ok	
+C4	C45431A.ADA	light_mpfs	1	other_error	c45431a.ada:33:06: error: file "report.ads" not found
+C4	C45431A.ADA	light_tasking_mpfs	1	other_error	c45431a.ada:33:06: error: file "report.ads" not found
+C4	C45431A.ADA	embedded_mpfs	1	other_error	c45431a.ada:33:06: error: file "report.ads" not found
+C4	C49025A.ADA	light_mpfs	1	other_error	c49025a.ada:33:06: error: file "report.ads" not found
+C4	C49025A.ADA	light_tasking_mpfs	1	other_error	c49025a.ada:33:06: error: file "report.ads" not found
+C4	C49025A.ADA	embedded_mpfs	1	other_error	c49025a.ada:33:06: error: file "report.ads" not found
+C5	C54A13D.ADA	light_mpfs	1	other_error	c54a13d.ada:36:06: error: file "report.ads" not found
+C5	C54A13D.ADA	light_tasking_mpfs	1	other_error	c54a13d.ada:36:06: error: file "report.ads" not found
+C5	C54A13D.ADA	embedded_mpfs	1	other_error	c54a13d.ada:36:06: error: file "report.ads" not found
+C5	C55B06A.ADA	light_mpfs	1	other_error	c55b06a.ada:36:06: error: file "report.ads" not found
+C5	C55B06A.ADA	light_tasking_mpfs	1	other_error	c55b06a.ada:36:06: error: file "report.ads" not found
+C5	C55B06A.ADA	embedded_mpfs	1	other_error	c55b06a.ada:36:06: error: file "report.ads" not found
+C7	C74004A.ADA	light_mpfs	1	other_error	c74004a.ada:33:06: error: file "report.ads" not found
+C7	C74004A.ADA	light_tasking_mpfs	1	other_error	c74004a.ada:33:06: error: file "report.ads" not found
+C7	C74004A.ADA	embedded_mpfs	1	other_error	c74004a.ada:33:06: error: file "report.ads" not found
+C8	C87B07B.ADA	light_mpfs	1	other_error	c87b07b.ada:34:06: error: file "report.ads" not found
+C8	C87B07B.ADA	light_tasking_mpfs	1	other_error	c87b07b.ada:34:06: error: file "report.ads" not found
+C8	C87B07B.ADA	embedded_mpfs	1	other_error	c87b07b.ada:34:06: error: file "report.ads" not found
+C8	C87B07C.ADA	light_mpfs	1	other_error	c87b07c.ada:33:06: error: file "report.ads" not found
+C8	C87B07C.ADA	light_tasking_mpfs	1	other_error	c87b07c.ada:33:06: error: file "report.ads" not found
+C8	C87B07C.ADA	embedded_mpfs	1	other_error	c87b07c.ada:33:06: error: file "report.ads" not found
+C8	C87B08A.ADA	light_mpfs	1	other_error	c87b08a.ada:35:06: error: file "report.ads" not found
+C8	C87B08A.ADA	light_tasking_mpfs	1	other_error	c87b08a.ada:35:06: error: file "report.ads" not found
+C8	C87B08A.ADA	embedded_mpfs	1	other_error	c87b08a.ada:35:06: error: file "report.ads" not found
+C8	C87B18B.ADA	light_mpfs	1	other_error	c87b18b.ada:33:06: error: file "report.ads" not found
+C8	C87B18B.ADA	light_tasking_mpfs	1	other_error	c87b18b.ada:33:06: error: file "report.ads" not found
+C8	C87B18B.ADA	embedded_mpfs	1	other_error	c87b18b.ada:33:06: error: file "report.ads" not found
+C8	C87B30A.ADA	light_mpfs	1	other_error	c87b30a.ada:33:06: error: file "report.ads" not found
+C8	C87B30A.ADA	light_tasking_mpfs	1	other_error	c87b30a.ada:33:06: error: file "report.ads" not found
+C8	C87B30A.ADA	embedded_mpfs	1	other_error	c87b30a.ada:33:06: error: file "report.ads" not found
+C8	C87B34B.ADA	light_mpfs	1	other_error	c87b34b.ada:33:06: error: file "report.ads" not found
+C8	C87B34B.ADA	light_tasking_mpfs	1	other_error	c87b34b.ada:33:06: error: file "report.ads" not found
+C8	C87B34B.ADA	embedded_mpfs	1	other_error	c87b34b.ada:33:06: error: file "report.ads" not found
+C8	C87B41A.ADA	light_mpfs	1	other_error	c87b41a.ada:35:06: error: file "report.ads" not found
+C8	C87B41A.ADA	light_tasking_mpfs	1	other_error	c87b41a.ada:35:06: error: file "report.ads" not found
+C8	C87B41A.ADA	embedded_mpfs	1	other_error	c87b41a.ada:35:06: error: file "report.ads" not found
+C8	C87B42A.ADA	light_mpfs	1	other_error	c87b42a.ada:32:06: error: file "report.ads" not found
+C8	C87B42A.ADA	light_tasking_mpfs	1	other_error	c87b42a.ada:32:06: error: file "report.ads" not found
+C8	C87B42A.ADA	embedded_mpfs	1	other_error	c87b42a.ada:32:06: error: file "report.ads" not found
+C8	C87B47A.ADA	light_mpfs	1	other_error	c87b47a.ada:33:06: error: file "report.ads" not found
+C8	C87B47A.ADA	light_tasking_mpfs	1	other_error	c87b47a.ada:33:06: error: file "report.ads" not found
+C8	C87B47A.ADA	embedded_mpfs	1	other_error	c87b47a.ada:33:06: error: file "report.ads" not found
+C9	C93005A.ADA	light_mpfs	1	other_error	c93005a.ada:37:06: error: file "report.ads" not found
+C9	C93005A.ADA	light_tasking_mpfs	1	other_error	c93005a.ada:37:06: error: file "report.ads" not found
+C9	C93005A.ADA	embedded_mpfs	1	other_error	c93005a.ada:37:06: error: file "report.ads" not found
+CA	CA1011A1.ADA	light_mpfs	0	ok	
+CA	CA1011A1.ADA	light_tasking_mpfs	0	ok	
+CA	CA1011A1.ADA	embedded_mpfs	0	ok	
+CA	CA1011A3.ADA	light_mpfs	0	ok	
+CA	CA1011A3.ADA	light_tasking_mpfs	0	ok	
+CA	CA1011A3.ADA	embedded_mpfs	0	ok	
+CA	CA1011A5.ADA	light_mpfs	0	ok	
+CA	CA1011A5.ADA	light_tasking_mpfs	0	ok	
+CA	CA1011A5.ADA	embedded_mpfs	0	ok	
+CA	CA1012A0.ADA	light_mpfs	0	ok	
+CA	CA1012A0.ADA	light_tasking_mpfs	0	ok	
+CA	CA1012A0.ADA	embedded_mpfs	0	ok	
+CA	CA1012A1.ADA	light_mpfs	1	other_error	ca1012a1.ada:39:32: error: "INDEX" is undefined
+CA	CA1012A1.ADA	light_tasking_mpfs	1	other_error	ca1012a1.ada:39:32: error: "INDEX" is undefined
+CA	CA1012A1.ADA	embedded_mpfs	1	other_error	ca1012a1.ada:39:32: error: "INDEX" is undefined
+CA	CA1012A2.ADA	light_mpfs	0	ok	
+CA	CA1012A2.ADA	light_tasking_mpfs	0	ok	
+CA	CA1012A2.ADA	embedded_mpfs	0	ok	
+CA	CA1012A3.ADA	light_mpfs	1	other_error	ca1012a3.ada:39:27: error: "ELEMENT" is undefined (more references follow)
+CA	CA1012A3.ADA	light_tasking_mpfs	1	other_error	ca1012a3.ada:39:27: error: "ELEMENT" is undefined (more references follow)
+CA	CA1012A3.ADA	embedded_mpfs	1	other_error	ca1012a3.ada:39:27: error: "ELEMENT" is undefined (more references follow)
+CA	CA1022A5.ADA	light_mpfs	0	ok	
+CA	CA1022A5.ADA	light_tasking_mpfs	0	ok	
+CA	CA1022A5.ADA	embedded_mpfs	0	ok	
+CA	CA1102A0.ADA	light_mpfs	0	ok	
+CA	CA1102A0.ADA	light_tasking_mpfs	0	ok	
+CA	CA1102A0.ADA	embedded_mpfs	0	ok	
+CA	CA1102A1.ADA	light_mpfs	1	other_error	ca1102a1.ada:27:14: error: file "ca1102a0.ads" not found
+CA	CA1102A1.ADA	light_tasking_mpfs	1	other_error	ca1102a1.ada:27:14: error: file "ca1102a0.ads" not found
+CA	CA1102A1.ADA	embedded_mpfs	1	other_error	ca1102a1.ada:27:14: error: file "ca1102a0.ads" not found
+CA	CA140231.A	light_mpfs	1	other_error	ca140231.a:50:30: error: "Data_type" is undefined (more references follow)
+CA	CA140231.A	light_tasking_mpfs	1	other_error	ca140231.a:50:30: error: "Data_type" is undefined (more references follow)
+CA	CA140231.A	embedded_mpfs	1	other_error	ca140231.a:50:30: error: "Data_type" is undefined (more references follow)
+CA	CA140233.A	light_mpfs	1	other_error	ca140233.a:58:30: error: "Data_type" is undefined (more references follow)
+CA	CA140233.A	light_tasking_mpfs	1	other_error	ca140233.a:58:30: error: "Data_type" is undefined (more references follow)
+CA	CA140233.A	embedded_mpfs	1	other_error	ca140233.a:58:30: error: "Data_type" is undefined (more references follow)
+CA	CA2001H0.ADA	light_mpfs	0	ok	
+CA	CA2001H0.ADA	light_tasking_mpfs	0	ok	
+CA	CA2001H0.ADA	embedded_mpfs	0	ok	
+CA	CA2001H2.ADA	light_mpfs	0	ok	
+CA	CA2001H2.ADA	light_tasking_mpfs	0	ok	
+CA	CA2001H2.ADA	embedded_mpfs	0	ok	
+CC	CC1111A.ADA	light_mpfs	1	other_error	cc1111a.ada:35:06: error: file "report.ads" not found
+CC	CC1111A.ADA	light_tasking_mpfs	1	other_error	cc1111a.ada:35:06: error: file "report.ads" not found
+CC	CC1111A.ADA	embedded_mpfs	1	other_error	cc1111a.ada:35:06: error: file "report.ads" not found
+CC	CC2002A.ADA	light_mpfs	1	other_error	cc2002a.ada:33:06: error: file "report.ads" not found
+CC	CC2002A.ADA	light_tasking_mpfs	1	other_error	cc2002a.ada:33:06: error: file "report.ads" not found
+CC	CC2002A.ADA	embedded_mpfs	1	other_error	cc2002a.ada:33:06: error: file "report.ads" not found
+CD	CD2A51A.ADA	light_mpfs	1	other_error	cd2a51a.ada:38:06: error: file "report.ads" not found
+CD	CD2A51A.ADA	light_tasking_mpfs	1	other_error	cd2a51a.ada:38:06: error: file "report.ads" not found
+CD	CD2A51A.ADA	embedded_mpfs	1	other_error	cd2a51a.ada:38:06: error: file "report.ads" not found
+CD	CD2A53E.ADA	light_mpfs	1	other_error	cd2a53e.ada:39:06: error: file "report.ads" not found
+CD	CD2A53E.ADA	light_tasking_mpfs	1	other_error	cd2a53e.ada:39:06: error: file "report.ads" not found
+CD	CD2A53E.ADA	embedded_mpfs	1	other_error	cd2a53e.ada:39:06: error: file "report.ads" not found
+CD	CD7305A.ADA	light_mpfs	1	other_error	cd7305a.ada:33:06: error: file "report.ads" not found
+CD	CD7305A.ADA	light_tasking_mpfs	1	other_error	cd7305a.ada:33:06: error: file "report.ads" not found
+CD	CD7305A.ADA	embedded_mpfs	1	other_error	cd7305a.ada:33:06: error: file "report.ads" not found

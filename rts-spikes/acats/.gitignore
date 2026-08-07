@@ -1,0 +1,6 @@
+# Scratch compile directories: -gnatc's .ali output, cleaned after every
+# test but the per-profile directories themselves persist. Never anything
+# worth committing -- the actual evidence is out/results.tsv, out/summary.txt
+# and out/manifest.tsv, which ARE committed (see acats/README.md).
+out/work/
+__pycache__/
