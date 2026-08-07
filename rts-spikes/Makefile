@@ -54,13 +54,45 @@ ARM_APPS := hello_rp2040
 #  encodes a real constraint is worth more than no check.
 AMP_PARTITIONS := clock_switch_e51 hello_mpfs
 
-.PHONY: all populate build verify amp clean help
+#  A1 (RTS-PRODUCTION.md) -- get one byte out of QEMU. Full writeup, including
+#  what was tried and why, is QEMU.md; this is only the working invocation.
+#
+#  QEMU_APP defaults to clock_switch_e51 because that is what A1 names, but
+#  `make qemu QEMU_APP=hello_mpfs` boots the other console-producing image.
+#  (tasking_mpfs and embedded_app boot fine under the same command line but
+#  never call Ada.Text_IO themselves, so there is nothing to see either way
+#  -- QEMU.md "Memory_Profile results".)
+#
+#  WHAT WAS WRONG, so the next person does not re-spend the day on it:
+#    - LIM (Memory_Profile => lim, 0x08000000) was suspected of not being
+#      backed by QEMU's model. WRONG -- measured working, see QEMU.md.
+#    - MMUART base/divisor was suspected of disagreeing with QEMU's model.
+#      WRONG -- our own console driver never programs a divisor at all
+#      (rts_support_mpfs/src/s-textio.adb `Initialize` just sets a flag);
+#      the base address (0x2000_0000) matches QEMU's mmuart0 exactly.
+#    - The boot flow WAS the problem: QEMU's default `-bios` loads OpenSBI
+#      (fw_dynamic), which produced no output at all -- not even OpenSBI's
+#      own banner -- within a bounded run. `-bios none` lets `-kernel` run
+#      directly with no firmware in between, and both console-producing
+#      images print immediately. See QEMU.md for the measured comparison.
+#
+#  `perl -e 'alarm(N); exec ...'` bounds the run because plain -kernel
+#  bare-metal images never exit on their own and this host has no `timeout`
+#  (BSD, not GNU coreutils); perl ships with every toolchain-capable machine
+#  here. QEMU_TIMEOUT is seconds; override if the console is slow to appear.
+QEMU          := qemu-system-riscv64
+QEMU_MACHINE  := microchip-icicle-kit
+QEMU_APP      := clock_switch_e51
+QEMU_TIMEOUT  := 8
+
+.PHONY: all populate build verify amp qemu clean help
 
 help:
 	@echo "populate  copy runtime sources from the installed toolchain, run all guards"
 	@echo "build     build every application (implies populate)"
 	@echo "verify    report text/bss/entry/ABI for every built image"
 	@echo "amp       build the E51 + U54 partitions and check they do not collide"
+	@echo "qemu      boot QEMU_APP (default clock_switch_e51) under QEMU and show its console"
 	@echo "clean     remove build output (keeps populated sources)"
 
 all: build verify
@@ -123,6 +155,25 @@ amp: populate
 	    print("  error: partitions collide in memory") if bad else \
 	    print("  %d load segments compared across %d partitions, no overlap" % (len(segs), len(parts))); \
 	    sys.exit(1 if bad else 0)' $(READELF) $(AMP_PARTITIONS)
+
+#  Measured working command line (QEMU.md has the full comparison table):
+#
+#    qemu-system-riscv64 -M microchip-icicle-kit -m 2G -nographic \
+#        -serial mon:stdio -bios none -kernel <app>/bin/<app> -no-reboot
+#
+#  `-bios none` is not optional -- QEMU's default firmware choice for this
+#  machine, when a kernel is given, is OpenSBI (fw_dynamic); measured, that
+#  path produces no console output whatsoever within a bounded run (not even
+#  OpenSBI's own banner), so our payload never gets a chance to run.
+qemu:
+	@a="$(QEMU_APP)"; e="$$a/bin/$$a"; \
+	[ -f "$$e" ] || { echo "$$e not built -- run 'make build' first"; exit 1; }; \
+	echo "==> booting $$a under $(QEMU_MACHINE), bounded to $(QEMU_TIMEOUT)s"; \
+	echo "    $(QEMU) -M $(QEMU_MACHINE) -m 2G -nographic -serial mon:stdio -bios none -kernel $$e -no-reboot"; \
+	perl -e 'alarm(shift @ARGV); exec @ARGV or die $$!' \
+	  $(QEMU_TIMEOUT) $(QEMU) -M $(QEMU_MACHINE) -m 2G -nographic \
+	  -serial mon:stdio -bios none -kernel "$$e" -no-reboot; \
+	true
 
 clean:
 	@for a in $(APPS) $(ARM_APPS); do rm -rf "$$a/obj" "$$a/bin"; done

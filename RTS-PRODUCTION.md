@@ -108,11 +108,21 @@ Of the Specialized Needs Annex tests, **62 are Annex D (Real-Time)** — a hand-
 
 ### A1. Get one byte out of QEMU
 
-Boot `clock_switch_e51` under `-M microchip-icicle-kit` and see a character on the console. Work the three suspicions above; expect to read QEMU's `hw/riscv/microchip_pfsoc.c` to find what the machine actually does at reset.
+> ### ✔ DONE
 
-> **Exit:** a documented `qemu-system-riscv64` command line that prints something our program wrote. Record it in the `Makefile`.
+**Delivered**: `make qemu` in `rts-spikes/Makefile` and [`rts-spikes/QEMU.md`](rts-spikes/QEMU.md) with the full measurement. The command was `qemu-system-riscv64 -M microchip-icicle-kit -m 2G -nographic -serial mon:stdio -bios none -kernel clock_switch_e51/bin/clock_switch_e51 -no-reboot`, which prints `clock_switch_e51`'s own three lines; `hello_mpfs` was used for the causality check (message changed, rebuilt, output changed, reverted).
 
-**If QEMU turns out not to be viable**, say so early and loudly, because the rest of Phase A reshapes around a hardware-in-the-loop runner and gets substantially more expensive.
+**Which suspicion killed it, with the evidence:**
+
+| Suspicion | Verdict | Evidence |
+|---|---|---|
+| LIM not backed by QEMU | **wrong** | Both console-producing apps link at LIM (`0x0800_0000`) and print fine |
+| MMUART base/divisor mismatch | **wrong, not even engaged** | Our console driver programs no divisor at all; base address matches QEMU's `mmuart0` exactly |
+| Boot flow / HSS-in-eNVM expectation | **right** | QEMU's default `-bios` loads OpenSBI, which produced *no* output at all (not even its own banner) in a bounded run; `-bios none` fixed it completely |
+
+**A finding beyond the QEMU question itself, board-relevant and unresolved:** `rts_support_mpfs/src/start-ram.S` gates on a hard-coded `mhartid == 1`, independent of an image's `Harts_Mask`. Under QEMU (`-bios none`), *every* hart is sent to the same entry point unconditionally (measured by instrumenting a local, uncommitted copy of the file), so hart 1 — a U54 — is the one that actually executes `clock_switch_e51`, not hart 0, the E51 the image is built for. The output is genuinely ours (causality-checked), but it does not exercise the scenario the E51 monitor exists for. Whether real hardware's HSS would release hart 0 into a `Harts_Mask => 1` partition, making this gate correct there too or exposing the same bug on the board, is **not measured**. Not fixed here: the file is shared, byte-for-byte, by every RISC-V MPFS leaf, and any change to it would move the pinned metrics (`1340 / 1756 / 8058 / 52436`) this task had to preserve exactly. `QEMU.md` has the full writeup and a reproduction recipe.
+
+No new app crate was needed — `lim` (the profile all four MPFS apps but `embedded_app` already use) works once `-bios none` is supplied, so the DDR fallback this section originally suggested trying was never required.
 
 ### A2. Make the metrics assertions rather than decoration
 
