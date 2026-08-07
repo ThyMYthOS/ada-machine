@@ -76,10 +76,19 @@ AMP_PARTITIONS := clock_switch_e51 hello_mpfs
 #      directly with no firmware in between, and both console-producing
 #      images print immediately. See QEMU.md for the measured comparison.
 #
-#  `perl -e 'alarm(N); exec ...'` bounds the run because plain -kernel
-#  bare-metal images never exit on their own and this host has no `timeout`
-#  (BSD, not GNU coreutils); perl ships with every toolchain-capable machine
-#  here. QEMU_TIMEOUT is seconds; override if the console is slow to appear.
+#  BOUNDING THE RUN. A plain -kernel bare-metal image never exits on its own,
+#  so `make qemu` must impose a limit or it hangs forever -- which in CI is
+#  worse than a failure, because a hang looks like a slow build.
+#
+#  This host has no `timeout`/`gtimeout` (BSD userland, not GNU coreutils).
+#  The obvious substitute, `perl -e 'alarm(N); exec ...'`, DOES NOT WORK HERE
+#  and was measured not to: QEMU installs its own SIGALRM disposition, so the
+#  inherited alarm is swallowed. Sending SIGALRM to a running qemu directly
+#  leaves it alive, and a target built on alarm() runs unbounded.
+#
+#  So the bound is an explicit watchdog: background qemu, race it against a
+#  `sleep`, SIGKILL on expiry. QEMU_TIMEOUT is seconds; raise it if the
+#  console is slow to appear.
 QEMU          := qemu-system-riscv64
 QEMU_MACHINE  := microchip-icicle-kit
 QEMU_APP      := clock_switch_e51
@@ -170,9 +179,14 @@ qemu:
 	[ -f "$$e" ] || { echo "$$e not built -- run 'make build' first"; exit 1; }; \
 	echo "==> booting $$a under $(QEMU_MACHINE), bounded to $(QEMU_TIMEOUT)s"; \
 	echo "    $(QEMU) -M $(QEMU_MACHINE) -m 2G -nographic -serial mon:stdio -bios none -kernel $$e -no-reboot"; \
-	perl -e 'alarm(shift @ARGV); exec @ARGV or die $$!' \
-	  $(QEMU_TIMEOUT) $(QEMU) -M $(QEMU_MACHINE) -m 2G -nographic \
-	  -serial mon:stdio -bios none -kernel "$$e" -no-reboot; \
+	$(QEMU) -M $(QEMU_MACHINE) -m 2G -nographic \
+	  -serial mon:stdio -bios none -kernel "$$e" -no-reboot & \
+	qpid=$$!; \
+	( sleep $(QEMU_TIMEOUT); kill -9 $$qpid 2>/dev/null ) & \
+	wdog=$$!; \
+	wait $$qpid 2>/dev/null; \
+	kill $$wdog 2>/dev/null; \
+	echo "==> stopped after $(QEMU_TIMEOUT)s (a -kernel image never exits by itself)"; \
 	true
 
 clean:

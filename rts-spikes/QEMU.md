@@ -20,6 +20,27 @@ make qemu                       # clock_switch_e51, the app A1 names
 make qemu QEMU_APP=hello_mpfs   # the other console-producing image
 ```
 
+### How the run is bounded, and the way that does *not* work
+
+A `-kernel` bare-metal image never exits on its own, so the target must
+impose a limit. In CI an unbounded run is worse than a failing one, because
+a hang is indistinguishable from a slow build.
+
+This host has no `timeout`/`gtimeout` (BSD userland). The obvious
+substitute — `perl -e 'alarm(N); exec ...'` — **does not work against QEMU,
+measured**: QEMU installs its own `SIGALRM` disposition, so the inherited
+alarm is swallowed and the target runs unbounded. Sending `SIGALRM` to a
+running `qemu-system-riscv64` directly leaves it alive:
+
+```
+$ kill -ALRM <qemu pid>   # then, 2 s later
+SIGALRM: qemu SURVIVED -> alarm() bound is ineffective
+```
+
+So `make qemu` backgrounds QEMU, races it against a `sleep`, and `SIGKILL`s
+it on expiry. Verified to stop by itself in exactly `QEMU_TIMEOUT` seconds
+with no stray process left behind.
+
 **Measured output** (clock_switch_e51):
 
 ```
