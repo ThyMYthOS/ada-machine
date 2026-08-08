@@ -166,6 +166,40 @@ QEMU is a model; it will happily emulate a clock tree we programmed wrongly. The
 
 > **Exit:** P1 and P2 pass on an Icicle Kit, with the QEMU suite from A4 also green there.
 
+### A6. Rework `start-ram.S` for the four boot scenarios
+
+**Numbered last in Phase A, but it *blocks* [A5](#a5-real-hardware) and is a prerequisite for [D1](#phase-d--the-features-that-are-still-missing)/D2.** [A1](#a1-get-one-byte-out-of-qemu) surfaced it: the file is 75 lines and wrong in three separate ways for anything but the one case it was written for.
+
+An image can arrive in memory two ways, and can be started in two roles, and the axes are **orthogonal**:
+
+| | **Primary** — first thing running, must park the other harts | **Secondary** — a supervisor or JTAG already placed and released us |
+|---|---|---|
+| **XIP from eNVM** (`0x2022_0100`) | copy `.data`, clear `.bss`, park foreign harts | copy `.data`, clear `.bss`, **touch no other hart** |
+| **Already in RAM** (LIM / DTIM / DDR) | clear `.bss`, park foreign harts | clear `.bss` only |
+
+**What is broken today**, all measured:
+
+1. **The hart gate is hard-coded `mhartid == 1`**, regardless of `Harts_Mask` — with a comment admitting the reasoning (`"the monitor doesn't have floating point support"`) applies only to a U54 image. So `clock_switch_e51`, built for the **E51** at `Harts_Mask => 1`, is executed by **hart 1, a U54**. It appears to work only because soft-float code runs happily on a hard-float core.
+2. **There is no `.data` copy at all** — only a `.bss` clear. `place-envm.ld` already says so in its own header: *"a program built against it would run with `.data` uninitialised … until that copy loop is added."* The XIP profile is link-clean and would not run correctly.
+3. **Parking is a dead `wfi` loop with no release path.** A parked hart can never be woken, which D2's SMP release needs and which the secondary role must not perform at all.
+
+Plus two defects to sweep up: `.type _start_rom,@function` names a symbol that does not exist here (the label is `_start_ram`), and the FPU comment is stale reasoning.
+
+**The design, in this project's own idiom.**
+
+- **Axis 1 collapses to nothing.** Do *not* add a `start-rom.S`. Every placement script already emits `__data_load`, `__data_start` and `__data_end`, so one code path serves both: copy when `__data_load /= __data_start`, skip when they are equal. **The linker answers the question, so neither a knob nor a file variant is needed** — the strongest form of [RTS-GUIDE](RTS-GUIDE.md) §5.3's numbers-versus-structure rule, where the value is not even ours to supply.
+- **Axis 2 is a genuine configuration variable:** `Boot_Role = { type = "Enum", values = ["primary", "secondary"], default = "primary" }`.
+- **The gate derives from `Harts_Mask`** — test bit `mhartid`, not equality with 1. That is correct for a single E51 (`mask = 1`), a single U54, and a multi-hart mask, with no special cases.
+- **Configuration reaches assembly through `-D`.** `.S` files run through the C preprocessor, and `ALL_ASMFLAGS` already flows to `Default_Switches ("Asm_Cpp")`. This is the assembly analogue of [RTS-GUIDE](RTS-GUIDE.md) §6.4's in-body static test: finest granularity, no duplicated file. `Boot_Role` must also join `Config_Tag` — a compiled unit reads it.
+
+**Ownership is not in question.** `start-ram.S` is tier 3, and tier 3 is ours ([CONTRACT.md](rts-spikes/CONTRACT.md) §1). A1 left it alone for scope reasons, not permission.
+
+**Expect the metrics to move**, since startup code changes — which is a concrete argument for doing [A2](#a2-make-the-metrics-assertions-rather-than-decoration) *first*, so the delta is a deliberate re-bless rather than a number nobody compared.
+
+> **Exit:** `clock_switch_e51` runs on **hart 0** under QEMU; an `envm`-profile image has correct `.data`; a `secondary` build contains no parking code; all four cells of the table build.
+
+Optional and last, because it touches nine list files: rename to `start.S`, since a file that also handles XIP is no longer "ram".
+
 ---
 
 ## Phase B — Make it publishable
@@ -266,7 +300,9 @@ Note what [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware
 ```mermaid
 graph LR
     A0["A0 ACATS boundary map ✔<br/><i>compile-only — done</i>"] --> A2["A2 golden metrics"]
-    A1["A1 QEMU boots<br/><b>next</b>"] --> A2 --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
+    A1["A1 QEMU boots ✔"] --> A2 --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
+    A2 --> A6["A6 startup rework<br/><i>4 boot scenarios</i>"] --> A5
+    A6 --> D1
     A3 --> B1["B1 emit ada_source_path"] --> B2["B2 drop Config_Tag"] --> B4["B4 publish"]
     B3["B3 provenance + licence"] --> B4
     A4 --> C1["C1 generate leaves"] --> C3["C3 GCC upgrade drill"]
