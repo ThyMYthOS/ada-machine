@@ -1,0 +1,30 @@
+name = "hello_envm_mpfs"
+description = "Example: XIP .data-copy proof on PolarFire SoC via light_mpfs"
+long-description = """
+Proves RTS-PRODUCTION.md §A6's .data copy: linked at
+`Memory_Profile => envm` (place-envm.ld), so .text/.rodata execute in
+place from eNVM and .data has LMA (envm) != VMA (l2lim). The one thing
+this crate exists to show is that XIP_Marker.Text -- a package-level,
+non-constant String, so it must be copied rather than folded into
+.rodata -- prints correctly, which is only possible if start-ram.S's
+copy loop actually ran before elaboration/Put_Line read it. See
+QEMU.md for whether QEMU's icicle-kit model backs eNVM at all.
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+executables = ["hello_envm_mpfs"]
+
+[[depends-on]]
+light_mpfs = "*"
+
+[[pins]]
+light_mpfs = { path = "../light_mpfs" }
+
+[configuration.values]
+light_mpfs.Harts_Mask     = 2
+light_mpfs.Memory_Profile = "envm"
+light_mpfs.ITIM_Ways      = 2
+light_mpfs.DTIM_Ways      = 0   #  U54 has no DTIM (E51-only)

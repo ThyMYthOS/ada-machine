@@ -9,9 +9,10 @@
  * MPFS_DDR_CACHED_LENGTH (S6.2) instead of a hardcoded 128M.
  *
  * LMA = VMA throughout: the bootloader places the whole image (.text and
- * .data alike) at its final address before jumping to it, so nothing
- * here needs a startup-time copy -- consistent with what start-ram.S
- * actually implements (bss-clear only).
+ * .data alike) at its final address before jumping to it, so
+ * start-ram.S's .data copy loop (RTS-PRODUCTION.md §A6) runs zero
+ * iterations here -- __data_load and __data_start are the same address
+ * -- and only the bss-clear actually does anything.
  */
 
 INCLUDE mpfs-memory.ld

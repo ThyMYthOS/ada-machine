@@ -11,16 +11,15 @@
  * its LMA in envm, immediately after .rodata, via "AT>". .bss, the
  * stacks and the heap have no LMA (NOLOAD) and go directly to l2lim.
  *
- * KNOWN GAP, reported rather than silently worked around: LMA != VMA for
- * .data means something must copy __data_load .. (in envm) to
- * __data_start .. __data_end (in l2lim) before it is first read. The
- * populated start-ram.S does not do this -- it only clears .bss. So this
- * placement is syntactically complete and link-clean, but a program built
- * against it would run with .data uninitialised (garbage/whatever l2lim
- * held) until that copy loop is added to the startup code, which is
- * outside this crate's scope (`src/start-ram.S` is populated, not
- * authored, and is not in the list of files task 4 asked this crate to
- * change). See this crate's README.md and the task report.
+ * LMA != VMA for .data, so something must copy __data_load .. (in envm)
+ * to __data_start .. __data_end (in l2lim) before it is first read.
+ * src/start-ram.S does exactly that (RTS-PRODUCTION.md §A6): it copies
+ * unconditionally when __data_load /= __data_start and skips the loop
+ * (zero iterations) when a RAM-resident profile makes them equal, so
+ * this one placement script and one startup file serve both. Measured
+ * under QEMU (hello_envm_mpfs, QEMU.md): a package-level, non-constant
+ * String printed correctly at this profile, which is only possible if
+ * the copy ran before it was read.
  */
 
 INCLUDE mpfs-memory.ld

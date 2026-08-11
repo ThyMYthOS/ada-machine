@@ -31,6 +31,7 @@ project Runtime_Build is
    --  (CONTRACT.md §7.11).
    Config_Tag := Hart_Class
      & "-" & Light_Tasking_Mpfs_Config.Harts_Mask
+     & "-" & Light_Tasking_Mpfs_Config.Boot_Role
      & "-" & Light_Tasking_Mpfs_Config.Privilege
      & "-" & Light_Tasking_Mpfs_Config.Console
      & "-" & Light_Tasking_Mpfs_Config.Interrupt_Stack_Size

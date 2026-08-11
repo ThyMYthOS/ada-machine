@@ -9,9 +9,11 @@
  * setup, no DDR, no L2 programming.
  *
  * LMA = VMA throughout: l2lim is writable SRAM, so .data needs no
- * ROM-to-RAM copy at startup -- which matters, because the populated
- * start-ram.S does not implement one (it clears .bss only; see this
- * crate's README.md and the task report).
+ * ROM-to-RAM copy at startup. src/start-ram.S's copy loop (added for
+ * the envm profile, RTS-PRODUCTION.md §A6) costs nothing here: it is
+ * unconditional but __data_load == __data_start at this profile, so it
+ * runs zero iterations -- the linker, not the startup file, answers
+ * which case applies.
  */
 
 INCLUDE mpfs-memory.ld

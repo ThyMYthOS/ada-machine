@@ -28,12 +28,31 @@ abstract project Target_Options is
   COMGNARLFLAGS := ("");
   COMDEBUGFLAGS := ("-g");
 
+  ------------------------------------------------------------------
+  --  The boot-role axis (CONTRACT.md §3.6, RTS-PRODUCTION.md §A6).
+  --
+  --  Boot_Role and Harts_Mask must reach start-ram.S, which is compiled
+  --  as "Asm_Cpp" (goes through the C preprocessor) -- so they arrive as
+  --  -D defines in ASMFLAGS below, the assembly analogue of an in-body
+  --  static test. MPFS_BOOT_ROLE_PRIMARY is 1/0 rather than a symbol
+  --  name so the file can gate on it with a plain #if.
+  ------------------------------------------------------------------
+  type Boot_Role_Kind is ("primary", "secondary");
+  Boot_Role : Boot_Role_Kind := Light_Mpfs_Config.Boot_Role;
+
+  Boot_Role_Primary := "0";
+  case Boot_Role is
+     when "primary"   => Boot_Role_Primary := "1";
+     when "secondary" => null;
+  end case;
+
   --  Per language flags (COMFLAGS will be added later).
   --  -gnatg/-nostdinc are NOT here: they are runtime-only, and this
   --  project's ALL_ADAFLAGS is referenced by applications too (the
   --  avrada_rts split). runtime_build.gpr adds them itself.
   ADAFLAGS := ("-fno-delete-null-pointer-checks");
-  ASMFLAGS := ("");
+  ASMFLAGS := ("-DMPFS_BOOT_ROLE_PRIMARY=" & Boot_Role_Primary,
+               "-DMPFS_HARTS_MASK=" & Light_Mpfs_Config.Harts_Mask);
   CFLAGS := ("-DIN_RTS",
         "-Dinhibit_libc",
         "-DLIGHT_RUNTIME", "-Werror", "-Wall");

@@ -62,6 +62,15 @@ generate_c = false
 #  and which silently defeats number declarations (CONTRACT.md 7.8).
 Harts_Mask = { type = "Integer", first = 1, last = 31, default = 2 }
 
+#  Whether this image is the first thing running on its hart set (primary,
+#  must be ready to park the harts it does not own) or launched by a
+#  supervisor/JTAG that has already placed and released it (secondary, must
+#  touch no other hart at all). Orthogonal to the boot medium (envm/lim/...),
+#  which the linker already answers via __data_load vs __data_start
+#  (RTS-PRODUCTION.md §A6, start-ram.S).
+Boot_Role.type = "Enum"
+Boot_Role.values = ["primary", "secondary"]
+Boot_Role.default = "primary"
 
 #  Main task stack, reserved by the placement script. The scripts default to
 #  2 MB, which does not fit a 1920 KB LIM (RTS-POLARFIRE 1.2.1).

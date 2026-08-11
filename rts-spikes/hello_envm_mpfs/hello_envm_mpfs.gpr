@@ -1,0 +1,30 @@
+with "runtime_build.gpr";
+with "target_options.gpr";
+with "config/hello_envm_mpfs_config.gpr";
+
+project Hello_Envm_MPFS is
+   --  Restated because gprbuild reads Target/Runtime only from the root
+   --  project, never from a withed dependency (RTS.md section 6).
+   for Target use Runtime_Build'Target;
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+
+   for Source_Dirs use ("src", "config");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Main use ("hello_envm_mpfs.adb");
+
+   --  The ABI comes from the runtime crate, which derives it from the hart
+   --  mask. Renaming rather than restating means the application cannot
+   --  disagree with the runtime about it (avrada_rts's pattern; only the
+   --  ROOT project's Builder is honoured, hence the rename here).
+   package Builder renames Target_Options.Builder;
+
+   --  This crate needs no application-contributed sections, so (unlike
+   --  hello_mpfs) there is no "-L ld" override -- the runtime's own empty
+   --  app-sections.ld (rts_support_mpfs/ld/) is used as is.
+   package Linker is
+      for Switches ("Ada") use
+        Runtime_Build.Linker_Switches & Runtime_Build.Defsyms
+        & ("-Wl,--gc-sections");
+   end Linker;
+end Hello_Envm_MPFS;

@@ -3,10 +3,36 @@
         /**************/
         /* _start_ram */
         /**************/
+        /*
+         * An image on this SoC arrives two ways (XIP from eNVM, or already
+         * placed in RAM by the system controller/JTOG) and starts in two
+         * roles (primary -- first thing running, must park the harts it
+         * does not own; secondary -- a supervisor already placed and
+         * released us, must touch no other hart). The two axes are
+         * orthogonal (RTS-PRODUCTION.md A6):
+         *
+         *              | primary                | secondary
+         *   XIP eNVM   | copy .data, clear .bss, | copy .data, clear .bss,
+         *              | park foreign harts      | touch no other hart
+         *   RAM-resid. | clear .bss,             | clear .bss only
+         *              | park foreign harts      |
+         *
+         * Axis 1 (boot medium) needs no code-path variant at all: every
+         * placement script (rts_support_mpfs/ld/place-*.ld) emits
+         * __data_load/__data_start/__data_end unconditionally, so copying
+         * only when __data_load /= __data_start serves a RAM-resident
+         * image for free (the loop runs zero iterations because the
+         * linker already made the two addresses equal).
+         *
+         * Axis 2 (boot role) is MPFS_BOOT_ROLE_PRIMARY, a -D define fed by
+         * the leaf's Boot_Role configuration variable via
+         * target_options.gpr's ASMFLAGS (CONTRACT.md §3.6) -- this file
+         * runs through the C preprocessor as "Asm_Cpp".
+         */
 
         .section .start
         .globl _start_ram
-        .type _start_rom,@function
+        .type _start_ram,@function
 
 _start_ram:
 .option push
@@ -15,15 +41,28 @@ _start_ram:
 .option pop
         la sp, __stack_end
 
-        /* The run-time doesn't support SMP yet, so all harts with an ID
-         * different than one are put in an infinite loop.
+#if MPFS_BOOT_ROLE_PRIMARY
+        /* Primary: this hart may be any hart the reset ROM (or, on real
+         * hardware, a multi-hart HSS release) sends to this same entry
+         * point -- QEMU's reset ROM does so unconditionally, with no
+         * hart-id gate of its own (QEMU.md). So the gate tested here must
+         * be a property of the image's OWN Harts_Mask, not a literal hart
+         * id: test bit `mhartid` of the mask, correct unmodified for a
+         * single E51 (mask 1), a single U54 (mask 2, 4, 8 or 16), or a
+         * genuine multi-hart mask.
          *
-         * We select hart one because it is the first core other than the
-         * monitor, and the monitor doesn't have floating point support.
+         * A hart whose bit is clear parks in `infinite_loop` below. That
+         * loop is structurally ready for a release protocol (CLINT MSIP +
+         * WFI) but does not implement one -- release is D2/SMP work
+         * (RTS-PRODUCTION.md D2), out of scope here.
          */
-        li   t0, 1 /* hart id that will be allowed to run */
         csrr t1, mhartid
-        bne t0, t1, infinite_loop
+        li   t0, 1
+        sll  t0, t0, t1        /* t0 = 1 << mhartid */
+        li   t2, MPFS_HARTS_MASK
+        and  t0, t0, t2
+        beqz t0, infinite_loop
+#endif
 
         /* Disable interrupts */
         li      t0, MSTATUS_MIE
@@ -32,15 +71,34 @@ _start_ram:
         /* Clear time, software and external interrupt enable*/
         csrw mie, zero
 
+        /* Copy .data from its load address to its run address, if they
+         * differ (XIP from eNVM: LMA in envm, VMA in l2lim -- see
+         * place-envm.ld). A RAM-resident image has __data_load ==
+         * __data_start, so this runs zero iterations -- the linker
+         * answers axis 1, this file does not need to ask it.
+         */
+        la a0, __data_load
+        la a1, __data_start
+        la a2, __data_end
+        beq a0, a1, 2f
+1:
+        bgeu a1, a2, 2f
+        lw t0, (a0)
+        sw t0, (a1)
+        addi a0, a0, 4
+        addi a1, a1, 4
+        j 1b
+2:
+
         /* Clear bss section */
         la a0, __bss_start
         la a1, __bss_end
-        bgeu a0, a1, 2f
-1:
+        bgeu a0, a1, 4f
+3:
         sw zero, (a0)
         addi a0, a0, 4
-        bltu a0, a1, 1b
-2:
+        bltu a0, a1, 3b
+4:
 
 #ifndef __riscv_float_abi_soft
         /* Enable the FPU */
@@ -51,9 +109,11 @@ _start_ram:
         call main
         call __gnat_exit
 
+#if MPFS_BOOT_ROLE_PRIMARY
 infinite_loop:
         wfi
         j infinite_loop
+#endif
 
         .globl __gnat_exit
         .type __gnat_exit,@function

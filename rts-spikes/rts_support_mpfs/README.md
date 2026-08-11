@@ -106,14 +106,23 @@ section's LMA and VMA coincide:
 | `place-lim-lma-scratchpad-vma.ld` | `lim_lma_scratchpad_vma` | LMA in `l2lim`, VMA in `scratchpad` | yes, for everything loaded |
 | `place-envm-lma-scratchpad-vma.ld` | `envm_lma_scratchpad_vma` | LMA in `envm`, VMA in `scratchpad` | yes, for everything loaded |
 
-**Known gap, reported rather than silently worked around:** the three
-LMA≠VMA scripts require *something* to copy each section from its LMA to
-its VMA before it is first read/executed. The populated `src/start-ram.S`
-does not do this — it clears `.bss` only. So those three scripts are
-syntactically complete and link-clean (verified — see below), but are
-not, by themselves, bootable images; the copy loop is new startup code
-this crate's task did not ask for and `src/start-ram.S` is not in the
-list of files it asked this crate to change.
+**`place-envm.ld`'s gap is closed** (RTS-PRODUCTION.md §A6): `src/start-ram.S`
+now copies `__data_load .. ` (envm) to `__data_start .. __data_end` (l2lim)
+unconditionally, skipping the loop (zero iterations) whenever a profile's
+LMA and VMA already coincide — so one startup file serves every script in
+the table above with no per-profile variant. Measured under QEMU
+(`hello_envm_mpfs`, `../QEMU.md`): a package-level, non-constant `String`
+printed correctly at this profile, which is only possible if the copy ran
+before it was read.
+
+**Known gap that remains, for the other two:** `place-lim-lma-scratchpad-vma.ld`
+and `place-envm-lma-scratchpad-vma.ld` need *everything loaded* — code
+included — copied from LMA to VMA before execution can even reach it,
+which is a copy-and-jump problem, not a data-initialisation one, and out
+of §A6's scope (its two axes are boot medium and boot role, not
+execute-from-a-different-address). Those two scripts remain syntactically
+complete and link-clean (verified — see below) but not, by themselves,
+bootable images.
 
 ## What was verified, and how
 

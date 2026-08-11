@@ -40,6 +40,17 @@ first = 1
 last = 31
 default = 6
 
+[configuration.variables.Boot_Role]
+#  Whether this image is the first thing running on its hart set (primary,
+#  must be ready to park the harts it does not own) or launched by a
+#  supervisor/JTAG that has already placed and released it (secondary, must
+#  touch no other hart at all). Orthogonal to the boot medium, which the
+#  linker already answers via __data_load vs __data_start
+#  (RTS-PRODUCTION.md §A6, start-ram.S).
+type = "Enum"
+values = ["primary", "secondary"]
+default = "primary"
+
 [configuration.variables.Main_Stack_Size]
 #  Placement scripts otherwise default to a 2 MB stack.
 type = "Integer"
