@@ -8,21 +8,26 @@ A plan for turning `rts-spikes/` into runtime crates other people can depend on.
 
 ## Where we actually are
 
-Honest reading of the spike as it stands: **276 tracked files, 47 commits, five applications that build, and not one instruction that has ever executed.**
+Honest reading of the spike as it stands: **281 tracked files, 52 commits, six applications that build — and, since [A1](#a1-get-one-byte-out-of-qemu), three of them execute and print under QEMU.**
+
+*This sentence used to end "…and not one instruction that has ever executed", which was the single most important line in this document. It is no longer true, and that is the largest thing that has changed. What remains untrue is the version of it that matters most: nothing has run on **real silicon** ([A5](#a5-real-hardware)).*
 
 | | Status |
 |---|---|
 | The design composes | **proved.** Four crates, three profiles, two targets, one tier-1 snapshot |
 | Every mechanism it relies on | **measured**, except one ([B1](#b1-generate-ada_source_path--the-one-unproven-mechanism)) |
 | The profile chain (`light` ⊆ `light-tasking` ⊆ `embedded`) | **no counter-example**, on a weak sample — [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) ✔ |
-| The images run | **unknown.** Nothing has been executed, on hardware or emulator |
+| The images run | **under QEMU, yes** — `clock_switch_e51`, `hello_mpfs` and `hello_envm_mpfs` print their own output ([A1](#a1-get-one-byte-out-of-qemu) ✔). On silicon, still **unknown** ([A5](#a5-real-hardware)) |
+| Startup handles the four boot scenarios | **yes** — hart gate derived from `Harts_Mask`, `.data` copied when LMA ≠ VMA, role-conditional parking ([A6](#a6-rework-start-rams-for-the-four-boot-scenarios) ✔) |
 | Regressions get caught | **no.** `make verify` prints a table; it asserts nothing |
 | Someone else can use it | **no.** Path pins, hand-written `ada_source_path`, `Config_Tag` |
 | It survives a toolchain bump | **untested.** `populate.sh` has guards, but they have only ever seen 15.1.2 |
 
 That table is the plan. The three gaps are *different in kind* — running, publishing, staying correct — and they want different work.
 
-**The most important line is the third.** A runtime that builds and has never run is not most of the way done. Every number quoted so far — `text 1340`, `Tag_RISCV_arch`, ELF segment layout — is a property of a *file*. None of it is evidence that the clock tree initialises, that the trap vector is reachable, that `delay until` returns, or that the console emits a byte.
+**The row about running was the most important one, and A1 half-answered it.** A runtime that builds and has never run is not most of the way done: `text 1396`, `Tag_RISCV_arch` and the ELF segment layout are all properties of a *file*. QEMU has now shown that the console emits a byte and that `.data` is initialised — and it immediately paid for itself, because it exposed a startup that ran the E51's image on a U54 and never copied `.data` at all ([A6](#a6-rework-start-rams-for-the-four-boot-scenarios)). Both were invisible to every build-time check in the project.
+
+What an emulator still cannot tell us is whether the **clock tree** is programmed correctly, whether the trap vector is reachable on real silicon, or whether `delay until` returns against a real `mtime`. QEMU will happily model a clock tree we configured wrongly. That is [A5](#a5-real-hardware), and it is now the largest unknown in the plan.
 
 ---
 
