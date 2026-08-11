@@ -38,7 +38,13 @@ ARM_READELF := $(ARM_TC)/arm-eabi-readelf
 #  Two targets now live side by side, so each application carries its own
 #  inspection toolchain: riscv64-elf for the PolarFire leaves, arm-eabi for the
 #  Pico one. There is nothing else target-specific in this file.
-APPS     := hello_mpfs clock_switch_e51 tasking_mpfs embedded_app
+#
+#  hello_envm_mpfs (RTS-PRODUCTION.md §A6) is the XIP cell of the four-boot-
+#  scenario table: Memory_Profile => envm, so it is the one application here
+#  whose .data has LMA (envm) != VMA (l2lim) and therefore actually exercises
+#  start-ram.S's copy loop -- the other four are RAM-resident, where the loop
+#  runs zero iterations by construction.
+APPS     := hello_mpfs clock_switch_e51 tasking_mpfs embedded_app hello_envm_mpfs
 ARM_APPS := hello_rp2040
 
 #  The two AMP partitions in this spike: an E51 monitor (soft-float, Harts_Mask

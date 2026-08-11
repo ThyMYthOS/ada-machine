@@ -38,6 +38,7 @@ project Runtime_Build is
    --  GPR has no hash function, so this is an exact concatenation.
    Config_Tag := Hart_Class
      & "-" & Light_Mpfs_Config.Harts_Mask
+     & "-" & Light_Mpfs_Config.Boot_Role
      & "-" & Light_Mpfs_Config.Privilege
      & "-" & Light_Mpfs_Config.Console
      & "-" & Light_Mpfs_Config.Interrupt_Stack_Size

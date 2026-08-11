@@ -30,6 +30,7 @@ project Runtime_Build is
    --  (CONTRACT.md §7.11).
    Config_Tag := Hart_Class
      & "-" & Embedded_Mpfs_Config.Harts_Mask
+     & "-" & Embedded_Mpfs_Config.Boot_Role
      & "-" & Embedded_Mpfs_Config.Privilege
      & "-" & Embedded_Mpfs_Config.Console
      & "-" & Embedded_Mpfs_Config.Interrupt_Stack_Size

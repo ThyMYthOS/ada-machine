@@ -50,6 +50,14 @@ Main_Stack_Size = { type = "Integer", first = 4096, default = 65536 }
 #  and which silently defeats number declarations (CONTRACT.md 7.8).
 Harts_Mask = { type = "Integer", first = 1, last = 31, default = 2 }
 
+#  Whether this image is the first thing running on its hart set (primary,
+#  must be ready to park the harts it does not own) or launched by a
+#  supervisor/JTAG that has already placed and released it (secondary, must
+#  touch no other hart at all). Orthogonal to the boot medium, which the
+#  linker already answers via __data_load vs __data_start
+#  (RTS-PRODUCTION.md §A6, start-ram.S).
+Boot_Role = { type = "Enum", values = ["primary", "secondary"], default = "primary" }
+
 Privilege = { type = "Enum", values = ["m_mode", "s_mode"], default = "m_mode" }
 Memory_Profile = { type = "Enum", values = ["envm", "lim", "lim_lma_scratchpad_vma", "envm_lma_scratchpad_vma", "ddr_by_bootloader", "system_partition"], default = "lim" }
 L2_Cache_Ways = { type = "Integer", first = 0, last = 16, default = 1 }

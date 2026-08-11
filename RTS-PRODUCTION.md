@@ -168,6 +168,24 @@ QEMU is a model; it will happily emulate a clock tree we programmed wrongly. The
 
 ### A6. Rework `start-ram.S` for the four boot scenarios
 
+> ### ✔ DONE
+
+**Delivered**: the design below, implemented exactly as specified — `rts_support_mpfs/src/start-ram.S` rewritten, `Boot_Role` added to all three MPFS leaves (`alire.toml`, `target_options.gpr`'s `ASMFLAGS`, and `Config_Tag`), and a new app crate, `hello_envm_mpfs`, added to prove the XIP cell.
+
+**The hart gate, measured fixed.** Instrumenting a local, uncommitted copy of the new file (same technique A1/QEMU.md used, reverted before committing) showed both hart 0 and hart 1 reaching `_start_ram` under QEMU — confirming the reset-ROM behaviour QEMU.md already established — but only hart 0 (the E51 `clock_switch_e51` is built for, `Harts_Mask => 1`) passing the gate and printing the monitor's own text; hart 1 parked. `make qemu` and `make qemu QEMU_APP=hello_mpfs` still print, unbounded run count zero.
+
+**The `.data` copy, measured working, and eNVM genuinely backed.** `hello_envm_mpfs` (`Memory_Profile => envm`, entry `0x2022_0100`) is a new app whose one job is printing `XIP_Marker.Text`, a package-level non-constant `String` that can only be correct if the copy ran. Under QEMU it printed `XIP DATA COPY OK` — and a causality check (message changed, rebuilt, output tracked the change, reverted) confirms the bytes are genuinely copied, not a stale-memory coincidence. So QEMU's icicle-kit model **does** back eNVM as a loadable, executable region; no LIM-displaced-LMA fallback was needed.
+
+**`secondary` produces no parking code, disassembled.** Temporarily overriding `hello_mpfs`'s and `hello_envm_mpfs`'s `Boot_Role` to `secondary` (reverted before committing) and disassembling both: no `mhartid` read, no `infinite_loop` label, no `wfi` anywhere in either binary — while the `.data` copy loop is still present, unconditionally, in the XIP one.
+
+**All four cells built**, two of them (primary × both media) also booted and printed under QEMU; the other two (secondary × both media) built and were disassembled clean, per the scope boundary — release is D2, not this task.
+
+**Metrics moved, as expected** (`rts-spikes/QEMU.md`'s pinned `1340 / 1756 / 8058 / 52436 / 1984` → `1396 / 1812 / 8106 / 52500 / 1984`, `+56 / +56 / +48 / +64 / +0`): every RISC-V image gained the wider gate (`csrr`/`sll`/`li`/`and`/`beqz` replacing `li`/`csrr`/`bne`) plus the unconditional `.data`-copy loop's instructions, present even where it runs zero iterations; `hello_rp2040` is untouched, exactly `1984`, because nothing here is on the ARM path.
+
+**Not done, deliberately** (scope boundary, D1/D2): no CLINT MSIP/WFI release protocol, no IPI, no SMP startup — parking is *structurally* ready for a release handshake but does not implement one. Whether real hardware's HSS releases hart 0 alone into a `Harts_Mask => 1` partition (QEMU.md's open question) is still not measured; it needs a board.
+
+The original task specification follows, for anyone checking the design against what was asked for.
+
 **Numbered last in Phase A, but it *blocks* [A5](#a5-real-hardware) and is a prerequisite for [D1](#phase-d--the-features-that-are-still-missing)/D2.** [A1](#a1-get-one-byte-out-of-qemu) surfaced it: the file is 75 lines and wrong in three separate ways for anything but the one case it was written for.
 
 An image can arrive in memory two ways, and can be started in two roles, and the axes are **orthogonal**:
@@ -301,7 +319,7 @@ Note what [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware
 graph LR
     A0["A0 ACATS boundary map ✔<br/><i>compile-only — done</i>"] --> A2["A2 golden metrics"]
     A1["A1 QEMU boots ✔"] --> A2 --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
-    A2 --> A6["A6 startup rework<br/><i>4 boot scenarios</i>"] --> A5
+    A2 --> A6["A6 startup rework ✔<br/><i>4 boot scenarios</i>"] --> A5
     A6 --> D1
     A3 --> B1["B1 emit ada_source_path"] --> B2["B2 drop Config_Tag"] --> B4["B4 publish"]
     B3["B3 provenance + licence"] --> B4
