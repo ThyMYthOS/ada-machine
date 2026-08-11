@@ -9,7 +9,7 @@
  * setup, no DDR, no L2 programming.
  *
  * LMA = VMA throughout: l2lim is writable SRAM, so .data needs no
- * ROM-to-RAM copy at startup. src/start-ram.S's copy loop (added for
+ * ROM-to-RAM copy at startup. src/start.S's copy loop (added for
  * the envm profile, RTS-PRODUCTION.md §A6) costs nothing here: it is
  * unconditional but __data_load == __data_start at this profile, so it
  * runs zero iterations -- the linker, not the startup file, answers
@@ -25,7 +25,7 @@ _DEFAULT_STACK_SIZE = (2 * 1024 * 1024);
 
 OUTPUT_ARCH("riscv")
 
-ENTRY(_start_ram);
+ENTRY(_start);
 
 SECTIONS
 {

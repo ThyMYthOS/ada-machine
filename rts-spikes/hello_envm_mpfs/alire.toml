@@ -6,7 +6,7 @@ Proves RTS-PRODUCTION.md §A6's .data copy: linked at
 place from eNVM and .data has LMA (envm) != VMA (l2lim). The one thing
 this crate exists to show is that XIP_Marker.Text -- a package-level,
 non-constant String, so it must be copied rather than folded into
-.rodata -- prints correctly, which is only possible if start-ram.S's
+.rodata -- prints correctly, which is only possible if start.S's
 copy loop actually ran before elaboration/Put_Line read it. See
 QEMU.md for whether QEMU's icicle-kit model backs eNVM at all.
 """

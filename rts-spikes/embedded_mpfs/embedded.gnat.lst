@@ -947,7 +947,7 @@ s-wwdenu.adb
 s-wwdenu.ads
 s-wwdwch.adb
 s-wwdwch.ads
-start-ram.S
+start.S
 system.ads
 text_io.ads
 unchconv.ads

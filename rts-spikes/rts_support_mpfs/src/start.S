@@ -1,11 +1,11 @@
 #include "riscv_def.h"
 
         /**************/
-        /* _start_ram */
+        /* _start */
         /**************/
         /*
          * An image on this SoC arrives two ways (XIP from eNVM, or already
-         * placed in RAM by the system controller/JTOG) and starts in two
+         * placed in RAM by the system controller/JTAG) and starts in two
          * roles (primary -- first thing running, must park the harts it
          * does not own; secondary -- a supervisor already placed and
          * released us, must touch no other hart). The two axes are
@@ -31,10 +31,10 @@
          */
 
         .section .start
-        .globl _start_ram
-        .type _start_ram,@function
+        .globl _start
+        .type _start,@function
 
-_start_ram:
+_start:
 .option push
 .option norelax
         la gp, __global_pointer$

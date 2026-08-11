@@ -12,7 +12,7 @@
 INCLUDE ../../rts_support_mpfs/ld/mpfs-memory.ld
 
 OUTPUT_ARCH("riscv")
-ENTRY(_start_ram)
+ENTRY(_start)
 
 SECTIONS
 {

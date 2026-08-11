@@ -593,7 +593,7 @@ s-widthi.ads
 s-widthu.adb
 s-widthu.ads
 s-widuns.ads
-start-ram.S
+start.S
 system.ads
 text_io.ads
 trap_handler.S

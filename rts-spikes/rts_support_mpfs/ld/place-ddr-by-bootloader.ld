@@ -10,7 +10,7 @@
  *
  * LMA = VMA throughout: the bootloader places the whole image (.text and
  * .data alike) at its final address before jumping to it, so
- * start-ram.S's .data copy loop (RTS-PRODUCTION.md §A6) runs zero
+ * start.S's .data copy loop (RTS-PRODUCTION.md §A6) runs zero
  * iterations here -- __data_load and __data_start are the same address
  * -- and only the bss-clear actually does anything.
  */
@@ -24,7 +24,7 @@ _DEFAULT_STACK_SIZE = (2 * 1024 * 1024);
 
 OUTPUT_ARCH("riscv")
 
-ENTRY(_start_ram);
+ENTRY(_start);
 
 SECTIONS
 {

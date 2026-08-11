@@ -55,7 +55,7 @@ Harts_Mask = { type = "Integer", first = 1, last = 31, default = 2 }
 #  supervisor/JTAG that has already placed and released it (secondary, must
 #  touch no other hart at all). Orthogonal to the boot medium, which the
 #  linker already answers via __data_load vs __data_start
-#  (RTS-PRODUCTION.md §A6, start-ram.S).
+#  (RTS-PRODUCTION.md §A6, start.S).
 Boot_Role = { type = "Enum", values = ["primary", "secondary"], default = "primary" }
 
 Privilege = { type = "Enum", values = ["m_mode", "s_mode"], default = "m_mode" }

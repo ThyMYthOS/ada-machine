@@ -13,7 +13,7 @@
  *
  * LMA != VMA for .data, so something must copy __data_load .. (in envm)
  * to __data_start .. __data_end (in l2lim) before it is first read.
- * src/start-ram.S does exactly that (RTS-PRODUCTION.md §A6): it copies
+ * src/start.S does exactly that (RTS-PRODUCTION.md §A6): it copies
  * unconditionally when __data_load /= __data_start and skips the loop
  * (zero iterations) when a RAM-resident profile makes them equal, so
  * this one placement script and one startup file serve both. Measured
@@ -31,7 +31,7 @@ _DEFAULT_STACK_SIZE = (2 * 1024 * 1024);
 
 OUTPUT_ARCH("riscv")
 
-ENTRY(_start_ram);
+ENTRY(_start);
 
 SECTIONS
 {
