@@ -106,7 +106,7 @@ section's LMA and VMA coincide:
 | `place-lim-lma-scratchpad-vma.ld` | `lim_lma_scratchpad_vma` | LMA in `l2lim`, VMA in `scratchpad` | yes, for everything loaded |
 | `place-envm-lma-scratchpad-vma.ld` | `envm_lma_scratchpad_vma` | LMA in `envm`, VMA in `scratchpad` | yes, for everything loaded |
 
-**`place-envm.ld`'s gap is closed** (RTS-PRODUCTION.md §A6): `src/start-ram.S`
+**`place-envm.ld`'s gap is closed** (RTS-PRODUCTION.md §A6): `src/start.S`
 now copies `__data_load .. ` (envm) to `__data_start .. __data_end` (l2lim)
 unconditionally, skipping the loop (zero iterations) whenever a profile's
 LMA and VMA already coincide — so one startup file serves every script in

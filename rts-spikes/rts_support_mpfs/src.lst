@@ -11,4 +11,4 @@ s-macres.adb
 s-macres.ads
 s-textio.adb
 s-textio.ads
-start-ram.S
+start.S

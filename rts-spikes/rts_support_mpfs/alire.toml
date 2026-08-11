@@ -11,7 +11,7 @@ crates (`light_mpfs`, `light_tasking_mpfs`, `embedded_mpfs`) complete.
 Ships `System.BB.Board_Parameters` (now configuration-driven, see
 `src/s-bbbopa.ads`), `System.BB.Board_Support` plus the RISC-V PLIC
 driver, the FE310/PLIC register interfaces, `a-intnam.ads`,
-`start-ram.S`, `System.Text_IO`, `System.Machine_Reset`, the
+`start.S`, `System.Text_IO`, `System.Machine_Reset`, the
 `MPFS_Runtime_Config` validation spec (`src/mpfs-config_checks.ads`),
 and the shared linker memory map (`ld/mpfs-memory.ld`) plus the five
 committed `Memory_Profile` placement scripts.

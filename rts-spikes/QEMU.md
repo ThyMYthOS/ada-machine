@@ -166,7 +166,7 @@ reproduced above.
 
 ## A surprising, well-evidenced finding: the wrong hart runs the E51 image
 
-`rts_support_mpfs/src/start-ram.S` gates on a **hard-coded** `mhartid`,
+`rts_support_mpfs/src/start.S` gates on a **hard-coded** `mhartid`,
 independent of the image's `Harts_Mask`:
 
 ```asm
@@ -185,7 +185,7 @@ identically whether the image's `Harts_Mask` says hart 0 (the E51,
 
 **Measured** (temporary instrumentation only, reverted before commit --
 see "Reproduce" below): inserted one line into a local copy of
-`start-ram.S`, before the `bne` gate, that writes `mhartid + '0'` to the
+`start.S`, before the `bne` gate, that writes `mhartid + '0'` to the
 MMUART0 data register. Rebuilt `clock_switch_e51` (`Harts_Mask => 1`,
 i.e. built to run on hart 0, the E51) and reran it under the command
 above. Output:
@@ -196,7 +196,7 @@ above. Output:
 ```
 
 Both digits `0` and `1` appear -- **both hart 0 and hart 1 reach
-`_start_ram`**, exactly as the ROM-code reading above predicts (every
+`_start`**, exactly as the ROM-code reading above predicts (every
 hart gets the same jump target, unconditionally). Hart 0 (the E51, which
 is what `clock_switch_e51` is actually configured for) then takes the
 `bne` branch to `infinite_loop` and produces nothing further. Hart 1 (a
@@ -222,7 +222,7 @@ that is **not measured here** (needs a board, or a closer reading of the
 HSS boot-flow code) -- flagged as a real, board-relevant risk, not
 resolved.
 
-**Not fixed in this task**, for two reasons: (1) `start-ram.S` is shared,
+**Not fixed in this task**, for two reasons: (1) `start.S` is shared,
 byte-for-byte, by every RISC-V MPFS leaf, so any change to it changes
 `.text` for `hello_mpfs`, `clock_switch_e51`, `tasking_mpfs`, and
 `embedded_app` alike, which would break the pinned metrics
@@ -237,7 +237,7 @@ follow-up work.
 
 ```
 $ git diff  # should be clean before starting
-$ sed -n '24,26p' rts_support_mpfs/src/start-ram.S
+$ sed -n '24,26p' rts_support_mpfs/src/start.S
         li   t0, 1 /* hart id that will be allowed to run */
         csrr t1, mhartid
         bne t0, t1, infinite_loop
@@ -255,7 +255,7 @@ sb   t3, 0(t2)
 (and drop the now-duplicate `csrr t1, mhartid` a few lines down). Rebuild
 `clock_switch_e51` (`cd clock_switch_e51 && alr -n build`), rerun the
 command line above, observe the leading `01`, then `git checkout --
-rts_support_mpfs/src/start-ram.S` and rebuild again to restore the
+rts_support_mpfs/src/start.S` and rebuild again to restore the
 original binary before doing anything else.
 
 ---

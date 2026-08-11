@@ -15,7 +15,7 @@
  * place-envm.ld, LMA != VMA here means something must copy the image
  * from its LMA to its VMA before execution reaches it -- for this
  * profile that is *all* loaded sections, not only .data, since code
- * itself must move from l2lim to scratchpad. The populated start-ram.S
+ * itself must move from l2lim to scratchpad. The populated start.S
  * does not implement any such copy (see this crate's README.md and the
  * task report); this script is syntactically complete and link-clean,
  * but is not, by itself, a bootable image.
@@ -30,7 +30,7 @@ _DEFAULT_STACK_SIZE = (2 * 1024 * 1024);
 
 OUTPUT_ARCH("riscv")
 
-ENTRY(_start_ram);
+ENTRY(_start);
 
 SECTIONS
 {

@@ -40,7 +40,7 @@ abstract project Target_Options is
    ------------------------------------------------------------------
    --  The boot-role axis (CONTRACT.md §3.6, RTS-PRODUCTION.md §A6).
    --
-   --  Boot_Role and Harts_Mask must reach start-ram.S, which is compiled
+   --  Boot_Role and Harts_Mask must reach start.S, which is compiled
    --  as "Asm_Cpp" (goes through the C preprocessor) -- so they arrive
    --  as -D defines in ASMFLAGS below, the assembly analogue of an
    --  in-body static test. MPFS_BOOT_ROLE_PRIMARY is 1/0 rather than a
