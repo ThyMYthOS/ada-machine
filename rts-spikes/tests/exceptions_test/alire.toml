@@ -1,0 +1,32 @@
+name = "exceptions_test"
+description = "A4 test: exception propagation on the embedded profile"
+long-description = """
+RTS-PRODUCTION.md A4. Raises across subprogram boundaries on embedded_mpfs,
+catches, re-raises and propagates, and checks Exception_Name / Exception_Message
+/ Exception_Identity. Prints TEST exceptions_test: PASS or FAIL on the console;
+tests/run_tests.sh boots it under QEMU and asserts that line.
+
+Same configuration as embedded_app (Memory_Profile => ddr_by_bootloader): the
+embedded runtime is the one profile that does not fit in LIM, and QEMU.md had
+never seen that profile print.
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+executables = ["exceptions_test"]
+
+[[depends-on]]
+embedded_mpfs = "*"
+
+[[pins]]
+embedded_mpfs = { path = "../../embedded_mpfs" }
+
+[configuration.values]
+embedded_mpfs.Harts_Mask      = 2
+embedded_mpfs.Memory_Profile  = "ddr_by_bootloader"
+embedded_mpfs.DDR_Present     = true
+embedded_mpfs.DDR_Cached_KB   = 262144
+embedded_mpfs.ITIM_Ways       = 0
+embedded_mpfs.DTIM_Ways       = 0

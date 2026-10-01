@@ -143,15 +143,39 @@ QEMU_MIN       := 10.1
 FETCHED_LEAVES     ?= light_mpfs light_tasking_mpfs embedded_mpfs light_tasking_pico
 FETCHED_CHECK_ARGS ?=
 
-.PHONY: all toolchains populate build verify smoke bless sections amp qemu clean help fetched-check
+#  A4 (RTS-PRODUCTION.md) -- `make test`: the runtime's OWN behaviour, not the
+#  images' shape (verify) or their greeting (smoke).
+#
+#    positive   tests/tests.list lists test applications (tasking, protected
+#               objects, exceptions, Text_IO, the Console value). Each is built
+#               (like any application: `alr -n build`), booted under QEMU by
+#               tests/run_tests.sh, and passes only if it prints
+#               "TEST <name>: PASS" on its console. A row may be `xfail`: a
+#               DOCUMENTED runtime defect that must keep failing in exactly the
+#               documented way, and turns the build red if it starts to pass.
+#    negative   tests/negative/run_negative.sh: builds that MUST fail, each with
+#               its diagnostic asserted -- the `light` floor rejecting tasking,
+#               and every `pragma Compile_Time_Error` in mpfs_config_checks.ads
+#               firing for a configuration that violates it. They run in a
+#               scratch copy of the tree; nothing committed is touched.
+#
+#  Both always run (one failing does not hide the other) and the target fails if
+#  either does. The test applications are deliberately NOT in APPS: they are not
+#  in verify's application set, so they never enter metrics.golden.
+TEST_LIST    := tests/tests.list
+TEST_TIMEOUT := 30
+NEG_LIST     := tests/negative/cases.list
+
+.PHONY: all toolchains populate build verify smoke test bless sections amp qemu clean help fetched-check
 
 help:
-	@echo "all        build -> verify -> smoke (the phases CI runs, there as separate steps; build implies populate implies toolchains)"
+	@echo "all        build -> verify -> smoke -> test (the phases CI runs, there as separate steps; build implies populate implies toolchains)"
 	@echo "toolchains install the pinned cross compilers ($(GNAT_VERSION)) through Alire if absent; needs alr + network, once"
 	@echo "populate   copy runtime sources from the installed toolchain, run all guards (implies toolchains)"
 	@echo "build      build every application (implies populate)"
 	@echo "verify     ASSERT every built image matches metrics.golden (text/data/bss/entry/ISA/ABI); non-zero on any drift"
 	@echo "smoke      ASSERT every console-producing image prints its smoke.expected strings under QEMU (needs QEMU >= $(QEMU_MIN))"
+	@echo "test       build and boot the tests/ applications under QEMU, and run the must-fail negative builds (needs QEMU >= $(QEMU_MIN), rsync)"
 	@echo "bless      rewrite THIS compiler's rows of metrics.golden (other compilers' rows kept); review the diff, commit it"
 	@echo "sections   print size -A for every built image, to compare two builds section by section"
 	@echo "fetched-check  build each leaf from a throwaway Alire index with NO pins, from another directory (B1; slow, not in 'all')"
@@ -172,6 +196,7 @@ all:
 	@$(MAKE) --no-print-directory build
 	@$(MAKE) --no-print-directory verify
 	@$(MAKE) --no-print-directory smoke
+	@$(MAKE) --no-print-directory test
 
 #  A fresh machine has no toolchains, and `populate` copies tier 1 OUT of them,
 #  so before this target existed `make build` could not work on one at all
@@ -234,6 +259,22 @@ smoke:
 	@echo "==> make smoke"
 	@QEMU='$(QEMU)' QEMU_MACHINE='$(QEMU_MACHINE)' QEMU_MIN='$(QEMU_MIN)' \
 	  SMOKE_EXPECTED='$(SMOKE_EXPECTED)' SMOKE_TIMEOUT='$(SMOKE_TIMEOUT)' sh smoke.sh
+
+#  `test` builds first (so it works from a clean tree, like `build`), then runs
+#  both kinds regardless of the other's outcome and fails if either failed.
+test: populate
+	@echo "==> make test"
+	@set -e; for d in $$(awk -F'\t' '/^[ \t]*#/ || /^[ \t]*$$/ { next } !h { h = 1; next } { print $$2 }' $(TEST_LIST)); do \
+	  printf '==> build %s\n' "$$d"; \
+	  ( cd "$$d" && alr -n build >/dev/null ) || { echo "FAILED: $$d"; exit 1; }; \
+	done
+	@rc=0; \
+	  QEMU='$(QEMU)' QEMU_MACHINE='$(QEMU_MACHINE)' QEMU_MIN='$(QEMU_MIN)' \
+	  TEST_LIST='$(TEST_LIST)' TEST_TIMEOUT='$(TEST_TIMEOUT)' sh tests/run_tests.sh || rc=1; \
+	  echo "==> negative builds (scratch copy of the tree; takes a few minutes)"; \
+	  NEG_LIST='$(NEG_LIST)' RV_GCC='$(TOOLCHAIN)/riscv64-elf-gcc' sh tests/negative/run_negative.sh || rc=1; \
+	  [ "$$rc" -eq 0 ] || echo "make test FAILED (see above)" >&2; \
+	  exit $$rc
 
 bless:
 	@$(METRICS_ENV) sh metrics.sh bless
@@ -304,5 +345,6 @@ qemu:
 
 clean:
 	@for a in $(APPS) $(ARM_APPS); do rm -rf "$$a/obj" "$$a/bin"; done
+	@for d in $$(awk -F'\t' '/^[ \t]*#/ || /^[ \t]*$$/ { next } !h { h = 1; next } { print $$2 }' $(TEST_LIST)); do rm -rf "$$d/obj" "$$d/bin"; done
 	@rm -rf */adalib-* */obj-* */obj-gnarl-*
 	@echo "build output removed (populated sources kept; use git clean -fdx for those)"

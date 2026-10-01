@@ -291,8 +291,33 @@ original binary before doing anything else.
 | `Memory_Profile` | App(s) | Result |
 |---|---|---|
 | `lim` (`0x0800_0000`) | `hello_mpfs`, `clock_switch_e51` | **Works.** Loads and prints under `-bios none`; causality-checked. |
-| `lim` (`0x0800_0000`, RWX single-segment) | `tasking_mpfs` | Loads without error under the same command line. Produces no console output -- but `tasking_mpfs.adb` never calls `Ada.Text_IO` (it only ticks a protected counter via `delay until`), so silence here is not a finding about the memory profile, just about the app. |
-| `ddr_by_bootloader` (`0x8000_0000`) | `embedded_app` | Loads without error under the same command line. Also produces no console output, and also never calls `Ada.Text_IO` (it raises and catches a `Constraint_Error` and delays); DDR was not exercised as a console path here. **Caveat, stated plainly: DDR is untested for console output** -- LIM is the profile actually proven to print. |
+| `lim` (`0x0800_0000`, RWX single-segment) | `tasking_mpfs` | Loads without error under the same command line. Produces no console output -- but `tasking_mpfs.adb` never calls `Ada.Text_IO` (it only ticks a protected counter via `delay until`), so silence here was read as "not a finding about the memory profile, just about the app". **That reading was wrong; see the correction below.** |
+| `ddr_by_bootloader` (`0x8000_0000`) | `embedded_app` | Loads without error under the same command line. Also produces no console output, and also never calls `Ada.Text_IO`; DDR was not exercised as a console path here. **Corrected below: DDR prints fine (`exceptions_test` does), but this image never reaches `main`.** |
+
+### Correction (A4): "boots fine" was wrong -- both tasking images trap before `main`
+
+`tasking_mpfs` and `embedded_app` were described above as booting fine and
+merely silent. Measured with `-d int,guest_errors` (RTS-PRODUCTION.md A4), they
+**die at startup**: the first thing that happens is
+
+```
+riscv_cpu_do_interrupt: hart:1, async:0, cause:0000000000000007, epc:0x...,
+                        tval:0x000000000c002080, desc=fault_store
+```
+
+a store-access fault at `0x0C00_2080` -- the PLIC's hart-1 enable block, written
+by `System.BB.RISCV_PLIC.Initialize` (called from `Initialize_Board`). The
+instruction is `sd` inside `memset`: the aggregate assignment that clears the
+whole enable block compiles to 64-bit stores, and QEMU's PLIC accepts only
+32-bit accesses. `mtvec` is not set yet, so the trap jumps to address 0 and
+loops on illegal instructions forever. Silence was the symptom of a crash, not
+of an application that never prints. Every image with tasking is affected;
+`light` images (no `Initialize_Board`) are not, which is why A1/A3 never saw
+it. Whether real hardware's PLIC tolerates a 64-bit store is **not measured**.
+
+DDR itself is fine: with that one defect worked around in a scratch copy,
+`exceptions_test` (`ddr_by_bootloader`) prints its `TEST ...: START` line, so
+the profile reaches `main` and the console works from DDR.
 
 No profile failed to load. The task's suggested fallback ("try a
 DDR-resident image instead") was not needed, because `lim` worked once
@@ -303,8 +328,8 @@ DDR-resident image instead") was not needed, because `lim` worked once
 - Only `hello_mpfs` and `clock_switch_e51` were used to prove console
   output, because they are the only two of the five spike applications
   that call `Ada.Text_IO` at all. `tasking_mpfs` and `embedded_app`'s
-  silence under QEMU is expected and uninformative, not a negative
-  result.
+  silence under QEMU was first called "expected and uninformative"; it was
+  in fact the symptom of a crash before `main` (correction above).
 - The hart-identity finding above is real and board-relevant but
   unresolved: it is not known whether real hardware's HSS would release
   hart 0 or hart 1 (or both) into a `Harts_Mask => 1` partition's image.

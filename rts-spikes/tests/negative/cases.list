@@ -1,0 +1,58 @@
+# cases.list -- builds that MUST fail. Read by tests/negative/run_negative.sh.
+# Edit by hand. One row per case, TAB-separated, six fields:
+#
+#   id          unique; also the scratch application's directory name
+#   kind        control | config | source | unit
+#                 control  the unmodified application; must BUILD (arg and diagnostic "-")
+#                 config   the application with [configuration.values] overridden
+#                 source   the application with src/ replaced by a fixture
+#                 unit     mpfs_config_checks.ads compiled alone against the leaf's generated
+#                          configuration with one constant patched (for checks a build cannot
+#                          reach). Must follow its leaf's control: it reads the control's config
+#   leaf        light | light_tasking | embedded -- picks the application the case is
+#               derived from (hello_mpfs / tasking_mpfs / embedded_app) and the runtime crate
+#   arg         config: space-separated Key=TOML-value pairs, applied to the leaf's
+#                       configuration (a string value keeps its quotes)
+#               source: the directory under tests/negative/fixtures/ (its src/ replaces
+#                       the application's; the main is neg_main.adb)
+#               unit:   Key=Ada-value pairs patched into <leaf>_config.ads
+#   diagnostic  non-control: a fixed string that must appear on an error line of the
+#               build output. ";" separates several, ALL of which must appear.
+#   why         one line: what the case proves
+#
+# Every case runs in a scratch copy of the tree; nothing here touches a committed file.
+# A control case runs FIRST in each leaf's group (see run_negative.sh).
+#
+# The numbers in "check N" are the sections of rts_support_mpfs/src/mpfs_config_checks.ads.
+# Check 1 is documented there as not implementable (no Float_ABI knob), so has no case.
+#
+# Not every check can be reached on every leaf, and that is itself recorded here:
+#   - light_mpfs's U54_Mask_Kind has no multi-hart mask, so check 8 (ITIM with a multi-hart
+#     mask) is only reachable on light_tasking and embedded.
+#   - NO build can reach check 2 (the E51 mixed with a U54): every mask it forbids (3, 5, 7,
+#     ...) is rejected earlier by gprbuild's typed string. The check is dead code behind the
+#     type until a multi-hart-plus-E51 configuration is supported; chk_mask_mix_unit drives it
+#     directly, and chk_mask_mix_gpr_* assert the diagnostic that actually stops the build.
+id	kind	leaf	arg	diagnostic	why
+control_light	control	light	-	-	the light application builds in the scratch tree
+chk_mask_mix_unit	unit	light	Harts_Mask=3	the soft-float E51 (hart 0) cannot share a mask with the U54s	check 2, driven at the unit (a build never gets that far)
+chk_mask_mix_gpr_light	config	light	Harts_Mask=3	value "3" is illegal for typed string "u54_hart_mask"	check 2's value is stopped earlier, by the project file's typed string
+chk_l2_sum	config	light	L2_Cache_Ways=2	L2_Cache_Ways + L2_LIM_Ways + L2_Scratchpad_Ways must be 16	check 4: way counts must sum to 16
+chk_l2_lim	config	light	L2_LIM_Ways=16 L2_Cache_Ways=0	L2_LIM_Ways > 15	check 5: LIM may use at most 15 ways
+chk_l2_cache	config	light	L2_Cache_Ways=0 L2_Scratchpad_Ways=1	L2_Cache_Ways < 1	check 6: at least one way stays cache
+chk_dtim	config	light	DTIM_Ways=1	only the e51 (Harts_Mask => 1) has a configurable DTIM	check 7: DTIM is e51-only
+chk_ddr	config	light	Memory_Profile="ddr_by_bootloader"	Memory_Profile => ddr_by_bootloader needs DDR_Present => True	check 9: a DDR profile needs DDR_Present
+light_task	source	light	light_task	violation of restriction "No_Tasking"	the light floor rejects a task declaration
+light_protected	source	light	light_protected	file s-taprob.ads not found	the light floor rejects a protected object
+light_real_time	source	light	light_real_time	"Ada.Real_Time" is not a predefined library unit	the light floor has no Ada.Real_Time (so no delay until)
+control_light_tasking	control	light_tasking	-	-	the light-tasking application builds in the scratch tree
+chk_mask_mix_gpr_light_tasking	config	light_tasking	Harts_Mask=3	value "3" is illegal for typed string "hart_mask"	check 2's value is stopped earlier, by the project file's typed string
+chk_l2_sum_light_tasking	config	light_tasking	L2_Cache_Ways=2	L2_Cache_Ways + L2_LIM_Ways + L2_Scratchpad_Ways must be 16	check 4 fires on this leaf too (its own config package and membership list)
+chk_dtim_light_tasking	config	light_tasking	DTIM_Ways=1	only the e51 (Harts_Mask => 1) has a configurable DTIM	check 7 on this leaf
+chk_itim_light_tasking	config	light_tasking	Harts_Mask=6 ITIM_Ways=1	ITIM is per-hart private	check 8: ITIM with a multi-hart mask (message continues "; a multi-hart image has no single ITIM")
+chk_ddr_light_tasking	config	light_tasking	Memory_Profile="ddr_by_bootloader"	Memory_Profile => ddr_by_bootloader needs DDR_Present => True	check 9 on this leaf
+control_embedded	control	embedded	-	-	the embedded application builds in the scratch tree
+chk_l2_sum_embedded	config	embedded	L2_Cache_Ways=2	L2_Cache_Ways + L2_LIM_Ways + L2_Scratchpad_Ways must be 16	check 4 fires on this leaf too (its own config package and membership list)
+chk_dtim_embedded	config	embedded	DTIM_Ways=1	only the e51 (Harts_Mask => 1) has a configurable DTIM	check 7 on this leaf
+chk_itim_embedded	config	embedded	Harts_Mask=6 ITIM_Ways=1	ITIM is per-hart private	check 8: ITIM with a multi-hart mask (message continues "; a multi-hart image has no single ITIM")
+chk_ddr_embedded	config	embedded	DDR_Present=false	Memory_Profile => ddr_by_bootloader needs DDR_Present => True	check 9 on this leaf (the application's own profile, with DDR switched off)

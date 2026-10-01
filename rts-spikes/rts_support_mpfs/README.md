@@ -52,6 +52,15 @@ is a symbol the leaf computes from its configuration and supplies via
   constants, and Ada's static-expression rules make that combination
   fail once a value is parsed out of a `String`; confirmed in isolation,
   not re-verified end-to-end here).
+
+  **CORRECTION (RTS-PRODUCTION.md A4, measured).** The file as committed
+  does *not* do the derivation described above: `CLINT_Mtimecmp_Offset`
+  is `16#4008#` (hart 1), `PLIC_Hart_Id` is `1` and `UART_Base_Address`
+  is `16#2000_0000#` (MMUART0), all literals, and it does not `with`
+  `MPFS_Runtime_Config`. So the `Console` configuration value selects
+  nothing — it only enters `Config_Tag` — and `tests/console_test`
+  (`Console => mmuart1`) still prints on MMUART0. `Harts_Mask` likewise
+  does not move the timer or PLIC hart: the runtime is hart 1 only.
 - **`src/mpfs_config_checks.ads`** (new) — the CONTRACT.md §5 validation
   spec, as `pragma Compile_Time_Error` (not subtypes, which only warn).
   Named `MPFS_Config_Checks` (flat), not the literally-requested

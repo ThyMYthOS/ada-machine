@@ -1,0 +1,30 @@
+name = "protected_test"
+description = "A4 test: protected entry barriers and a timer-interrupt release"
+long-description = """
+RTS-PRODUCTION.md A4. A protected entry whose barrier is opened by another task,
+and one opened by a Timing_Event handler running in the alarm interrupt, on
+light_tasking_mpfs. Prints TEST protected_test: PASS or FAIL on the console;
+tests/run_tests.sh boots it under QEMU.
+
+Same configuration as tasking_mpfs (so the same libgnat/libgnarl build).
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+executables = ["protected_test"]
+
+[[depends-on]]
+light_tasking_mpfs = "*"
+
+[[pins]]
+light_tasking_mpfs = { path = "../../light_tasking_mpfs" }
+
+[configuration.values]
+light_tasking_mpfs.Harts_Mask     = 2
+light_tasking_mpfs.Memory_Profile = "lim"
+light_tasking_mpfs.Main_Stack_Size = 16384
+light_tasking_mpfs.Interrupt_Stack_Size = 4096
+light_tasking_mpfs.ITIM_Ways      = 0
+light_tasking_mpfs.DTIM_Ways      = 0

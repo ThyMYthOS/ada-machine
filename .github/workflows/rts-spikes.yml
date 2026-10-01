@@ -1,7 +1,9 @@
 #  CI for rts-spikes/ (RTS-PRODUCTION.md A3): build all six applications, assert
 #  their metrics against metrics.golden, boot the console-producing ones under
-#  QEMU and assert their output. One command does it: `make all` in rts-spikes/ --
-#  the same command, on the same Makefile, as on a developer's Mac.
+#  QEMU and assert their output, then run the runtime's own tests (RTS-PRODUCTION.md
+#  A4: tasking, protected objects, exceptions, Text_IO under QEMU, and builds that
+#  must fail). One command does it: `make all` in rts-spikes/ -- the same command,
+#  on the same Makefile, as on a developer's Mac.
 #
 #  This workflow had NOT run on GitHub when it was written. Steps whose comment
 #  says UNVERIFIED rest on documentation or a guess (action inputs, apt package
@@ -147,6 +149,22 @@ jobs:
         working-directory: rts-spikes
         timeout-minutes: 10
         run: make smoke
+
+      #  UNVERIFIED: this step has not run on GitHub. Locally (macOS/aarch64,
+      #  QEMU 11.1.1) it takes about 3 minutes, almost all of it the negative
+      #  builds. What rests on a guess: that `rsync` is on the runner image (the
+      #  negative builds copy the tree to a scratch directory with it; the script
+      #  fails with a message if it is not), and that QEMU 10.2.1's
+      #  `-d int,guest_errors` trace prints the same `riscv_cpu_do_interrupt:`
+      #  line the `xfail` rows in tests/tests.list match against (locally it is
+      #  11.1.1; a different format turns an expected failure into a FAILURE with
+      #  a message, never into a silent pass). Same rule as verify and smoke:
+      #  independent of them, so it runs whenever the build succeeded.
+      - name: make test
+        if: always() && steps.build.outcome == 'success'
+        working-directory: rts-spikes
+        timeout-minutes: 25
+        run: make test
 
       #  Diagnostics, kept on every run that built anything. `size`'s text column
       #  lumps code and rodata together; per-section sizes say which moved, and

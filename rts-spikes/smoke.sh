@@ -83,37 +83,8 @@ fi
 
 apps=$(awk -F'\t' '!seen[$1]++ { print $1 }' "$rows")
 
-#  --- QEMU: loud preconditions ----------------------------------------------
-command -v "$QEMU" >/dev/null 2>&1 \
-  || fail "QEMU not found: '$QEMU'. Install qemu-system-riscv64 (Ubuntu 26.04: apt install qemu-system-riscv; macOS: brew install qemu), or pass QEMU=<path>. Nothing was booted."
-
-qver=$("$QEMU" --version 2>&1 | head -n 1)
-[ -n "$qver" ] || fail "'$QEMU --version' printed nothing; this is not a usable QEMU"
-printf 'QEMU:    %s\n' "$qver"
-printf 'host:    %s\n' "$(uname -sm)"
-
-#  Version floor. Measured on 11.0.1/11.1.1; read from QEMU's source, the
-#  `-kernel` without `-dtb` path (what `-bios none` relies on) first appears in
-#  10.1.0 -- 10.0.0 and earlier only boot a kernel that comes with a device tree
-#  and otherwise load HSS, so on those NOTHING of ours would run. Failing here
-#  turns "mysteriously silent" into a sentence.
-if [ "$QEMU_MIN" != 0 ]; then
-  have=$(printf '%s\n' "$qver" | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /^[0-9]+\.[0-9]+/) { split($i, v, "."); print v[1] " " v[2]; exit } }')
-  if [ -z "$have" ]; then
-    printf 'WARNING: could not read a version out of "%s"; the %s floor was not checked\n' "$qver" "$QEMU_MIN" >&2
-  else
-    set -- $have
-    hmaj=$1; hmin=$2
-    mmaj=${QEMU_MIN%%.*}; mmin=${QEMU_MIN#*.}
-    if [ "$hmaj" -lt "$mmaj" ] || { [ "$hmaj" -eq "$mmaj" ] && [ "$hmin" -lt "$mmin" ]; }; then
-      fail "QEMU $hmaj.$hmin is older than $QEMU_MIN. Before 10.1 the microchip-icicle-kit machine boots '-kernel' only together with '-dtb' and otherwise loads HSS, so '-bios none -kernel' starts nothing of ours (hw/riscv/microchip_pfsoc.c, v10.0.0 vs v10.1.0). Use a newer QEMU, or QEMU_MIN=0 to try anyway."
-    fi
-  fi
-fi
-
-machines=$("$QEMU" -M help 2>&1)
-printf '%s\n' "$machines" | grep -q "^$QEMU_MACHINE[[:space:]]" \
-  || fail "this QEMU has no machine '$QEMU_MACHINE' (qemu -M help | grep -i microchip found nothing)"
+#  --- QEMU: loud preconditions (shared with tests/run_tests.sh) ------------
+. "$(dirname "$0")/qemu_preflight.sh"
 
 #  --- boot each image --------------------------------------------------------
 #  Does every expected string for $1 occur in console file $2?  Prints nothing.
