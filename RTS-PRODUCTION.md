@@ -352,7 +352,7 @@ Nothing here is optional if a third party is to use these crates, and one item i
 | Flow | `post-fetch` | `pre-build` |
 |---|---|---|
 | `alr build`, fetched leaf | runs (once per deployment) | runs (every build) |
-| `alr build`, **path-pinned** leaf (the in-tree workflow) | **does not run** — nothing is fetched, even after deleting the file | runs; regenerates a deleted file |
+| `alr build`, **path-pinned** leaf (the in-tree workflow) | runs **once, on the workspace's first sync** — not again, even after deleting the file. *Corrected:* B1 recorded "does not run" on a workspace that had already synced; CI run [36916251336](https://github.com/ThyMYthOS/ada-machine/actions/runs/36916251336) showed the first sync running it, inside `make toolchains`, before `populate` — so it failed on every missing tier-1 directory. In `post-fetch` mode the script now **defers** (writes nothing, exit 0) when a directory is missing; `pre-build` stays strict | runs; regenerates a deleted file |
 | `alr exec -- gprbuild …` right after a fetch (IDE, scripts) | the file is there, and the build succeeds | **does not run** |
 
 (The table, the probe and the staleness experiment were run on `light_mpfs`; the other three leaves carry the same script and manifest block and are covered by `fetched-check` only.)

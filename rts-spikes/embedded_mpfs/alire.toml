@@ -166,11 +166,11 @@ rts_support_mpfs = "*"
 #  for the measurements.
 [[actions]]
 type = "post-fetch"
-command = ["sh", "gen-ada-source-path.sh"]
+command = ["sh", "gen-ada-source-path.sh", "post-fetch"]
 
 [[actions]]
 type = "pre-build"
-command = ["sh", "gen-ada-source-path.sh"]
+command = ["sh", "gen-ada-source-path.sh", "pre-build"]
 
 # Siblings in this same spike tree, not published anywhere -- pin them by
 # relative path (RTS.md section 2.2, verified: pins declared in a
