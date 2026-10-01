@@ -125,9 +125,47 @@ jobs:
             ~/.local/share/alire/toolchains/gnat_arm_elf_${{ env.GNAT_VERSION }}_*
           key: ${{ steps.xtc.outputs.cache-primary-key }}
 
-      #  build -> verify -> smoke. Each phase prints "==> make <phase>"; the first
-      #  to fail stops the chain and is the last such line above the error.
-      - name: make all
+      #  The same three phases `make all` runs, as separate steps. Locally `make
+      #  all` stops at the first failure; here verify and smoke are independent
+      #  checks of the same images, so both run whenever the build succeeded and
+      #  one CI run reports every failure, not just the first. Run 1 showed why:
+      #  verify failed and smoke, never reached, stayed unproven on Linux.
+      - name: make build
+        id: build
         working-directory: rts-spikes
         timeout-minutes: 30
-        run: make all
+        run: make build
+
+      - name: make verify
+        if: always() && steps.build.outcome == 'success'
+        working-directory: rts-spikes
+        timeout-minutes: 5
+        run: make verify
+
+      - name: make smoke
+        if: always() && steps.build.outcome == 'success'
+        working-directory: rts-spikes
+        timeout-minutes: 10
+        run: make smoke
+
+      #  Diagnostics, kept on every run that built anything. `size`'s text column
+      #  lumps code and rodata together; per-section sizes say which moved, and
+      #  can be diffed against `make sections` on another host. The artifact holds
+      #  the Linux-built images and this host's measured rows (metrics.measured),
+      #  which are exactly what to add to metrics.golden for a compiler that has
+      #  no baseline yet -- review before committing them.
+      - name: Section sizes
+        if: always() && steps.build.outcome == 'success'
+        working-directory: rts-spikes
+        run: make sections
+
+      - name: Upload images and measured metrics
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rts-spikes-images-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            rts-spikes/*/bin/*
+            rts-spikes/metrics.measured
+          if-no-files-found: error
+          retention-days: 14

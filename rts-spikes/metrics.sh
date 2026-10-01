@@ -6,11 +6,24 @@
 #  usage: sh metrics.sh verify|bless
 #
 #  Inputs, all from the environment (the Makefile sets them):
-#    RV_SIZE RV_READELF      riscv64-elf-size / -readelf   (RISC-V applications)
-#    ARM_SIZE ARM_READELF    arm-eabi-size / -readelf      (ARM applications)
+#    RV_SIZE RV_READELF RV_STRINGS     riscv64-elf-* tools (RISC-V applications)
+#    ARM_SIZE ARM_READELF ARM_STRINGS  arm-eabi-* tools    (ARM applications)
 #    RV_APPS ARM_APPS        space-separated application directory names
 #    RV_TC ARM_TC            toolchain bin dirs, used only in the error message
 #    GOLDEN                  path of the golden file
+#    MEASURED                verify only: where to write this host's measured
+#                            rows, in golden format (CI uploads it as an artifact)
+#
+#  KEYED ON THE COMPILER, NOT THE HOST. Every row carries the `GNAT Version:`
+#  string the binder embedded in that image, and a measurement is compared only
+#  against the row for the same (app, compiler). Measured on the first CI run:
+#  Alire's gnat_riscv64_elf / gnat_arm_elf 15.1.2 is GCC 15.0.1 20250418
+#  (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64 -- one crate
+#  version, two compilers -- and every image's text differed. The compiler is
+#  the variable, so it is the key: a host whose compiler has no baseline FAILS
+#  with "no baseline" and prints the rows to seed it, rather than comparing
+#  against another compiler's numbers or silently passing. And if Alire ever
+#  ships the same build on both hosts, both will check the same rows.
 #
 #  DESIGN RULES (each one closes a way the old `verify` reported success while
 #  checking nothing -- see RTS-PRODUCTION.md A2 and the risk register):
@@ -41,7 +54,7 @@ errors=0
 err() { printf 'ERROR: %s\n' "$*" >&2; errors=$((errors + 1)); }
 
 tmp=$(mktemp "${TMPDIR:-/tmp}/metrics.XXXXXX") || { echo "ERROR: mktemp failed" >&2; exit 2; }
-trap 'rm -f "$tmp" "$tmp.new"' EXIT HUP INT TERM
+trap 'rm -f "$tmp" "$tmp.new" "$tmp.kept"' EXIT HUP INT TERM
 
 #  --- toolchain: fail loudly, before measuring anything ----------------------
 #  `$(wildcard ...)` that matches nothing leaves TOOLCHAIN empty, so the tool
@@ -58,8 +71,10 @@ check_tool() {   # path  what  dirvar-name  dirvar-value
 tools_ok=1
 check_tool "${RV_SIZE:-}"     "RISC-V size"     TOOLCHAIN "${RV_TC:-}"  || tools_ok=0
 check_tool "${RV_READELF:-}"  "RISC-V readelf"  TOOLCHAIN "${RV_TC:-}"  || tools_ok=0
+check_tool "${RV_STRINGS:-}"  "RISC-V strings"  TOOLCHAIN "${RV_TC:-}"  || tools_ok=0
 check_tool "${ARM_SIZE:-}"    "ARM size"        ARM_TC    "${ARM_TC:-}" || tools_ok=0
 check_tool "${ARM_READELF:-}" "ARM readelf"     ARM_TC    "${ARM_TC:-}" || tools_ok=0
+check_tool "${ARM_STRINGS:-}" "ARM strings"     ARM_TC    "${ARM_TC:-}" || tools_ok=0
 if [ "$tools_ok" = 0 ]; then
   echo "FAIL: toolchain missing; nothing was measured" >&2
   exit 1
@@ -67,15 +82,15 @@ fi
 
 #  --- measurement ------------------------------------------------------------
 #  One TSV row per application:
-#    app text data bss entry eflags isa attrs
+#    app compiler text data bss entry eflags isa attrs
 #  See the header written by `bless` for what each field is and why.
 nonblank() { [ -n "$1" ]; }
 shape() {   # value regexp  -> 0 if the whole value matches
   printf '%s\n' "$1" | awk -v re="$2" '$0 ~ re { ok = 1 } END { exit ok ? 0 : 1 }'
 }
 
-measure() {   # app size readelf isatag
-  app=$1; size=$2; readelf=$3; isatag=$4
+measure() {   # app size readelf strings isatag
+  app=$1; size=$2; readelf=$3; strings=$4; isatag=$5
   img="$app/bin/$app"
   if [ ! -f "$img" ]; then
     err "$app: image '$img' not found (run 'make build')"
@@ -85,6 +100,18 @@ measure() {   # app size readelf isatag
   sz=$("$size" "$img") || { err "$app: $size failed on $img"; return; }
   hd=$("$readelf" -h "$img") || { err "$app: $readelf -h failed on $img"; return; }
   at=$("$readelf" -A "$img") || { err "$app: $readelf -A failed on $img"; return; }
+  st=$("$strings" -a "$img") || { err "$app: $strings failed on $img"; return; }
+
+  #  The compiler that built THIS image, as the binder recorded it in
+  #  __gnat_version -- not whatever happens to be installed. Exactly one distinct
+  #  value is required: none means the string was not linked in (the key would
+  #  be empty), more than one would mean objects from two compilers.
+  compiler=$(printf '%s\n' "$st" | sed -n 's/^GNAT Version: //p' | sort -u)
+  ncomp=$(printf '%s' "$compiler" | awk 'END { print NR }')
+  if [ "$ncomp" -gt 1 ]; then
+    err "$app: $ncomp different 'GNAT Version:' strings in one image: $(printf '%s' "$compiler" | tr '\n' '|')"
+    return
+  fi
 
   #  size -B: line 2 is `text data bss dec hex filename`.
   set -- $(printf '%s\n' "$sz" | awk 'NR==2 { print $1, $2, $3 }')
@@ -110,6 +137,7 @@ measure() {   # app size readelf isatag
   attrs=${parsed#*	}
 
   bad=
+  nonblank "$compiler" || bad="$bad compiler(no 'GNAT Version:' string in the image)"
   shape "$text"   '^[0-9]+$'    || bad="$bad text"
   shape "$data"   '^[0-9]+$'    || bad="$bad data"
   shape "$bss"    '^[0-9]+$'    || bad="$bad bss"
@@ -121,12 +149,12 @@ measure() {   # app size readelf isatag
     err "$app: could not parse:$bad"
     return
   fi
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$app" "$text" "$data" "$bss" "$entry" "$eflags" "$isa" "$attrs" >> "$tmp"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$app" "$compiler" "$text" "$data" "$bss" "$entry" "$eflags" "$isa" "$attrs" >> "$tmp"
 }
 
-for a in $RV_APPS;  do measure "$a" "$RV_SIZE"  "$RV_READELF"  Tag_RISCV_arch; done
-for a in $ARM_APPS; do measure "$a" "$ARM_SIZE" "$ARM_READELF" Tag_CPU_arch;   done
+for a in $RV_APPS;  do measure "$a" "$RV_SIZE"  "$RV_READELF"  "$RV_STRINGS"  Tag_RISCV_arch; done
+for a in $ARM_APPS; do measure "$a" "$ARM_SIZE" "$ARM_READELF" "$ARM_STRINGS" Tag_CPU_arch;   done
 
 #  --- bless ------------------------------------------------------------------
 if [ "$mode" = bless ]; then
@@ -138,6 +166,22 @@ if [ "$mode" = bless ]; then
     echo "FAIL: no applications measured; $GOLDEN NOT written" >&2
     exit 1
   fi
+  #  Rows for OTHER compilers are kept -- they are another host's baseline, which
+  #  this host cannot measure -- but only for applications that still exist, so
+  #  a removed application does not linger and fail the other host. Rows for
+  #  this host's (app, compiler) pairs are replaced. Kept rows come first, in
+  #  their existing order, then this host's rows in build order: running bless
+  #  twice on an unchanged tree writes an identical file.
+  kept="$tmp.kept"
+  : > "$kept"
+  if [ -f "$GOLDEN" ]; then
+    awk -F'\t' -v measured="$tmp" '
+      BEGIN { while ((getline l < measured) > 0) { split(l, f, "\t"); M[f[1]] = 1; K[f[1], f[2]] = 1 } }
+      /^[ \t]*#/ || /^[ \t]*$/ { next }
+      !hdr { hdr = 1; next }
+      NF == 9 && ($1 in M) && !(($1, $2) in K)' "$GOLDEN" > "$kept" ||
+      { echo "FAIL: could not read existing $GOLDEN; NOT written" >&2; rm -f "$kept"; exit 1; }
+  fi
   {
     cat <<'EOF'
 # metrics.golden -- the expected size/ABI of every built image.  GENERATED by
@@ -147,8 +191,17 @@ if [ "$mode" = bless ]; then
 # actual -> inspect that the change is the one you meant -> `make bless` ->
 # commit this file's diff TOGETHER WITH the change that caused it.
 #
-# One tab-separated row per application:
-#   app     directory name under rts-spikes/
+# KEYED ON (app, compiler). A measurement is compared only with the row for the
+# compiler that built it, so each host checks its own rows and `make bless`
+# rewrites only those. Measured: Alire's 15.1.2 cross compilers are GCC 15.0.1
+# 20250418 (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64, and
+# every image's size differs between them. A compiler with no rows here fails
+# verify with "no baseline", and prints the rows to add after review.
+#
+# One tab-separated row per (application, compiler):
+#   app      directory name under rts-spikes/
+#   compiler the image's own `GNAT Version:` string (__gnat_version), i.e. the
+#            compiler that actually built it, not whatever is installed
 #   text    `size` text column: code + rodata (flash footprint, together with data)
 #   data    `size` data column: initialised data. Not derivable from text/bss, and
 #           not covered by them: a change that only grows .data (what the startup
@@ -163,12 +216,18 @@ if [ "$mode" = bless ]; then
 #   attrs   every other build-attribute tag (stack alignment, privileged spec,
 #           ARM FP/enum/alignment ABI tags, ...) as Tag=value;Tag=value
 # Exact string match; no tolerances.
-app	text	data	bss	entry	eflags	isa	attrs
+app	compiler	text	data	bss	entry	eflags	isa	attrs
 EOF
-    cat "$tmp"
-  } > "$tmp.new" && mv "$tmp.new" "$GOLDEN" || { echo "FAIL: could not write $GOLDEN" >&2; exit 1; }
+    cat "$kept" "$tmp"
+  } > "$tmp.new" && mv "$tmp.new" "$GOLDEN" || { echo "FAIL: could not write $GOLDEN" >&2; rm -f "$kept"; exit 1; }
   n=$(wc -l < "$tmp" | tr -d ' ')
-  echo "blessed $n application(s) into $GOLDEN"
+  k=$(wc -l < "$kept" | tr -d ' ')
+  echo "blessed $n application(s) into $GOLDEN, for: $(cut -f2 "$tmp" | sort -u | tr '\n' '|' | sed 's/|$//')"
+  if [ "$k" -gt 0 ]; then
+    echo "kept $k row(s) for other compilers, unchecked on this host: $(cut -f2 "$kept" | sort -u | tr '\n' '|' | sed 's/|$//')"
+    echo "  (delete any no host builds with any more -- nothing else will)"
+  fi
+  rm -f "$kept"
   exit 0
 fi
 
@@ -178,19 +237,24 @@ if [ ! -f "$GOLDEN" ]; then
   exit 1
 fi
 
-#  Say WHERE this measurement was taken. metrics.golden was blessed on
-#  macOS/aarch64; whether the same 15.1.2 cross compiler built for Linux/x86_64
-#  produces byte-identical text/data/bss/attributes had never been checked
-#  (RTS-PRODUCTION.md A3). If a CI run differs from the golden file while the
-#  same commit passes on the Mac, this line and the expected/actual pairs below
-#  are the whole diagnosis: they name the host and the exact compiler build.
+#  This host's measurement, in golden format, for a CI artifact: on a host with
+#  no baseline yet these are exactly the rows to review and add.
+if [ -n "${MEASURED:-}" ]; then
+  cp "$tmp" "$MEASURED" 2>/dev/null || echo "warning: could not write $MEASURED" >&2
+fi
+
+#  Say WHERE, and WITH WHAT, this was measured. The compiler line is the key the
+#  comparison below uses; the toolchain directory names the exact Alire build.
 tcname() { basename "$(dirname "${1:-?}")"; }
 printf 'measured on: %s; riscv toolchain %s; arm toolchain %s\n' \
   "$(uname -sm)" "$(tcname "${RV_TC:-}")" "$(tcname "${ARM_TC:-}")"
+printf 'compiler(s): %s\n' "$(cut -f2 "$tmp" | sort -u | tr '\n' '|' | sed 's/|$//')"
 
 #  awk reads the golden file, then the measurement. It prints the human table
 #  and every mismatch, and exits non-zero on any of: a malformed or empty
-#  golden row, a duplicate app, an app on one side only, or any differing field.
+#  golden row, a duplicate (app, compiler), an app on one side only, an app
+#  built by a compiler with no baseline row, or any differing field. Golden rows
+#  for OTHER compilers are another host's baseline and are not compared here.
 awk -v golden="$GOLDEN" -v measure_errors="$errors" '
 BEGIN {
   FS = "\t"
@@ -205,31 +269,34 @@ FILENAME == golden {
   if ($0 ~ /^[ \t]*#/ || $0 ~ /^[ \t]*$/) next
   if (!seen_hdr) {
     seen_hdr = 1
-    if ($1 != "app") { printf "FAIL: %s: first non-comment line must be the header row\n", golden; bad++ }
+    if ($1 != "app" || $2 != "compiler") { printf "FAIL: %s: first non-comment line must be the header row (app, compiler, ...)\n", golden; bad++ }
     next
   }
-  if (NF != 8) { printf "FAIL: %s: malformed row (%d fields, want 8): %s\n", golden, NF, $0; bad++; next }
-  if ($1 == "") { printf "FAIL: %s: row with empty app name\n", golden; bad++; next }
-  if ($1 in G) { printf "FAIL: %s: duplicate row for %s\n", golden, $1; bad++; next }
-  for (i = 2; i <= 8; i++)
-    if ($i == "") { printf "FAIL: %s: %s has an empty %s field\n", golden, $1, fname[i - 1]; bad++ }
-  gorder[++ng] = $1
-  for (i = 2; i <= 8; i++) G[$1, i - 1] = $i
-  G[$1] = 1
+  if (NF != 9) { printf "FAIL: %s: malformed row (%d fields, want 9): %s\n", golden, NF, $0; bad++; next }
+  if ($1 == "" || $2 == "") { printf "FAIL: %s: row with empty app or compiler: %s\n", golden, $0; bad++; next }
+  if (($1, $2) in G) { printf "FAIL: %s: duplicate row for %s under compiler %s\n", golden, $1, $2; bad++; next }
+  for (i = 3; i <= 9; i++)
+    if ($i == "") { printf "FAIL: %s: %s (%s) has an empty %s field\n", golden, $1, $2, fname[i - 2]; bad++ }
+  G[$1, $2] = 1
+  if (!($1 in GA)) gorder[++ng] = $1
+  GA[$1] = 1
+  comps[$1] = comps[$1] (comps[$1] == "" ? "" : " | ") $2
+  for (i = 3; i <= 9; i++) G[$1, $2, i - 2] = $i
+  rows++
   next
 }
 {
-  if (NF != 8) { printf "FAIL: internal: malformed measurement row: %s\n", $0; bad++; next }
-  app = $1; A[app] = 1; aorder[++na] = app
-  for (i = 2; i <= 8; i++) V[app, i - 1] = $i
+  if (NF != 9) { printf "FAIL: internal: malformed measurement row: %s\n", $0; bad++; next }
+  app = $1; A[app] = 1; aorder[++na] = app; C[app] = $2; row[app] = $0
+  for (i = 3; i <= 9; i++) V[app, i - 2] = $i
 }
 END {
-  if (ng == 0) { printf "FAIL: %s contains no application rows\n", golden; bad++ }
-  #  table: measured apps first, then golden-only apps as explicit failures
+  if (rows == 0) { printf "FAIL: %s contains no application rows\n", golden; bad++ }
   for (k = 1; k <= na; k++) {
     app = aorder[k]; st = ""
-    if (!(app in G)) st = "FAIL (not in golden file)"
-    else for (i = 1; i <= nf; i++) if (V[app, i] != G[app, i]) { st = "FAIL"; break }
+    if (!(app in GA)) st = "FAIL (not in golden file)"
+    else if (!((app, C[app]) in G)) st = "FAIL (no baseline for this compiler)"
+    else for (i = 1; i <= nf; i++) if (V[app, i] != G[app, C[app], i]) { st = "FAIL"; break }
     printf "%-18s %-8s %-9s %-11s %s%s\n", app, V[app, 1], V[app, 3], V[app, 4], label(V[app, 6]), (st == "" ? "" : "   <-- " st)
   }
   for (k = 1; k <= ng; k++) {
@@ -239,21 +306,33 @@ END {
   print ""
   for (k = 1; k <= na; k++) {
     app = aorder[k]
-    if (!(app in G)) { printf "FAIL %s: built but absent from %s (new application? run make bless)\n", app, golden; bad++; continue }
+    if (!(app in GA)) { printf "FAIL %s: built but absent from %s (new application? run make bless)\n", app, golden; bad++; continue }
+    if (!((app, C[app]) in G)) {
+      printf "FAIL %s: no baseline for the compiler that built it\n    built by:      %s\n    baselines for: %s\n", app, C[app], comps[app]
+      bad++; unseeded[++nu] = app; continue
+    }
     for (i = 1; i <= nf; i++)
-      if (V[app, i] != G[app, i]) {
-        printf "FAIL %s.%s:\n    expected: %s\n    actual:   %s\n", app, fname[i], G[app, i], V[app, i]; bad++
+      if (V[app, i] != G[app, C[app], i]) {
+        printf "FAIL %s.%s:\n    expected: %s\n    actual:   %s\n", app, fname[i], G[app, C[app], i], V[app, i]; bad++
       }
   }
   for (k = 1; k <= ng; k++) {
     app = gorder[k]
     if (!(app in A)) { printf "FAIL %s: in %s but not measured (image missing, or not in APPS/ARM_APPS)\n", app, golden; bad++ }
   }
+  if (nu > 0) {
+    printf "\nNo baseline exists yet for the compiler that built %d image(s). These are the rows\n", nu
+    printf "measured here, in %s format. Check they are what you expect, then add them --\n", golden
+    printf "on this host `make bless` does exactly that and keeps every other compiler'\''s rows:\n"
+    printf "----- 8< -----\n"
+    for (k = 1; k <= nu; k++) print row[unseeded[k]]
+    printf "----- >8 -----\n"
+  }
   if (measure_errors > 0) { printf "FAIL: %d measurement error(s) above\n", measure_errors; bad++ }
   if (bad > 0) { printf "verify FAILED (%d problem(s)). If the change is intended: make bless, and commit %s with it.\n", bad, golden; exit 1 }
   printf "verify OK: %d application(s) match %s exactly\n", na, golden
 }' "$GOLDEN" "$tmp" || {
   rc=$?
-  echo "hint: if EVERY application differs (or the same commit passes on another host), suspect the compiler build or host, not the source -- compare 'measured on' above with the host metrics.golden was blessed on (macOS/aarch64)." >&2
+  echo "hint: 'no baseline' means a different compiler built these images (see 'compiler(s):' above) -- seed its rows. A field mismatch under the SAME compiler means the source, the flags or the build changed." >&2
   exit $rc
 }
