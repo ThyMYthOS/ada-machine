@@ -8,9 +8,11 @@
 # KEYED ON (app, compiler). A measurement is compared only with the row for the
 # compiler that built it, so each host checks its own rows and `make bless`
 # rewrites only those. Measured: Alire's 15.1.2 cross compilers are GCC 15.0.1
-# 20250418 (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64, and
-# every image's size differs between them. A compiler with no rows here fails
-# verify with "no baseline", and prints the rows to add after review.
+# 20250418 (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64. Code
+# (.text) is the same size under both; .rodata differs by the embedded
+# "GNAT Version:" string plus alignment (-20 bytes ARM, -24 RISC-V). A compiler
+# with no rows here fails verify with "no baseline", and prints the rows to add.
+# Rows for another host's compiler are seeded from that host's verify output.
 #
 # One tab-separated row per (application, compiler):
 #   app      directory name under rts-spikes/
@@ -31,6 +33,12 @@
 #           ARM FP/enum/alignment ABI tags, ...) as Tag=value;Tag=value
 # Exact string match; no tolerances.
 app	compiler	text	data	bss	entry	eflags	isa	attrs
+hello_mpfs	15.1.0	1372	11	65549	0x8000000	0x5, RVC, double-float ABI	rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0_zcd1p0	Tag_RISCV_stack_align=16-bytes;Tag_RISCV_priv_spec=1;Tag_RISCV_priv_spec_minor=11
+clock_switch_e51	15.1.0	1788	7	65537	0x8000000	0x1, RVC, soft-float ABI	rv64i2p1_m2p0_a2p1_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0	Tag_RISCV_stack_align=16-bytes;Tag_RISCV_priv_spec=1;Tag_RISCV_priv_spec_minor=11
+tasking_mpfs	15.1.0	8082	1673	42368	0x8000000	0x5, RVC, double-float ABI	rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0_zcd1p0	Tag_RISCV_stack_align=16-bytes;Tag_RISCV_priv_spec=1;Tag_RISCV_priv_spec_minor=11
+embedded_app	15.1.0	52476	4568	1144944	0x80000000	0x5, RVC, double-float ABI	rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0_zcd1p0	Tag_RISCV_stack_align=16-bytes;Tag_RISCV_priv_spec=1;Tag_RISCV_priv_spec_minor=11
+hello_envm_mpfs	15.1.0	500	19	65541	0x20220100	0x5, RVC, double-float ABI	rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0_zcd1p0	Tag_RISCV_stack_align=16-bytes;Tag_RISCV_priv_spec=1;Tag_RISCV_priv_spec_minor=11
+hello_rp2040	15.1.0	1964	4	2196	0x10000381	0x5000200, Version5 EABI, soft-float ABI	v6S-M	Tag_CPU_name=6S-M;Tag_CPU_arch_profile=Microcontroller;Tag_THUMB_ISA_use=Thumb-1;Tag_ABI_FP_denormal=Needed;Tag_ABI_FP_exceptions=Needed;Tag_ABI_FP_number_model=IEEE 754;Tag_ABI_align_needed=8-byte;Tag_ABI_enum_size=small;Tag_ABI_optimization_goals=Aggressive Debug
 hello_mpfs	15.0.1 20250418 (prerelease)	1396	11	65541	0x8000000	0x5, RVC, double-float ABI	rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0_zcd1p0	Tag_RISCV_stack_align=16-bytes;Tag_RISCV_priv_spec=1;Tag_RISCV_priv_spec_minor=11
 clock_switch_e51	15.0.1 20250418 (prerelease)	1812	7	65545	0x8000000	0x1, RVC, soft-float ABI	rv64i2p1_m2p0_a2p1_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0	Tag_RISCV_stack_align=16-bytes;Tag_RISCV_priv_spec=1;Tag_RISCV_priv_spec_minor=11
 tasking_mpfs	15.0.1 20250418 (prerelease)	8106	1673	42368	0x8000000	0x5, RVC, double-float ABI	rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0_zcd1p0	Tag_RISCV_stack_align=16-bytes;Tag_RISCV_priv_spec=1;Tag_RISCV_priv_spec_minor=11

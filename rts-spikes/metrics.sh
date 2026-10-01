@@ -19,8 +19,12 @@
 #  against the row for the same (app, compiler). Measured on the first CI run:
 #  Alire's gnat_riscv64_elf / gnat_arm_elf 15.1.2 is GCC 15.0.1 20250418
 #  (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64 -- one crate
-#  version, two compilers -- and every image's text differed. The compiler is
-#  the variable, so it is the key: a host whose compiler has no baseline FAILS
+#  version, two compilers -- and every image's text differed. CI run 2 traced
+#  it exactly: .text (code) is the SAME size on both hosts; only .rodata moves,
+#  because the binder embeds "GNAT Version: <compiler>\0" (43 bytes on the Mac,
+#  21 on Linux), and the next 4-/8-aligned object turns that into exactly -20
+#  bytes on ARM and -24 on RISC-V. The compiler is the variable, so it is the
+#  key: a host whose compiler has no baseline FAILS
 #  with "no baseline" and prints the rows to seed it, rather than comparing
 #  against another compiler's numbers or silently passing. And if Alire ever
 #  ships the same build on both hosts, both will check the same rows.
@@ -194,9 +198,11 @@ if [ "$mode" = bless ]; then
 # KEYED ON (app, compiler). A measurement is compared only with the row for the
 # compiler that built it, so each host checks its own rows and `make bless`
 # rewrites only those. Measured: Alire's 15.1.2 cross compilers are GCC 15.0.1
-# 20250418 (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64, and
-# every image's size differs between them. A compiler with no rows here fails
-# verify with "no baseline", and prints the rows to add after review.
+# 20250418 (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64. Code
+# (.text) is the same size under both; .rodata differs by the embedded
+# "GNAT Version:" string plus alignment (-20 bytes ARM, -24 RISC-V). A compiler
+# with no rows here fails verify with "no baseline", and prints the rows to add.
+# Rows for another host's compiler are seeded from that host's verify output.
 #
 # One tab-separated row per (application, compiler):
 #   app      directory name under rts-spikes/
