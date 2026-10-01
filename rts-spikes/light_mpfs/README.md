@@ -66,9 +66,8 @@ shadowing only resolves per-unit variant collisions, never membership.
 | `DDR_Cached_KB` | Integer | `0` | Feeds `MPFS_DDR_CACHED_LENGTH` |
 | `DDR_NonCached_KB` | Integer | `0` | Feeds `MPFS_DDR_NC_LENGTH` |
 | `DDR_WCB_KB` | Integer | `0` | Feeds `MPFS_DDR_WCB_LENGTH` |
-| `Console` | Enum `mmuart0`..`mmuart4`, `ram_fifo`, `none` | `mmuart0` | Declared per contract; not yet consumed -- `s-textio.adb` still hardcodes MMUART0 (RTS-POLARFIRE §8 item 8, in `rts_support_mpfs`) |
-| `Interrupt_Stack_Size` | Integer | `8192` | Declared per contract; not consumed by this profile -- `light_mpfs` has no `s-bbpara.ads` |
-| `Secondary_Stack_Size` | Integer | `2048` | Declared per contract; not consumed by this profile -- `light`'s `s-parame.ads` has no body and hardcodes its own default, matching stock `light-polarfiresoc` |
+| `Console` | Enum `mmuart0`..`mmuart4`, `ram_fifo`, `none` | `mmuart0` | Selects the console UART (`s-bbbopa.ads`: MMUART0..4, `none` discards, `ram_fifo` is refused); tests `tests/console_*test` |
+| `Secondary_Stack_Size` | Integer | `1048576` | `System.Parameters.Runtime_Default_Sec_Stack_Size` (the binder's default); the default is the stock `light-polarfiresoc` value. `Interrupt_Stack_Size` is not declared here: `light` has no interrupt stacks |
 | `MPFS_PARTITION` | String | `""` | Empty = standalone mode above; only meaningful with `Memory_Profile => system_partition` |
 
 ## Exported GPR variables (CONTRACT.md §3.7)

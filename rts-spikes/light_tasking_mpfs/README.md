@@ -161,8 +161,8 @@ successfully with the pinned default `Harts => "1"`).
 | `DDR_Present` | Boolean | `false` |
 | `DDR_Cached_KB` / `DDR_NonCached_KB` / `DDR_WCB_KB` | Integer | `0` |
 | `Console` | Enum `mmuart0`..`mmuart4`, `ram_fifo`, `none` | `mmuart0` |
-| `Interrupt_Stack_Size` | Integer | `8192` |
-| `Secondary_Stack_Size` | Integer | `2048` |
+| `Interrupt_Stack_Size` | Integer | `8192` (per-CPU interrupt stack, `s-bbpara.ads`) |
+| `Secondary_Stack_Size` | Integer | `524288` (`Runtime_Default_Sec_Stack_Size`, `s-parame.ads`) |
 | `MPFS_PARTITION` | String | `""` |
 
 `Harts_Mask` is the only ISA knob. It derives `Hart_Class`, which derives

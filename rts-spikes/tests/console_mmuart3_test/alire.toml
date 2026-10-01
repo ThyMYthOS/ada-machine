@@ -1,0 +1,29 @@
+name = "console_mmuart3_test"
+description = "A4 test: the Console configuration value selects the UART"
+long-description = """
+RTS-PRODUCTION.md A4, "Text_IO ... through the selected Console value".
+Builds light_mpfs with Console => mmuart3 and prints a verdict with
+Ada.Text_IO. tests/run_tests.sh attaches a file to each of QEMU's serial
+ports and expects the verdict on serial 3 (MMUART3).
+
+Everything else is hello_mpfs's configuration.
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+executables = ["console_mmuart3_test"]
+
+[[depends-on]]
+light_mpfs = "*"
+
+[[pins]]
+light_mpfs = { path = "../../light_mpfs" }
+
+[configuration.values]
+light_mpfs.Harts_Mask     = 2
+light_mpfs.Memory_Profile = "lim"
+light_mpfs.ITIM_Ways      = 2
+light_mpfs.DTIM_Ways      = 0
+light_mpfs.Console        = "mmuart3"

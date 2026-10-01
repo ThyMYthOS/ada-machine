@@ -20,6 +20,19 @@ make qemu                       # clock_switch_e51, the app A1 names
 make qemu QEMU_APP=hello_mpfs   # the other console-producing image
 ```
 
+### Which `-serial` is which MMUART
+
+**Measured** (QEMU 11.1.1, `microchip-icicle-kit`, RTS-PRODUCTION.md A4,
+CONSOLE_DEAD): the machine has five 16550-style MMUARTs and the *n*-th `-serial`
+option is MMUART*n*, in order, `-serial` 0 first. Evidence: `make test` attaches
+five files (`-serial file:...` x5) and the images built with `Console =>
+mmuart0..4` (`textio_test`, `console_test`, `console_mmuart{2,3,4}_test`) each
+put their verdict on the file of the same number and on no other. The base
+addresses are the ones quoted from `microchip_pfsoc.c` below. QEMU does not
+model the SYSREG clock/reset gating of MMUART1..4 or the baud divisor, so a
+running console here says nothing about those on hardware
+(`rts_support_mpfs/README.md`, "The console").
+
 ### Asserting it: `make smoke` (A3)
 
 `make qemu` *shows* output and exits 0 whatever it saw. `make smoke` is the

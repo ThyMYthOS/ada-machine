@@ -8,9 +8,13 @@ Alire** — like `rts_sources_gcc15` and `rts_core_riscv64`, it needs
 bootstrap cycle only the three buildable leaves (`light_mpfs`,
 `light_tasking_mpfs`, `embedded_mpfs`) complete.
 
-## Populate, don't vendor
+## Populate, don't vendor (STALE: `src/` is now owned)
 
-The `.ads`/`.adb`/`.S`/`.h` files under `src/` are **not vendored** in
+*Historical text, kept until rewritten: `make populate` now says "tier 2/3 and
+leaves: owned, not populated" — the files under `src/` ARE committed and are
+this repository's to edit (`s-bbbopa.ads`, `s-textio.ads/.adb` are edited).*
+
+The `.ads`/`.adb`/`.S`/`.h` files under `src/` were **not vendored** in
 this repository. `make populate` (from the `rts-spikes/` root) copies
 them out of the locally installed `gnat_riscv64_elf` 15.1.2 toolchain,
 named by the committed `src.lst`. `src/` and `src.lst` are otherwise
@@ -34,33 +38,70 @@ is a symbol the leaf computes from its configuration and supplies via
 
 ## What changed in the populated sources, and why
 
-- **`src/s-bbbopa.ads`** (`System.BB.Board_Parameters`) — the one file
-  this crate's task modifies. Upstream freezes `CLINT_Mtimecmp_Offset`,
-  `PLIC_Hart_Id` and `UART_Base_Address` to hart 1 / MMUART0. This
-  version `with`s `MPFS_Runtime_Config` (CONTRACT.md §3.3) and derives
-  all three from it: `CLINT_Mtimecmp_Offset` becomes a fixed base plus a
-  per-hart stride times the configured hart (parsed from
-  `MPFS_Runtime_Config.Harts`); `PLIC_Hart_Id` follows the same hart;
-  `UART_Base_Address` follows `MPFS_Runtime_Config.Console`. It also
-  swaps `pragma No_Elaboration_Code_All` for the non-transitive `pragma
-  Restrictions (No_Elaboration_Code)` (CONTRACT.md §7.3): the former
-  requires every unit it `with`s to carry it too, and the §3.3 renaming
-  shim cannot. See the file's own header comment for what is and is not
-  verified about this change (in particular: three downstream
-  consumers — `s-bbsuti.adb`, `s-bbripl.adb`, `s-textio.adb` — combine
-  these values further inside their own Preelaborate library-level
-  constants, and Ada's static-expression rules make that combination
-  fail once a value is parsed out of a `String`; confirmed in isolation,
-  not re-verified end-to-end here).
+- **`src/s-bbbopa.ads`** (`System.BB.Board_Parameters`) — upstream freezes
+  `CLINT_Mtimecmp_Offset`, `PLIC_Hart_Id` and `UART_Base_Address` to hart 1 /
+  MMUART0. Of these only the UART is derived from configuration:
+  `UART_Base_Address` (and `UART_Present`) follow `MPFS_Runtime_Config.Console`
+  through a **static conditional expression**, so a `Console => mmuart0` image is
+  byte-for-byte what the literal produced (`metrics.golden` unchanged) and
+  nothing is chosen at run time. `CLINT_Mtimecmp_Offset` is still `16#4008#`
+  (hart 1) and `PLIC_Hart_Id` is still `1`: the runtime is hart-1-only and
+  `Harts_Mask` does not move them (plan step D1). The file replaces
+  `pragma No_Elaboration_Code_All` with the non-transitive
+  `pragma Restrictions (No_Elaboration_Code)` (CONTRACT.md §7.3), because it now
+  `with`s the `MPFS_Runtime_Config` renaming; `s-textio.ads` therefore does the
+  same, since the transitive pragma would otherwise reach the body's `with`.
 
-  **CORRECTION (RTS-PRODUCTION.md A4, measured).** The file as committed
-  does *not* do the derivation described above: `CLINT_Mtimecmp_Offset`
-  is `16#4008#` (hart 1), `PLIC_Hart_Id` is `1` and `UART_Base_Address`
-  is `16#2000_0000#` (MMUART0), all literals, and it does not `with`
-  `MPFS_Runtime_Config`. So the `Console` configuration value selects
-  nothing — it only enters `Config_Tag` — and `tests/console_test`
-  (`Console => mmuart1`) still prints on MMUART0. `Harts_Mask` likewise
-  does not move the timer or PLIC hart: the runtime is hart 1 only.
+  **History (RTS-PRODUCTION.md A4, CONSOLE_DEAD).** This README used to say
+  the file derived all three values from `MPFS_Runtime_Config`. It did not: all
+  three were literals and `Console` entered only `Config_Tag`, so a
+  `Console => mmuart1` image printed on MMUART0. Repaired for `Console`; the
+  other two claims were wrong and are corrected above.
+
+### The console, and what is assumed of the boot environment
+
+| `Console` | Base address | Notes |
+|---|---|---|
+| `mmuart0` | `0x2000_0000` | the address this file always carried |
+| `mmuart1` | `0x2010_0000` | |
+| `mmuart2` | `0x2010_2000` | |
+| `mmuart3` | `0x2010_4000` | |
+| `mmuart4` | `0x2010_6000` | |
+| `none` | — | output discarded, input never ready; no UART is touched |
+| `ram_fifo` | — | no driver: **rejected at compile time** (`mpfs_config_checks.ads`, check 10), never silently treated as a UART |
+
+Source of the addresses: QEMU's `microchip-icicle-kit` model
+(`hw/riscv/microchip_pfsoc.c`, `MICROCHIP_PFSOC_MMUART0..4`, quoted in
+[`../QEMU.md`](../QEMU.md)). **Measured** under QEMU 11.1.1 by the tests
+`tests/console_test` (MMUART1) and `tests/console_mmuart{2,3,4}_test`: each
+image's output appears on that UART's `-serial` and on no other (MMUART0 is
+covered by `textio_test`). **Not verified against Microchip's documentation or
+on silicon** — this session had no access to the PolarFire SoC register map
+beyond QEMU's model, so the four non-default addresses are as good as that model.
+
+**What the driver does and does not do — and so what it assumes.** The driver
+(`s-textio.adb`) only reads/writes the 16550-style data register (`+0x00`) and
+line-status register (`+0x14`). It programs **no baud divisor, no line control,
+no FIFO setup, and touches no SYSREG register** — which was already true for
+MMUART0, where the HSS (or the debugger / bootloader) is assumed to have done
+it. For MMUART1..4 the same assumption now carries more weight:
+
+1. the instance's **clock is enabled and its soft-reset released** in the MSS
+   SYSREG block (from memory, `SUBBLK_CLOCK_CR` and `SOFT_RESET_CR`, one bit per
+   peripheral — *not verified here*), which the HSS normally does for the
+   MMUARTs it hands to a U54 application;
+2. the baud divisor and line control are programmed (8N1 at the rate the host
+   expects);
+3. the MSS I/O mux routes the instance to a pin (board-specific; on the Icicle
+   Kit the HSS console is MMUART0 and Linux's is MMUART1).
+
+QEMU models none of 1–3 (it has no SYSREG gating and ignores the divisor), so
+**no test here can detect a violation**; the failure on hardware would be
+silence from a selected UART. Implementing 1 (a clock/reset write in
+`Initialize`) was **deliberately not done**: the register layout is unverified
+from here, and a wrong write to SYSREG is worse than a documented assumption.
+Validate it with the first A5 hardware run on `mmuart1` before relying on it.
+
 - **`src/mpfs_config_checks.ads`** (new) — the CONTRACT.md §5 validation
   spec, as `pragma Compile_Time_Error` (not subtypes, which only warn).
   Named `MPFS_Config_Checks` (flat), not the literally-requested

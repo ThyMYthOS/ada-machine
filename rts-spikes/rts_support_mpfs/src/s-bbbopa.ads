@@ -34,10 +34,16 @@
 
 --  This package defines board parameters for the PolarFire SOC
 
+--  Not No_Elaboration_Code_All (CONTRACT.md 7.3): that pragma is transitive,
+--  and MPFS_Runtime_Config is a renaming, which cannot carry it. The
+--  non-transitive restriction is a configuration pragma and so precedes the
+--  context clause.
+pragma Restrictions (No_Elaboration_Code);
+
 with Interfaces;
+with MPFS_Runtime_Config;
 
 package System.BB.Board_Parameters is
-   pragma No_Elaboration_Code_All;
    pragma Pure;
 
    --------------------
@@ -67,7 +73,43 @@ package System.BB.Board_Parameters is
      CLINT_Base_Address + CLINT_Mtimecmp_Offset;
    --  Address of the memory mapped mtimecmp register
 
-   UART_Base_Address    : constant := 16#2000_0000#;
+   -------------
+   -- Console --
+   -------------
+
+   --  The console UART, selected by the Console configuration variable
+   --  (CONTRACT.md 3.2) through a STATIC conditional expression: the whole
+   --  selection folds at compile time, so a Console => mmuart0 image is
+   --  byte-for-byte what it was when this was a literal.
+   --
+   --  Base addresses: MMUART0 is the address this file has always carried.
+   --  MMUART1..4 are the PolarFire SoC MSS peripheral-window addresses, as
+   --  modelled by QEMU's microchip-icicle-kit (hw/riscv/microchip_pfsoc.c,
+   --  MICROCHIP_PFSOC_MMUART0 .. _MMUART4; QEMU.md). Under QEMU each was
+   --  measured (RTS-PRODUCTION.md A4, CONSOLE_DEAD); on silicon they are NOT
+   --  yet verified, nor is the clock/reset state discussed in
+   --  rts_support_mpfs/README.md. All five instances share the register layout
+   --  the driver (s-textio.adb) uses.
+   --
+   --  Console => none has no UART: s-textio.adb tests UART_Present and
+   --  discards output. Console => ram_fifo is not implemented and is rejected
+   --  at compile time by MPFS_Config_Checks, never silently treated as a UART.
+   UART_Present : constant Boolean :=
+     MPFS_Runtime_Config.Console in MPFS_Runtime_Config.mmuart0
+                                  | MPFS_Runtime_Config.mmuart1
+                                  | MPFS_Runtime_Config.mmuart2
+                                  | MPFS_Runtime_Config.mmuart3
+                                  | MPFS_Runtime_Config.mmuart4;
+
+   UART_Base_Address : constant :=
+     (case MPFS_Runtime_Config.Console is
+        when MPFS_Runtime_Config.mmuart0  => 16#2000_0000#,
+        when MPFS_Runtime_Config.mmuart1  => 16#2010_0000#,
+        when MPFS_Runtime_Config.mmuart2  => 16#2010_2000#,
+        when MPFS_Runtime_Config.mmuart3  => 16#2010_4000#,
+        when MPFS_Runtime_Config.mmuart4  => 16#2010_6000#,
+        when MPFS_Runtime_Config.ram_fifo
+           | MPFS_Runtime_Config.none     => 0);
 
    --  Platform Level Interrupt Controller
    PLIC_Base_Address     : constant := 16#0C00_0000#;

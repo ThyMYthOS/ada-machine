@@ -139,4 +139,16 @@ package MPFS_Config_Checks is
      (Memory_Profile = ddr_by_bootloader and then not DDR_Present,
       "Memory_Profile => ddr_by_bootloader needs DDR_Present => True");
 
+   ---------------------------------------------------------------------
+   --  10. Console => ram_fifo is declared but not implemented
+   ---------------------------------------------------------------------
+   --  RTS-PRODUCTION.md A4 (CONSOLE_DEAD): the Console value used to select
+   --  nothing, and ram_fifo is still a name without a driver. Accepting it
+   --  would reintroduce exactly that defect for one value -- the image would
+   --  build and print nowhere -- so it is refused until a RAM FIFO console
+   --  exists. (mmuart0 .. mmuart4 select a UART; none discards output.)
+   pragma Compile_Time_Error
+     (Console = ram_fifo,
+      "Console => ram_fifo is not implemented (use mmuart0..mmuart4 or none)");
+
 end MPFS_Config_Checks;

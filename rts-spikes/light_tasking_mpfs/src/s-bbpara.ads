@@ -62,8 +62,15 @@ package System.BB.Parameters is
    -- Stacks --
    ------------
 
-   Interrupt_Stack_Size : constant := 8 * 1024;
-   --  Size of each of the interrupt stacks in bytes
+   Interrupt_Stack_Size : constant := MPFS_Runtime_Config.Interrupt_Stack_Size;
+   --  Size of each of the interrupt stacks in bytes: the Interrupt_Stack_Size
+   --  configuration variable (CONTRACT.md 3.2). s-bbinte.adb sizes the
+   --  per-CPU stacks from this constant; the linker script only brackets
+   --  them (__interrupt_stack_start/_end), so there is no defsym.
+
+   pragma Compile_Time_Error
+     (Interrupt_Stack_Size mod 16 /= 0,
+      "Interrupt_Stack_Size must be a multiple of 16 (stack alignment)");
 
    Interrupt_Sec_Stack_Size : constant := 1024;
    --  Size of the secondary stack for interrupt handlers

@@ -85,7 +85,7 @@ DDR_NonCached_KB = { type = "Integer", default = 0 }
 DDR_WCB_KB = { type = "Integer", default = 0 }
 Console = { type = "Enum", values = ["mmuart0", "mmuart1", "mmuart2", "mmuart3", "mmuart4", "ram_fifo", "none"], default = "mmuart0" }
 Interrupt_Stack_Size = { type = "Integer", default = 8192 }
-Secondary_Stack_Size = { type = "Integer", default = 2048 }
+Secondary_Stack_Size = { type = "Integer", default = 524288 }
 MPFS_PARTITION = { type = "String", default = "" }
 
 #  Tiers 1-3 are source-only siblings in this working tree, never published

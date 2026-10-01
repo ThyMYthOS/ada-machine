@@ -146,7 +146,7 @@ default = 8192
 type = "Integer"
 first = 0
 last = 1048576
-default = 2048
+default = 524288
 
 [configuration.variables.MPFS_PARTITION]
 type = "String"
