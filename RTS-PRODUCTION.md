@@ -15,12 +15,12 @@ Honest reading of the spike as it stands: **286 tracked files, six applications 
 | | Status |
 |---|---|
 | The design composes | **proved.** Four crates, three profiles, two targets, one tier-1 snapshot |
-| Every mechanism it relies on | **measured**, except one ([B1](#b1-generate-ada_source_path--the-one-unproven-mechanism)) |
+| Every mechanism it relies on | **measured** — the last one, [B1](#b1-generate-ada_source_path--the-one-unproven-mechanism), included ✔ |
 | The profile chain (`light` ⊆ `light-tasking` ⊆ `embedded`) | **no counter-example**, on a weak sample — [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) ✔ |
 | The images run | **under QEMU, yes** — `clock_switch_e51`, `hello_mpfs` and `hello_envm_mpfs` print their own output ([A1](#a1-get-one-byte-out-of-qemu) ✔). On silicon, still **unknown** ([A5](#a5-real-hardware)) |
 | Startup handles the four boot scenarios | **yes** — hart gate derived from `Harts_Mask`, `.data` copied when LMA ≠ VMA, role-conditional parking ([A6](#a6-rework-start-rams-for-the-four-boot-scenarios) ✔) |
 | Regressions get caught | **at the image level, yes** — `make verify` asserts every image's metrics against `metrics.golden` per compiler ([A2](#a2-make-the-metrics-assertions-rather-than-decoration) ✔), `make smoke` asserts the console output under QEMU, and both run in CI on Linux ([A3](#a3-ci) ✔). The runtime's own behaviour — tasking, exceptions, interrupts — is still untested ([A4](#a4-a-test-suite-that-exercises-the-runtimes-own-surface)) |
-| Someone else can use it | **no.** Path pins, hand-written `ada_source_path`, `Config_Tag` |
+| Someone else can use it | **not yet, but the blocker is smaller.** A leaf now builds from a fetched, unpinned dependency closure ([B1](#b1-generate-ada_source_path--the-one-unproven-mechanism) ✔). Still open: `Config_Tag` ([B2](#b2-delete-config_tag)), tier-1 provenance and licence ([B3](#b3-tier-1-provenance-licensing-and-versioning)), and nothing is published |
 | It survives a toolchain bump | **untested.** `populate.sh` has guards, but they have only ever seen 15.1.2 |
 
 That table is the plan. The three gaps are *different in kind* — running, publishing, staying correct — and they want different work.
@@ -255,17 +255,50 @@ Nothing here is optional if a third party is to use these crates, and one item i
 
 ### B1. Generate `ada_source_path` — the one unproven mechanism
 
-Today it is hand-committed with relative entries (`../rts_sources_gcc15/libgnat`), which work **only because the crates are path-pinned siblings**. Verified: a fetched crate lands in `~/.local/share/alire/builds/<crate>_<version>_<id>/<hash>/`, and no relative path reaches from one to another. RTS.md §8 item 1 has called this out from the start.
+> ### ✔ DONE
 
-Also verified, and it raises the stakes: `ada_source_path` is read **during compilation**, not only at bind time — a subunit is located by searching it, so an incomplete list fails the compile of a *different* unit than the one that looks wrong.
+**Delivered**: each leaf commits `ada_source_path.in` (a template) and `gen-ada-source-path.sh`, wired in its `alire.toml` as a `post-fetch` *and* a `pre-build` action; `ada_source_path` itself is generated and gitignored. [`rts-spikes/fetched-check.py`](rts-spikes/fetched-check.py) (`make fetched-check`) is the exit criterion as a command. All measured with Alire 2.1.0 on macOS/arm64; **not** run on Linux, and not with any other Alire version.
 
-Decide between `post-fetch` (runs before configuration values exist) and `pre-build` (ordering across a dependency graph needs checking against the Alire version in use), then implement and test **against a fetched, unpinned crate**. Emitting three lines of text is the easy part; being emitted at the right moment is the whole problem.
+**The problem, as it was.** `ada_source_path` was hand-committed with relative entries (`../rts_sources_gcc15/libgnat`), right only for path-pinned siblings. A fetched crate lands in `<cache>/builds/<crate>_<version>_<id>/<hash>/`, and no relative path reaches its dependencies from there. The failure is reproducible: the same leaf, fetched, with the old committed file, dies in the *compile* — `s-dourea.adb:51:04: warning: subunit "System.Double_Real.Product" in file "s-dorepr.adb" not found`, then `compilation of s-exponr.adb failed` — a different unit from the one whose entry is wrong, as predicted.
 
-> **Exit:** a leaf consumed with no `[[pins]]` at all, from a different directory, builds and binds.
+**The exit criterion, demonstrated.** `make fetched-check` (a few minutes on this Mac; the compilers are not downloaded): packs the four leaves and the five tier crates they pin into release tarballs; publishes them to a throwaway file-based index in a scratch directory; copies each leaf's in-tree application into *another* directory with its `[[pins]]` **and** its `[[depends-on]]` removed; `alr with <leaf>`; `alr build`. Alire fetches every crate into a private cache, runs the actions, gprbuild compiles the runtime and links. The script then asserts what it claims: the consumer has no pin and no `path =`; the leaf was built under the private cache; every foreign entry of the generated `ada_source_path` is an absolute path inside that cache; the image exists; and the image's `size` output is **identical to the in-tree build's** for all four leaves (`hello_mpfs` 1396/11/65541, `tasking_mpfs` 8106/1673/42368, `embedded_app` 52500/4568/1144944, `hello_rp2040` 1984/4/2196). With `--qemu`, the fetched `hello_mpfs` boots under QEMU 11.1.1 and prints `Hello from PolarFire SoC`. It touches no global Alire state: `alr -s <scratch>/settings`, `cache.dir` in the scratch directory, a *copy* of the community index; the one shared thing is `toolchain.dir`, pointed at the existing compilers so nothing is downloaded.
+
+**Decision: `post-fetch` or `pre-build`? Both**, running one idempotent script — because each covers a flow the other misses, which is measured rather than argued:
+
+| Flow | `post-fetch` | `pre-build` |
+|---|---|---|
+| `alr build`, fetched leaf | runs (once per deployment) | runs (every build) |
+| `alr build`, **path-pinned** leaf (the in-tree workflow) | **does not run** — nothing is fetched, even after deleting the file | runs; regenerates a deleted file |
+| `alr exec -- gprbuild …` right after a fetch (IDE, scripts) | the file is there, and the build succeeds | **does not run** |
+
+(The table, the probe and the staleness experiment were run on `light_mpfs`; the other three leaves carry the same script and manifest block and are covered by `fetched-check` only.)
+
+**What the probe saw.** A probe action (`env`, `pwd`, a listing of `gnat_config/` and `ada_source_path`, a timestamp) was added to all three action kinds of every crate and to the root, and `alr build` run against a fresh cache:
+
+- **Every action of every crate in the solution — dependencies' as well as the root's — sees `<CRATE>_ALIRE_PREFIX` for every crate in the solution** (the four crates, the root application, `gnat_riscv64_elf`, `gprbuild`). That is the whole mechanism: the script substitutes `@rts_sources_gcc15@` by `$RTS_SOURCES_GCC15_ALIRE_PREFIX`.
+- The working directory is the crate's own root (the build directory, for a fetched crate) — i.e. the runtime directory.
+- **Order**: for each crate in dependency order (tiers, then leaf) `post-fetch`, `pre-build`, `post-build`; *then* the root's `pre-build`; then gprbuild; then the root's `post-build`. All dependency actions had finished before the first object file existed (0 `.ali` files at the leaf's `post-build`; 3, the root's own, at the root's). So a **dependency's `post-build` is not "after build"** — it fires before anything is compiled — and `pre-build` ordering across the graph is *not* a problem: dependencies are done before the dependent starts.
+- **`post-fetch` does *not* run before configuration exists** — the premise of RTS.md §8 item 1 and of this section's original text was wrong in the helpful direction. The leaf's `gnat_config/<crate>_config.{ads,gpr}` is already there, carrying the root's values (`Harts_Mask := "2"`), when `post-fetch` runs. (For a pinned crate it is regenerated before `pre-build`: deleted `gnat_config/`, `alr build --stop-after=pre-build`, back again.)
+- **Staleness (RTS.md §8 item 2) does not occur.** The leaf's `alire/build_hash_inputs` contains a `dependency:<crate>=<version>=<hash>` line per dependency. Publishing `rts_core_riscv64 0.1.1-dev` and running `alr update` gave the leaf a **second build directory** with its own `post-fetch` and a file naming the 0.1.1 tier; the 0.1.0 directory kept its old, still-correct file. (A tier whose *content* changes under an unchanged version is not seen — as for any crate.)
+
+**What was tried and is not a mechanism.** `[environment]` (`ADA_INCLUDE_PATH.append`) would avoid a generated file, but a crate's environment value may use `${CRATE_ROOT}` and not another crate's prefix — `Unknown formatting key: RTS_SOURCES_GCC15_ALIRE_PREFIX` — so a leaf cannot assemble its own list of tier-1 directories with it; a tier cannot either, because the right subset is per leaf. There is no GPR-level equivalent: gprbuild never writes the file, and the runtime directory must contain it. The risk register's fallback (vendor tier 1 per leaf) is **not needed**.
+
+**Things the work turned up that the next steps need:**
+
+- **A released manifest must not carry `[[pins]]`.** Measured: an index release with relative pins is rejected on load (`Pin path is not a valid directory: <index>/…`), so that release is never offered. `fetched-check.py` strips them when it builds the index; B3/B4's packaging has to do the same. (Also true: the in-tree manifests keep their pins, so the development workflow is unchanged.)
+- **The generator is stricter than GNAT on purpose.** GNAT ignores a nonexistent `ada_source_path` entry silently (RTS-GUIDE §11.2); the script fails the build naming it, so an unpopulated tier or a template out of step with a moved directory is an error, not a quiet half-working runtime. **Not yet guarded:** nothing checks that `ada_source_path.in` lists the same directories as the leaf's `Source_Dirs` (a *missing* entry still fails — at bind, or at compile for a subunit — but by GNAT's rules). That check, and the four byte-identical copies of the script, are C1's job (generate the leaves) or a `populate.sh` guard.
+- **Alire quirk that cost time:** symlinking the whole `<cache>/toolchains` directory into an isolated cache crashes Alire (`ADA.IO_EXCEPTIONS.NAME_ERROR` on a doubled path); the documented `toolchain.dir` setting is the way to share compilers, and is what the check uses.
+- **Unrelated, found on the way:** every `alr build` of every image recompiles the whole runtime (315 units for `hello_mpfs`) — `-> GNAT version changed: ALI version = GNAT 15; expected version = GNAT 15.0` from gprbuild 26 against the 15.1.2 prerelease compiler. Not caused by B1 (the generated file's mtime is untouched); it is why "nothing recompiled" cannot be used as an idempotence test and why incremental builds are slower than they should be.
+
+**Not covered.** Linux (the script is written to be portable, never run there; not in CI). Alire versions other than 2.1.0. A real remote index or `alr publish`. Windows (the action runs `sh`). The `light_tasking_pico` leaf was done the same way and passes the same check; it differs only in its template and in having no `Config_Tag` (it already uses `Library_Dir "adalib"`).
+
+> **Exit:** a leaf consumed with no `[[pins]]` at all, from a different directory, builds and binds. **Met** — all four leaves, `make fetched-check`; `make all` still ends `verify OK` / `smoke OK` with `metrics.golden` unchanged.
 
 ### B2. Delete `Config_Tag`
 
 CONTRACT.md §7.11 says outright: *"Do not copy this into a published crate."* It exists because path-pinned crates build in-tree and share one `adalib`. Once B1 lets crates be fetched, Alire's hash-keyed build cache provides the isolation and `for Library_Dir use "adalib"` is correct.
+
+**What B1 leaves for this step (measured, not yet acted on).** In a fetched leaf the library already lands in `<hash>/adalib-<tag>/` — inside a directory Alire keys by the configuration — so the tag is redundant *there* and `ada_object_path` (`adalib`, still committed) names a directory that does not exist. Deleting the tag makes both true at once. What it does not make true is the **in-tree** workflow: `hello_mpfs`, `hello_envm_mpfs` and `clock_switch_e51` pin one `light_mpfs` at three configurations and would share one `adalib` and one `obj` — exactly the collision the tag prevents. So B2 needs a decision B1 did not make: build those applications through the `fetched-check` route (each gets its own hash directory), or keep a tag in a development-only layer. `light_tasking_pico` already uses plain `adalib`/`obj` and has no tag to delete; `lists/config-tag-exempt.lst` goes with it, and so does the tag-versus-`build_hash_inputs` guard that CONTRACT.md §7.11 says `populate.sh` enforces — which, found while checking, it no longer does: nothing in the tree reads that list.
 
 > **Exit:** two applications at different configurations of one fetched runtime crate, each getting its own library, with no tag in any project file. Then `ada_object_path` becomes truthful again — it currently names an `adalib` that does not exist.
 
@@ -350,7 +383,7 @@ graph LR
     A1["A1 QEMU boots ✔"] --> A2 --> A3["A3 CI ✔"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
     A2 --> A6["A6 startup rework ✔<br/><i>4 boot scenarios</i>"] --> A5
     A6 --> D1
-    A3 --> B1["B1 emit ada_source_path"] --> B2["B2 drop Config_Tag"] --> B4["B4 publish"]
+    A3 --> B1["B1 emit ada_source_path ✔"] --> B2["B2 drop Config_Tag"] --> B4["B4 publish"]
     B3["B3 provenance + licence"] --> B4
     A4 --> C1["C1 generate leaves"] --> C3["C3 GCC upgrade drill"]
     A5 --> D1["D1 CLINT/PLIC"] --> D2["D2 SMP"] --> D3["D3 generator + AMP"] --> D4["D4 S-mode + PMP"]
@@ -359,13 +392,13 @@ graph LR
 
 **A0 → A1 → A2 → A3 was the whole recommendation, and it is done**, together with A6. The design is now exercised rather than argued: every push builds all six images on Linux, asserts their metrics per compiler, and boots the three console images under QEMU. A regression in what the images *are* or what they *print* is visible the same day.
 
-**Next, in parallel: A4 and B1.** They touch different parts of the tree and answer different questions. A4 makes the runtime's own behaviour regression-checked, not just the images' shape — it is what Phase D needs before it starts. B1 is the one mechanism that could still invalidate the design (below), so it goes early *for information*, out of the phase order.
+**Next: A4 and B2.** A4 makes the runtime's own behaviour regression-checked, not just the images' shape — it is what Phase D needs before it starts. B2 is now unblocked by B1 and is the next step toward a consumable crate. (B1, the one mechanism that could have invalidated the design, was taken early *for information*, out of the phase order, and came out well.)
 
 **After those: A5**, which needs a board and is now the largest unknown in the plan — QEMU cannot say whether the clock tree is right.
 
 Note the dashed edge: **A4 loops back to A0.** Class C tests are what make the boundary map strong rather than merely negative, so A0 is worth re-running once the `Report` retarget exists.
 
-**B1 is the one that could invalidate something.** It is the only mechanism in the design that has never been demonstrated. If `pre-build` ordering turns out not to give the leaf a chance to write `ada_source_path` before binding, the fallback — vendoring tier 1 into each leaf — undoes most of the sharing the hierarchy exists for. Worth doing early *for information*, even out of order.
+**B1 was the one that could have invalidated something, and did not.** It was the only mechanism in the design that had never been demonstrated; had no Alire mechanism worked, the fallback — vendoring tier 1 into each leaf — would have undone most of the sharing the hierarchy exists for. It is now measured, on Alire 2.1.0 only.
 
 **Do not start Phase D before A4.** A3 catches regressions in the images, but D2 through D4 are where multi-hart timing bugs live, and debugging those without tests of tasking and interrupts is how the schedule disappears.
 
@@ -375,7 +408,7 @@ Note the dashed edge: **A4 loops back to A0.** Class C tests are what make the b
 
 | Risk | Signal | Response |
 |---|---|---|
-| **B1 has no working mechanism** | `pre-build` runs too late, or before configuration exists | Vendor tier 1 per leaf; accept the duplication and keep the hierarchy for provenance only |
+| ~~**B1 has no working mechanism**~~ | — | **retired:** a `post-fetch` + `pre-build` action reading `<CRATE>_ALIRE_PREFIX` works for fetched and pinned crates, all four leaves. Re-measure on a different Alire version before relying on it there |
 | ~~A0 finds chain violations~~ | — | **retired:** none found, but on a sample too weak to settle it. Re-run after A4's `Report` retarget before treating the chain as verified |
 | **A test harness reports success without testing anything** | a suspiciously round pass rate; every case in one bucket | Happened three times in one sitting (stale object, unlisted unit, `-x ada` no-op). Every new harness needs a deliberately-broken case proving it can fail |
 | QEMU cannot boot our images | A1 stalls past a couple of days | Hardware-in-the-loop runner; Phase A gets materially more expensive |

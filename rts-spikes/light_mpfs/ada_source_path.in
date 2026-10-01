@@ -1,0 +1,11 @@
+#  Template for ada_source_path -- see gen-ada-source-path.sh. Must list the same
+#  directories as runtime_build.gpr's Source_Dirs, in the same order.
+gnat_config
+src
+@rts_support_mpfs@/src
+@rts_core_riscv64@/src
+@rts_sources_gcc15@/libgnat-light
+@rts_sources_gcc15@/libgnat-64
+@rts_sources_gcc15@/libgnat-textio
+@rts_sources_gcc15@/libgnat-patched
+@rts_sources_gcc15@/libgnat

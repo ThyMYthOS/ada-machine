@@ -1,0 +1,15 @@
+#  Template for ada_source_path -- see gen-ada-source-path.sh. Must list the same
+#  directories as runtime_build.gpr's and ravenscar_build.gpr's Source_Dirs, in
+#  the same order.
+gnat_config
+src
+@rts_support_pico@/src-rp2040
+@rts_support_pico@/src
+@rts_core_cortexm@/src
+@rts_sources_gcc15@/libgnat-32
+@rts_sources_gcc15@/libgnat-semihosting
+@rts_sources_gcc15@/libgnat-patched
+@rts_sources_gcc15@/libgnat
+@rts_sources_gcc15@/librestrictions
+@rts_sources_gcc15@/libgnarl-smp
+@rts_sources_gcc15@/libgnarl

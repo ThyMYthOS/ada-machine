@@ -130,7 +130,20 @@ SMOKE_EXPECTED := smoke.expected
 SMOKE_TIMEOUT  := 20
 QEMU_MIN       := 10.1
 
-.PHONY: all toolchains populate build verify smoke bless sections amp qemu clean help
+#  B1 (RTS-PRODUCTION.md) -- the exit criterion for "a leaf can be CONSUMED":
+#  `make fetched-check` packs the leaves and the tier crates they pin into a
+#  throwaway file-based Alire index in a scratch directory, then builds each
+#  leaf's application from a copy with NO [[pins]] at all, in another directory,
+#  with Alire fetching every crate into its own (private) build cache. It does
+#  not touch your Alire settings, index list or cache -- see fetched-check.py.
+#  Not part of `all`: it rebuilds all four runtimes from a cold cache.
+#  FETCHED_CHECK_ARGS: e.g. `--qemu` to also boot the fetched hello_mpfs image,
+#  or `--work DIR` to choose the (empty) scratch directory; FETCHED_LEAVES to
+#  restrict the leaves.
+FETCHED_LEAVES     ?= light_mpfs light_tasking_mpfs embedded_mpfs light_tasking_pico
+FETCHED_CHECK_ARGS ?=
+
+.PHONY: all toolchains populate build verify smoke bless sections amp qemu clean help fetched-check
 
 help:
 	@echo "all        build -> verify -> smoke (the phases CI runs, there as separate steps; build implies populate implies toolchains)"
@@ -141,6 +154,7 @@ help:
 	@echo "smoke      ASSERT every console-producing image prints its smoke.expected strings under QEMU (needs QEMU >= $(QEMU_MIN))"
 	@echo "bless      rewrite THIS compiler's rows of metrics.golden (other compilers' rows kept); review the diff, commit it"
 	@echo "sections   print size -A for every built image, to compare two builds section by section"
+	@echo "fetched-check  build each leaf from a throwaway Alire index with NO pins, from another directory (B1; slow, not in 'all')"
 	@echo "amp        build the E51 + U54 partitions and check they do not collide"
 	@echo "qemu       boot QEMU_APP (default clock_switch_e51) under QEMU and SHOW its console (asserts nothing; use smoke)"
 	@echo "clean      remove build output (keeps populated sources)"
@@ -231,6 +245,10 @@ bless:
 sections:
 	@for a in $(APPS); do echo "==> $$a"; '$(SIZE)' -A "$$a/bin/$$a" | sed -n '3,$$p'; done
 	@for a in $(ARM_APPS); do echo "==> $$a"; '$(ARM_SIZE)' -A "$$a/bin/$$a" | sed -n '3,$$p'; done
+
+fetched-check: populate
+	@echo "==> make fetched-check"
+	@python3 fetched-check.py $(FETCHED_CHECK_ARGS) $(FETCHED_LEAVES)
 
 #  Build both partitions, then do the check no single link can do: compare the
 #  PT_LOAD segments of two separately linked images for overlap.
