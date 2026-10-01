@@ -46,3 +46,10 @@ rts_sources_gcc15/librestrictions/
 
 #  Written by `make verify`: this host's measured rows (CI uploads it).
 metrics.measured
+
+#  A4 test applications live one level deeper (tests/<app>/), so the patterns
+#  above, which are anchored at this directory, do not reach their build output.
+tests/*/obj/
+tests/*/bin/
+tests/*/alire/
+tests/*/config/

@@ -1,0 +1,26 @@
+# tests.list -- the positive tests `make test` builds and boots under QEMU.
+# Read by tests/run_tests.sh and by the Makefile (which builds each dir).
+# Edit by hand. One row per test, TAB-separated, six fields:
+#
+#   name     the executable name AND the <name> in the "TEST <name>: PASS" line
+#   dir      directory under rts-spikes/ holding the application
+#   serial   0 or 1: which QEMU serial port (MMUART0 / MMUART1) the verdict is on
+#   expect   pass | xfail
+#   observe  xfail only: a grep -E regexp that MUST match QEMU's `-d int,guest_errors`
+#            trace or either serial port -- the signature of the documented failure.
+#            "-" for a pass row.
+#   why      xfail only: the documented defect, one line. "-" for a pass row.
+#
+# `xfail` is not a skip. The test is still built and booted, and it fails the
+# build if it passes (the defect is fixed -- flip the row) or fails in any way
+# other than `observe` describes (a different failure is a regression, not a
+# known defect). See the comment at the top of run_tests.sh.
+#
+# These applications are deliberately NOT in the Makefile's APPS: they are not in
+# verify's application set, so they never enter metrics.golden.
+name	dir	serial	expect	observe	why
+textio_test	tests/textio_test	0	pass	-	-
+tasking_test	tests/tasking_test	0	xfail	epc:0x[0-9a-f]+, tval:0x0*c002080, desc=fault_store	PLIC_INIT: System.BB.RISCV_PLIC.Initialize clears the enable block with 64-bit stores (memset); QEMU's PLIC faults on non-32-bit accesses, so every tasking image traps at Initialize_Board before main (RTS-PRODUCTION.md A4)
+protected_test	tests/protected_test	0	xfail	epc:0x[0-9a-f]+, tval:0x0*c002080, desc=fault_store	PLIC_INIT: same defect as tasking_test -- the image never reaches main
+exceptions_test	tests/exceptions_test	0	xfail	epc:0x[0-9a-f]+, tval:0x0*c002080, desc=fault_store	PLIC_INIT: same defect as tasking_test (and behind it, EH_FRAME_HDR: the unwinder finds no .eh_frame_hdr, see RTS-PRODUCTION.md A4)
+console_test	tests/console_test	1	xfail	^TEST console_test: PASS	CONSOLE_DEAD: the Console configuration value is only part of Config_Tag; UART_Base_Address is hard-wired to MMUART0 (s-bbbopa.ads), so Console => mmuart1 still prints on MMUART0

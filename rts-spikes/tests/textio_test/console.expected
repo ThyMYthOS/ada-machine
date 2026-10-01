@@ -1,0 +1,5 @@
+TEXTIO: Put_Line works
+TEXTIO: Put of a string, of characters
+TEXTIO: punctuation !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+TEXTIO: awaiting a line on the console
+TEXTIO: echo [round trip 12345]

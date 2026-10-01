@@ -1,0 +1,28 @@
+name = "textio_test"
+description = "A4 test: Ada.Text_IO output and input through the console"
+long-description = """
+RTS-PRODUCTION.md A4. Ada.Text_IO on light_mpfs: output (every line is asserted
+on the HOST, from the serial port, against console.expected) and input (the
+runner feeds console.in to the serial port; the program reads a line with
+Ada.Text_IO.Get and echoes it back). Prints TEST textio_test: PASS or FAIL.
+
+Same configuration as hello_mpfs (so the same libgnat build).
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <manuel.stahl@awesome-technologies.de>"]
+maintainers-logins = ["thymythos"]
+executables = ["textio_test"]
+
+[[depends-on]]
+light_mpfs = "*"
+
+[[pins]]
+light_mpfs = { path = "../../light_mpfs" }
+
+[configuration.values]
+light_mpfs.Harts_Mask     = 2
+light_mpfs.Memory_Profile = "lim"
+light_mpfs.ITIM_Ways      = 2
+light_mpfs.DTIM_Ways      = 0
