@@ -216,19 +216,26 @@ end Runtime_Build;
 
 `ravenscar_build.gpr` (tasking/embedded only): `Library_Name "gnarl"`, same `Library_Dir "adalib"`, `Source_Dirs` = `("src", Rts_Support_Mpfs.Src_Dir, Rts_Core_Riscv64.Src_Dir, Rts_Sources_Gcc15.Gnarl_Dir)`, and it `with`s `runtime_build.gpr`.
 
-### 3.5 Metadata files — committed, relative paths
+### 3.5 Metadata files — `ada_source_path` is generated, `ada_object_path` is committed
 
-Sibling path pins make relative entries stable (verified, RTS.md [A.4](../RTS.md#a4)). `ada_source_path`:
+**`ada_source_path` is not committed.** It was, with relative entries (`../rts_sources_gcc15/libgnat`), which are right only for path-pinned siblings: a crate fetched from an index lands in `<cache>/builds/<crate>_<version>_<id>/<hash>/`, and no relative path reaches its dependencies from there. A leaf instead commits two files:
 
-```
-gnat_config
-src
-../rts_support_mpfs/src
-../rts_core_riscv64/src
-../rts_sources_gcc15/libgnat
-```
+- `ada_source_path.in` — the template, in search order. A plain line is a directory of this leaf; `@crate@/subdir` is a directory of dependency `crate`:
 
-(tasking/embedded append `../rts_sources_gcc15/libgnarl` — and **not** a gnarl-side configuration directory: there is none.) `ada_object_path` is one line: `adalib`. A published crate would generate these — see [RTS.md §8](../RTS.md#8-open-problems) item 1.
+  ```
+  gnat_config
+  src
+  @rts_support_mpfs@/src
+  @rts_core_riscv64@/src
+  @rts_sources_gcc15@/libgnat
+  ```
+
+  (tasking/embedded add `@rts_sources_gcc15@/libgnarl` — and **not** a gnarl-side configuration directory: there is none.) It must list the same directories as the leaf's `Source_Dirs`, in the same order.
+- `gen-ada-source-path.sh` — byte-identical in every leaf (until C1 generates the leaves). It substitutes each `@crate@` by `$<CRATE>_ALIRE_PREFIX`, which Alire exports to every action, writes `ada_source_path`, and **fails the build** naming any directory that does not exist (GNAT itself ignores a stale entry silently, [RTS-GUIDE §11.2](../RTS-GUIDE.md#112-a-missing-ada_source_path-entry-is-fatal-a-stale-one-is-silent)). It is wired as a `post-fetch` and a `pre-build` action in the leaf's `alire.toml`; the generated file is gitignored.
+
+Both work, in-tree (path-pinned) and fetched, from the same template; `make fetched-check` is the proof for the second ([RTS-PRODUCTION.md B1](../RTS-PRODUCTION.md#b1-generate-ada_source_path--the-one-unproven-mechanism) has what was measured and why both action kinds).
+
+`ada_object_path` is one line, `adalib`, still committed. It is **not yet truthful** while `Library_Dir` is `adalib-<Config_Tag>` (§7.11): it names a directory that does not exist, which GNAT tolerates because the `with`ed library project is authoritative. Deleting `Config_Tag` (RTS-PRODUCTION.md B2) makes it true.
 
 ### 3.6 No `runtime.xml` — `target_options.gpr` owns the ISA
 
