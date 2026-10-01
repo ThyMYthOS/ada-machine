@@ -19,7 +19,7 @@ Honest reading of the spike as it stands: **286 tracked files, six applications 
 | The profile chain (`light` ⊆ `light-tasking` ⊆ `embedded`) | **no counter-example**, on a weak sample — [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) ✔ |
 | The images run | **under QEMU, yes** — `clock_switch_e51`, `hello_mpfs` and `hello_envm_mpfs` print their own output ([A1](#a1-get-one-byte-out-of-qemu) ✔). On silicon, still **unknown** ([A5](#a5-real-hardware)) |
 | Startup handles the four boot scenarios | **yes** — hart gate derived from `Harts_Mask`, `.data` copied when LMA ≠ VMA, role-conditional parking ([A6](#a6-rework-start-rams-for-the-four-boot-scenarios) ✔) |
-| Regressions get caught | **at the image level, yes** — `make verify` asserts every image's metrics against `metrics.golden` per compiler ([A2](#a2-make-the-metrics-assertions-rather-than-decoration) ✔), `make smoke` asserts the console output under QEMU, and both run in CI on Linux ([A3](#a3-ci) ✔). The runtime's own behaviour — tasking, exceptions, interrupts — is still untested ([A4](#a4-a-test-suite-that-exercises-the-runtimes-own-surface)) |
+| Regressions get caught | **at the image level, yes** — `make verify` asserts every image's metrics against `metrics.golden` per compiler ([A2](#a2-make-the-metrics-assertions-rather-than-decoration) ✔), `make smoke` asserts the console output under QEMU, and both run in CI on Linux ([A3](#a3-ci) ✔). The runtime's own behaviour — tasking, exceptions, interrupts — now has tests ([A4](#a4-a-test-suite-that-exercises-the-runtimes-own-surface)), and they found that **no tasking image reaches `main` under QEMU** and that embedded exceptions cannot propagate: four of the five positive tests are `xfail`, each pinned to a named defect (the fourth, `Console`, selects nothing) |
 | Someone else can use it | **not yet, but the blocker is smaller.** A leaf now builds from a fetched, unpinned dependency closure ([B1](#b1-generate-ada_source_path--the-one-unproven-mechanism) ✔). Still open: `Config_Tag` ([B2](#b2-delete-config_tag)), tier-1 provenance and licence ([B3](#b3-tier-1-provenance-licensing-and-versioning)), and nothing is published |
 | It survives a toolchain bump | **untested.** `populate.sh` has guards, but they have only ever seen 15.1.2 |
 
@@ -188,6 +188,79 @@ The last row deserves emphasis: CONTRACT.md §7.4/§7.12 record that these check
 The last two rows have no ACATS equivalent and stay ours: the `light` floor is a claim about *our* profile chain, and the configuration checks are *our* pragmas.
 
 > **Exit:** the suite runs under QEMU in CI, and each `Compile_Time_Error` has a build that must fail.
+
+> **Status: not done — the suite exists and `make all` ends green with it, but three of its five positive tests cannot run, because writing them found three defects in the runtime.** Nothing here has run on GitHub yet (CI step added, **UNVERIFIED**). The exit criterion is met for the negative builds and **not** met for the QEMU half: what runs under QEMU today is Text_IO, and the tasking, protected-object and exception tests are `xfail`, pinned to the defects below.
+>
+> **Delivered** (all under [`rts-spikes/tests/`](rts-spikes/tests/README.md); `make test`, also the last phase of `make all`; its own CI step after `smoke`). The test applications are *not* in `APPS`, so `metrics.golden` and the six images are untouched — `make all` ends `verify OK: 6 application(s) match metrics.golden exactly` and `smoke OK`.
+>
+> | Test | Profile | State |
+> |---|---|---|
+> | `textio_test` | light | **passes.** Output asserted by the host against `console.expected` (the guest cannot check its own wire); a line of **input** fed through QEMU's serial (`-chardev file,input-path=`, measured on QEMU 11.1.1 only; whether CI's 10.2.1 has the option is a guess) and read back with `Ada.Text_IO.Get` — so the round trip is feasible and done |
+> | `tasking_test` | light-tasking | `xfail` ([PLIC_INIT](#plic_init)). Two tasks interleaved by `delay until` (`ABABAB`), a priority tie-break at one alarm, monotonic `Clock`, elapsed time |
+> | `protected_test` | light-tasking | `xfail` ([PLIC_INIT](#plic_init)). Entry barrier released by a task, re-closed after the body; **released from the timer interrupt** via a `Timing_Event` handler; a cancelled event never fires |
+> | `exceptions_test` | embedded | `xfail` ([PLIC_INIT](#plic_init), then [EH_FRAME_HDR](#eh_frame_hdr)). Raise through two unwound frames, user exception, `raise;` in an intermediate handler, `Exception_Name`/`Message`/`Information`, `Reraise_Occurrence`, division by zero and index errors, finalization during propagation |
+> | `console_test` | light, `Console => mmuart1` | `xfail` ([CONSOLE_DEAD](#console_dead)) |
+> | 22 negative builds | all three leaves | **pass.** `tests/negative/`: 3 controls (must build), the `light` floor rejecting a `task`, a protected object and `Ada.Real_Time`, and the `Compile_Time_Error`s of `mpfs_config_checks.ads` on each leaf where reachable |
+>
+> `xfail` is not a skip. The test is still built and booted; it fails the build if it **passes** (flip the row) or fails in **any way but the documented one** — each row carries a regexp that must match QEMU's `-d int,guest_errors` trace or the serial output, so a different breakage cannot hide behind a known one. See `tests/tests.list`.
+>
+> **The ISR case.** "Released from an ISR" is done with the timer interrupt, which the runtime already wires end to end (`Install_Alarm_Handler` → `mtimecmp` → the M-mode timer trap): a `Timing_Event` handler runs in the alarm interrupt, and the environment task is blocked in the entry with no other task able to run it, so if the barrier opens the interrupt did it. An *external* interrupt (a PLIC source, e.g. the UART's) was **not attempted**: `PLIC_Hart_Id` and `CLINT_Mtimecmp_Offset` are literals for hart 1 and the hart-indexed CLINT/PLIC is plan step D1. "A timer interrupt reaches its handler on the *owning* hart" is therefore only tested for hart 1, the one hart the runtime supports.
+>
+> **Timing tolerance** (`tasking_test`, `protected_test`). QEMU's `mtime` follows the host's clock, so a delay is not real-time-exact. "Never returns early" is asserted **exactly** (no slack): it is the bound that catches a mis-programmed alarm or a mis-scaled `Clock_Frequency`. The upper bound is a loose **500 ms**, there to catch "never wakes or wakes at the wrong scale", not to measure jitter; a tight one would be flaky on a loaded runner. Measured on a shared Mac (load average up to ~60 during some runs): task lateness 6 ms, a requested 250 ms elapsing as 255–265 ms, a 150 ms timer-interrupt release as 155 ms. The guest compares `Ada.Real_Time` with itself, so a wrong `mtime` frequency would *not* be caught — only a host-side wall-clock comparison could, and none is made.
+>
+> #### What the tests found
+>
+> Measured with `qemu -d int,guest_errors`, `objdump`, `readelf` and `gdb`; the repairs below were tried in a **scratch copy** of the tree and are not applied here, because each moves `tasking_mpfs`'s and `embedded_app`'s `.text` and so `metrics.golden` — which this task was told to stop and report, not to re-bless.
+>
+> <a id="plic_init"></a>**PLIC_INIT — every tasking image traps before `main` under QEMU.** `System.BB.RISCV_PLIC.Initialize` (called from `Initialize_Board`) clears the PLIC's enable block with aggregate assignments, which GNAT compiles to `memset`, i.e. 64-bit `sd` stores. QEMU's PLIC accepts only 32-bit accesses:
+>
+> ```
+> riscv_cpu_do_interrupt: hart:1, async:0, cause:0000000000000007, epc:0x8000695e,
+>                         tval:0x000000000c002080, desc=fault_store      (sd in memset)
+> ```
+>
+> `mtvec` is not installed yet, so the trap jumps to 0 and takes an illegal-instruction trap forever. This is why `tasking_mpfs` and `embedded_app` were silent in A1 — [QEMU.md](rts-spikes/QEMU.md) called that "expected and uninformative" and has been corrected. `light` images never call `Initialize_Board`, which is why `smoke` never saw it. **Whether real hardware's PLIC tolerates a 64-bit store is not measured.** The repair, per-register stores in `s-bbripl.adb`:
+>
+> ```diff
+> -      Hart_0_M_Mode_Enables := (others => (others => False));
+> -      Harts_Enables := (others => (M_Mode => (others => (others => False)),
+> -                                   S_Mode => (others => (others => False))));
+> +      for R in Hart_0_M_Mode_Enables'Range loop
+> +         Hart_0_M_Mode_Enables (R) := (others => False);
+> +      end loop;
+> +      for H in Harts_Enables'Range loop
+> +         for R in Enable_Array'Range loop
+> +            Harts_Enables (H).M_Mode (R) := (others => False);
+> +            Harts_Enables (H).S_Mode (R) := (others => False);
+> +         end loop;
+> +      end loop;
+> ```
+>
+> **With only that change in a scratch copy, `tasking_test` and `protected_test` PASS under the unmodified runner** (all 11 and 13 checks; task lateness 6 ms; interrupt release 155 ms), and the same runner then reports their `xfail` rows as `UNEXPECTED PASS` — so the guard works in both directions, and the test bodies are known good against a runtime that boots. Applying the repair for real is a one-line list edit (`expect` → `pass`) plus a re-bless.
+>
+> <a id="eh_frame_hdr"></a>**EH_FRAME_HDR — embedded exception propagation aborts in the unwinder (diagnosed, not repaired).** With PLIC_INIT repaired in the scratch copy, `exceptions_test` reaches `TEST exceptions_test: START` — so `ddr_by_bootloader` **does** print under QEMU, answering [QEMU.md](rts-spikes/QEMU.md)'s open question — then dies at the first raise: `ebreak` in `uw_init_context_1` (`unwind-dw2.c:1343` per the line table; from memory of that source it is the `gcc_assert` on the unwinder's own frame — the libgcc source was not at hand). The image has **no `.eh_frame_hdr` section**, and the bare-board unwinder (`unwind-dw2-fde-bb.c`) finds FDEs only through it. The vendor runtime gets one from `--specs=link-zcx.spec` (`-u _Unwind_Find_FDE --eh-frame-hdr`); this leaf links with `-nostartfiles`, which drops that spec's `*endfile` part, and this toolchain's `ld` (binutils 2.44, `riscv64-elf`) **rejects `--eh-frame-hdr` outright** (`unrecognized option`), also when passed as `-Wl,`. Passing `--specs=` anyway linked but still produced no section. The causal chain (no `.eh_frame_hdr` ⇒ the assert) is **inferred**, not shown by a repair; whether any switch makes this `ld` emit one is **unresolved**. If it cannot, embedded exception propagation needs a different mechanism on this toolchain.
+>
+> <a id="console_dead"></a>**CONSOLE_DEAD — the `Console` configuration value selects nothing.** `UART_Base_Address` is the literal `16#2000_0000#` in `s-bbbopa.ads`; `Console` only enters `Config_Tag`. Measured: a `Console => mmuart1` build prints on MMUART0 and nothing on MMUART1 (`console_test`). `rts_support_mpfs/README.md` claimed otherwise and now carries a correction. By `grep`, no source reads `Interrupt_Stack_Size` or `Secondary_Stack_Size` either (`s-bbpara.ads` hard-codes 8 KiB; `s-parame.ads` hard-codes a **512 KiB secondary stack per task**, so any tasking image that touches the secondary stack and has four tasks does not fit LIM — the tests set `Secondary_Stack_Size` per task to fit).
+>
+> **The configuration checks.** Seven `Compile_Time_Error`s plus a documented gap. Each has a build that fails with its own message on `light` (checks 4–7, 9; 8 and 2 below) and, on `light-tasking` and `embedded`, checks 4, 7, 8, 9 — each leaf has its own config package and membership list, which is what §7.12 says goes dead. Findings: **check 2** (the E51 mixed with a U54) **cannot be reached by any build**: every mask it forbids is rejected earlier by the project file's typed string (`value "3" is illegal for typed string …`), so it is driven at the unit (`mpfs_config_checks.ads` compiled alone against the leaf's generated config with one constant patched) and the build-level diagnostic is asserted separately. **Check 8** (ITIM with a multi-hart mask) is unreachable on `light`, whose mask type has no multi-hart values. **Check 1** is documented in the file as not implementable and has no case. Check 5 (`L2_LIM_Ways > 15`) cannot fire alone — it forces check 4 or 6 as well — so its case asserts only that its own message appears.
+>
+> #### The harness can fail — deliberately broken, each reverted
+>
+> Run with `make -C rts-spikes test` (demos 2–4 with `NEG_LIST` pointing at a two-case list, to avoid the 2½-minute negative stage; exit status of `make` was 2 each time):
+>
+> | Kind | What was broken | What it printed |
+> |---|---|---|
+> | positive test | `textio_test.adb` expected `round trip 12346` for the input `12345` | `FAIL: Ada.Text_IO.Get returned exactly the bytes the host sent` · `TEST textio_test: FAIL` · `FAIL textio_test: the test reported failing checks` · `tests FAILED: 1 of 5 test(s) did not do what tests.list says` · `make test FAILED (see above)` |
+> | missing sentinel / hang | `loop null; end loop;` before `Finish` in `textio_test.adb` | `FAIL textio_test: no verdict line (TEST textio_test: PASS or FAIL) within 30s -- hung, crashed or looped before Finish (QEMU exit status 137 …)` |
+> | negative build succeeds (a dead check) | `mpfs_config_checks.ads`: `… /= 16` made `… /= 16 and then False` | `FAIL chk_l2_sum: the build SUCCEEDED (exit 0); it was required to fail with: L2_Cache_Ways + L2_LIM_Ways + L2_Scratchpad_Ways must be 16` · `negative builds FAILED: 1 of 2 case(s)` |
+> | negative build, wrong message | expected diagnostic changed to `way counts do not add up` | `FAIL chk_l2_sum: the build failed (exit 1) but no error line contains: way counts do not add up` |
+> | `xfail` guard | tasking/protected tests run against the PLIC-repaired scratch runtime | `FAIL tasking_test: UNEXPECTED PASS …` ; `FAIL exceptions_test: it failed, but NOT in the documented way … (the test DID print its START line)` |
+>
+> The first `xfail` implementation had a real bug that this found: a guest stuck in a trap loop makes QEMU's `-d int` trace grow without bound (**2.4 GB in under a minute**), and `grep` over it outran a watchdog that counted polls rather than seconds. QEMU now runs under `ulimit -f` (20 MB) and the watchdog counts wall-clock time.
+>
+> **Not done.** *ACATS execution (the `Report` retarget and Class C runs) was not attempted:* its targets — Annex D tasking and exception tests on `light-tasking`/`embedded` — are exactly the images that cannot reach `main` (PLIC_INIT) or propagate an exception (EH_FRAME_HDR), so there is nothing to run them on, and a `light` run would execute almost none of Class C. No counts are claimed. This is also why [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware)'s "strong version" is still pending. *Real interrupts* (PLIC sources) and *multi-hart* behaviour wait for D1/D2. *CI:* the new step is unverified; two guesses could fail it first — that the runner image has `rsync` (the negative builds copy the tree with it; the script says so if not) and that QEMU 10.2.1's trace prints the same `riscv_cpu_do_interrupt:` line the `xfail` rows match (a different format fails closed, with a message). It adds about 3 minutes locally, almost all of it the negative builds.
+>
+> **Next, in order:** repair PLIC_INIT, re-bless, flip the three rows and see which of `tasking_test`/`protected_test` stay green on a loaded runner; settle whether `ld` can emit `.eh_frame_hdr` (it decides whether `embedded` can propagate exceptions at all); wire `Console` to `UART_Base_Address` (or delete the knob).
 
 ### A5. Real hardware
 
