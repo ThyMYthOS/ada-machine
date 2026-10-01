@@ -100,12 +100,13 @@ QEMU_MACHINE  := microchip-icicle-kit
 QEMU_APP      := clock_switch_e51
 QEMU_TIMEOUT  := 8
 
-.PHONY: all populate build verify amp qemu clean help
+.PHONY: all populate build verify bless amp qemu clean help
 
 help:
 	@echo "populate  copy runtime sources from the installed toolchain, run all guards"
 	@echo "build     build every application (implies populate)"
-	@echo "verify    report text/bss/entry/ABI for every built image"
+	@echo "verify    ASSERT every built image matches metrics.golden (text/data/bss/entry/ISA/ABI); non-zero on any drift"
+	@echo "bless     rewrite metrics.golden from the current images (review the git diff, commit it with the change)"
 	@echo "amp       build the E51 + U54 partitions and check they do not collide"
 	@echo "qemu      boot QEMU_APP (default clock_switch_e51) under QEMU and show its console"
 	@echo "clean     remove build output (keeps populated sources)"
@@ -122,26 +123,42 @@ build: populate
 	done
 	@echo "all $(words $(APPS) $(ARM_APPS)) applications built"
 
-verify:
-	@printf '%-18s %-8s %-9s %-11s %s\n' APP TEXT BSS ENTRY FLOAT
-	@set -e; for a in $(APPS); do \
-	  e="$$a/bin/$$a"; [ -f "$$e" ] || { printf '%-18s (not built)\n' "$$a"; continue; }; \
-	  t=$$($(SIZE) "$$e" | awk 'NR==2{print $$1}'); \
-	  b=$$($(SIZE) "$$e" | awk 'NR==2{print $$3}'); \
-	  en=$$($(READELF) -h "$$e" | awk '/Entry point/{print $$4}'); \
-	  ar=$$($(READELF) -A "$$e" | awk -F'"' '/Tag_RISCV_arch/{print $$2}'); \
-	  case "$$ar" in *_f*_d*) fl=hard ;; *) fl=soft ;; esac; \
-	  printf '%-18s %-8s %-9s %-11s %s\n' "$$a" "$$t" "$$b" "$$en" "$$fl"; \
-	done
+#  A2 (RTS-PRODUCTION.md) -- the metrics are an ASSERTION, not a table.
+#
+#  metrics.golden is the committed expectation: for every application, text /
+#  data / bss, the ELF entry point, e_flags, the full ISA tag and every other
+#  build-attribute tag, recorded raw (metrics.sh has the field-by-field
+#  rationale; the file's own header repeats it). `make verify` measures the
+#  built images, prints the table, and EXITS NON-ZERO on any difference, showing
+#  expected vs. actual per field. Exact match; no tolerances.
+#
+#  WORKFLOW for a deliberate change:
+#    1. change code             2. `make build verify` -- fails, shows the delta
+#    3. inspect: is it the delta you meant?
+#    4. `make bless`            rewrites metrics.golden from the current images
+#    5. commit metrics.golden TOGETHER WITH the change that caused it, so the
+#       number change is a reviewable diff in the same commit as its cause.
+#
+#  What verify refuses to do silently (each was a way the old target "passed"):
+#  an image that is not built (failure, not a skip); an app set that differs from
+#  the golden file in either direction; a missing toolchain (TOOLCHAIN matched
+#  nothing); an empty or unparseable field. `bless` likewise refuses to write
+#  unless every app measured cleanly.
+#
+#  verify measures what is ON DISK; it does not build. Use `make all`
+#  (build + verify) when the sources may be newer than the images.
+GOLDEN := metrics.golden
+METRICS_ENV = GOLDEN='$(GOLDEN)' RV_SIZE='$(SIZE)' RV_READELF='$(READELF)' \
+              ARM_SIZE='$(ARM_SIZE)' ARM_READELF='$(ARM_READELF)' \
+              RV_APPS='$(APPS)' ARM_APPS='$(ARM_APPS)' \
+              RV_TC='$(TOOLCHAIN)' ARM_TC='$(ARM_TC)'
 
-	@set -e; for a in $(ARM_APPS); do \
-	  e="$$a/bin/$$a"; [ -f "$$e" ] || { printf '%-18s (not built)\n' "$$a"; continue; }; \
-	  t=$$($(ARM_SIZE) "$$e" | awk 'NR==2{print $$1}'); \
-	  b=$$($(ARM_SIZE) "$$e" | awk 'NR==2{print $$3}'); \
-	  en=$$($(ARM_READELF) -h "$$e" | awk '/Entry point/{print $$4}'); \
-	  ar=$$($(ARM_READELF) -A "$$e" | awk -F: '/Tag_CPU_arch:/{print $$2}' | tr -d ' '); \
-	  printf '%-18s %-8s %-9s %-11s %s\n' "$$a" "$$t" "$$b" "$$en" "$$ar"; \
-	done
+verify:
+	@$(METRICS_ENV) sh metrics.sh verify
+
+bless:
+	@$(METRICS_ENV) sh metrics.sh bless
+	@echo "review with: git diff $(GOLDEN) -- and commit it with the change that caused it"
 
 #  Build both partitions, then do the check no single link can do: compare the
 #  PT_LOAD segments of two separately linked images for overlap.

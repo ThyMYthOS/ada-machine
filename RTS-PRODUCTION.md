@@ -131,6 +131,10 @@ No new app crate was needed — `lim` (the profile all four MPFS apps but `embed
 
 ### A2. Make the metrics assertions rather than decoration
 
+> ### ✔ DONE
+
+**Delivered**: `rts-spikes/metrics.golden` (committed expectation), `rts-spikes/metrics.sh`, and `make verify` / `make bless` in `rts-spikes/Makefile`. `verify` now exits non-zero on any difference, showing expected vs. actual per field; `bless` regenerates the golden file so a deliberate change is a reviewable diff committed with its cause. It records `text`, `data`, `bss`, entry point, ELF `e_flags`, the full ISA tag (`Tag_RISCV_arch` / `Tag_CPU_arch`) and every other build-attribute tag, raw. It fails, rather than skips or compares equal, on: a missing image, an application set that differs from the golden file in either direction, an unusable toolchain, and an empty or unparseable field. Each was demonstrated by deliberately breaking it (see the commit message). `verify` measures what is on disk and does not build; use `make all`.
+
 `make verify` prints `1340 / 1756 / 8058 / 52436 / 1984` and exits 0 regardless. Those numbers appear in a dozen commit messages *because a human retyped them*. Replace with a committed golden file and a non-zero exit on drift, with a documented way to re-bless.
 
 > **Exit:** `make verify` fails when any image's `text`, `bss`, entry point or ABI tag changes without the golden file changing.
@@ -322,7 +326,7 @@ Note what [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware
 
 ```mermaid
 graph LR
-    A0["A0 ACATS boundary map ✔<br/><i>compile-only — done</i>"] --> A2["A2 golden metrics"]
+    A0["A0 ACATS boundary map ✔<br/><i>compile-only — done</i>"] --> A2["A2 golden metrics ✔"]
     A1["A1 QEMU boots ✔"] --> A2 --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
     A2 --> A6["A6 startup rework ✔<br/><i>4 boot scenarios</i>"] --> A5
     A6 --> D1
