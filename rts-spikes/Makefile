@@ -1,4 +1,4 @@
-#  rts-spikes -- populate, build, verify.
+#  rts-spikes -- toolchains, populate, build, verify, smoke.
 #
 #  WHY A MAKEFILE AND NOT AN ALIRE ROOT CRATE.
 #
@@ -28,12 +28,31 @@
 #  never see a collision between two SEPARATELY linked partitions
 #  (RTS-POLARFIRE.md 6.3). This file sees both ELFs, so `make amp` checks it.
 
-TOOLCHAIN := $(firstword $(wildcard $(HOME)/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_*/bin))
-SIZE      := $(TOOLCHAIN)/riscv64-elf-size
-READELF   := $(TOOLCHAIN)/riscv64-elf-readelf
-ARM_TC      := $(firstword $(wildcard $(HOME)/.local/share/alire/toolchains/gnat_arm_elf_15.1.2_*/bin))
-ARM_SIZE    := $(ARM_TC)/arm-eabi-size
-ARM_READELF := $(ARM_TC)/arm-eabi-readelf
+#  THE PINNED COMPILER. Tier 1 is a byte snapshot of GNAT 15.1.2's runtime
+#  sources (populate.sh asserts it), so the compiler that builds against it must
+#  be exactly that release. The leaf manifests say `gnat_riscv64_elf = "=15.1.2"`
+#  / `gnat_arm_elf = "=15.1.2"` for the same reason -- `^15` also admits 15.2.1
+#  and 15.3.1, which the community index now carries, and a fresh machine would
+#  have been handed 15.3.1 (RTS-PRODUCTION.md A3).
+#
+#  Alire deploys a compiler crate into <cache>/toolchains/<crate>_<ver>_<hash>,
+#  where <hash> is the first 8 hex digits of the release's per-host archive
+#  sha256 -- so it DIFFERS between macOS and Linux and must stay a glob. The
+#  cache folder is $HOME/.local/share/alire on both hosts (`alr version` prints
+#  it); override ALIRE_TC_DIR if yours differs.
+#
+#  These are RECURSIVE (=), not simple (:=), variables: on a fresh machine the
+#  toolchains do not exist when make parses this file, and `make toolchains`
+#  creates them mid-run. A `:=` would freeze an empty TOOLCHAIN at parse time
+#  and every path below would degrade to "/riscv64-elf-size".
+GNAT_VERSION := 15.1.2
+ALIRE_TC_DIR := $(HOME)/.local/share/alire/toolchains
+TOOLCHAIN   = $(firstword $(wildcard $(ALIRE_TC_DIR)/gnat_riscv64_elf_$(GNAT_VERSION)_*/bin))
+SIZE        = $(TOOLCHAIN)/riscv64-elf-size
+READELF     = $(TOOLCHAIN)/riscv64-elf-readelf
+ARM_TC      = $(firstword $(wildcard $(ALIRE_TC_DIR)/gnat_arm_elf_$(GNAT_VERSION)_*/bin))
+ARM_SIZE    = $(ARM_TC)/arm-eabi-size
+ARM_READELF = $(ARM_TC)/arm-eabi-readelf
 
 #  Two targets now live side by side, so each application carries its own
 #  inspection toolchain: riscv64-elf for the PolarFire leaves, arm-eabi for the
@@ -100,23 +119,57 @@ QEMU_MACHINE  := microchip-icicle-kit
 QEMU_APP      := clock_switch_e51
 QEMU_TIMEOUT  := 8
 
-.PHONY: all populate build verify bless amp qemu clean help
+#  A3 (RTS-PRODUCTION.md) -- `make smoke`: the QEMU run as an ASSERTION. `make
+#  qemu` shows output and exits 0 whatever it saw -- the flaw A2 removed from
+#  `verify` -- so CI cannot use it. smoke.sh boots every image listed in
+#  SMOKE_EXPECTED and fails unless each expected string appears on the GUEST's
+#  console. See smoke.sh for the design rules (and QEMU_MIN, the version floor).
+SMOKE_EXPECTED := smoke.expected
+SMOKE_TIMEOUT  := 20
+QEMU_MIN       := 10.1
+
+.PHONY: all toolchains populate build verify smoke bless amp qemu clean help
 
 help:
-	@echo "populate  copy runtime sources from the installed toolchain, run all guards"
-	@echo "build     build every application (implies populate)"
-	@echo "verify    ASSERT every built image matches metrics.golden (text/data/bss/entry/ISA/ABI); non-zero on any drift"
-	@echo "bless     rewrite metrics.golden from the current images (review the git diff, commit it with the change)"
-	@echo "amp       build the E51 + U54 partitions and check they do not collide"
-	@echo "qemu      boot QEMU_APP (default clock_switch_e51) under QEMU and show its console"
-	@echo "clean     remove build output (keeps populated sources)"
+	@echo "all        build -> verify -> smoke (what CI runs; build implies populate implies toolchains)"
+	@echo "toolchains install the pinned cross compilers ($(GNAT_VERSION)) through Alire if absent; needs alr + network, once"
+	@echo "populate   copy runtime sources from the installed toolchain, run all guards (implies toolchains)"
+	@echo "build      build every application (implies populate)"
+	@echo "verify     ASSERT every built image matches metrics.golden (text/data/bss/entry/ISA/ABI); non-zero on any drift"
+	@echo "smoke      ASSERT every console-producing image prints its smoke.expected strings under QEMU (needs QEMU >= $(QEMU_MIN))"
+	@echo "bless      rewrite metrics.golden from the current images (review the git diff, commit it with the change)"
+	@echo "amp        build the E51 + U54 partitions and check they do not collide"
+	@echo "qemu       boot QEMU_APP (default clock_switch_e51) under QEMU and SHOW its console (asserts nothing; use smoke)"
+	@echo "clean      remove build output (keeps populated sources)"
 
-all: build verify
+#  `all` is a chain of sub-makes, not `all: build verify smoke`, for two reasons:
+#    - ORDER. As prerequisites those three are unordered under `make -j`, and
+#      verify/smoke measure what is ON DISK, so they must run after build.
+#    - A FRESH MACHINE. `build` -> `populate` -> `toolchains` creates the
+#      directories the TOOLCHAIN globs look in; verify then runs in a NEW make
+#      process that re-reads them from scratch instead of trusting what the
+#      parent saw (GNU make caches directory listings).
+#  The first failing phase stops the chain, and its name is the last
+#  `==> make ...` line above the error.
+all:
+	@$(MAKE) --no-print-directory build
+	@$(MAKE) --no-print-directory verify
+	@$(MAKE) --no-print-directory smoke
 
-populate:
-	@sh populate.sh
+#  A fresh machine has no toolchains, and `populate` copies tier 1 OUT of them,
+#  so before this target existed `make build` could not work on one at all
+#  (populate.sh stopped with "gnat_riscv64_elf 15.1.2 not installed"; the thing
+#  that installs it, `alr build`, runs after populate). toolchains.sh closes the
+#  loop with an idempotent, pinned install. Silent no-op once they exist.
+toolchains:
+	@echo "==> make toolchains"
+	@GNAT_VERSION='$(GNAT_VERSION)' ALIRE_TC_DIR='$(ALIRE_TC_DIR)' sh toolchains.sh
+
+populate: toolchains
+	@GNAT_VERSION='$(GNAT_VERSION)' ALIRE_TC_DIR='$(ALIRE_TC_DIR)' sh populate.sh
 
 build: populate
+	@echo "==> make build"
 	@set -e; for a in $(APPS) $(ARM_APPS); do \
 	  printf '==> %s\n' "$$a"; \
 	  ( cd "$$a" && alr -n build >/dev/null ) || { echo "FAILED: $$a"; exit 1; }; \
@@ -146,7 +199,7 @@ build: populate
 #  unless every app measured cleanly.
 #
 #  verify measures what is ON DISK; it does not build. Use `make all`
-#  (build + verify) when the sources may be newer than the images.
+#  (build + verify + smoke) when the sources may be newer than the images.
 GOLDEN := metrics.golden
 METRICS_ENV = GOLDEN='$(GOLDEN)' RV_SIZE='$(SIZE)' RV_READELF='$(READELF)' \
               ARM_SIZE='$(ARM_SIZE)' ARM_READELF='$(ARM_READELF)' \
@@ -154,7 +207,13 @@ METRICS_ENV = GOLDEN='$(GOLDEN)' RV_SIZE='$(SIZE)' RV_READELF='$(READELF)' \
               RV_TC='$(TOOLCHAIN)' ARM_TC='$(ARM_TC)'
 
 verify:
+	@echo "==> make verify"
 	@$(METRICS_ENV) sh metrics.sh verify
+
+smoke:
+	@echo "==> make smoke"
+	@QEMU='$(QEMU)' QEMU_MACHINE='$(QEMU_MACHINE)' QEMU_MIN='$(QEMU_MIN)' \
+	  SMOKE_EXPECTED='$(SMOKE_EXPECTED)' SMOKE_TIMEOUT='$(SMOKE_TIMEOUT)' sh smoke.sh
 
 bless:
 	@$(METRICS_ENV) sh metrics.sh bless
