@@ -38,6 +38,12 @@ package body System.Text_IO is
 
    Base_Address : constant System.Address :=
      System.BB.Board_Parameters.UART_Base_Address;
+   --  Selected by the Console configuration variable; see s-bbbopa.ads.
+
+   UART_Present : Boolean renames System.BB.Board_Parameters.UART_Present;
+   --  False for Console => none: there is nothing to talk to, so output is
+   --  discarded and nothing is ever received. Static, so the dead branches
+   --  below are not generated.
 
    Data : Interfaces.Unsigned_8 with Address => Base_Address + 16#00#;
    LSR  : Interfaces.Unsigned_8 with Address => Base_Address + 16#14#;
@@ -51,6 +57,9 @@ package body System.Text_IO is
 
    function Get return Character is
    begin
+      if not UART_Present then
+         return ASCII.NUL;
+      end if;
       return Character'Val (Data);
    end Get;
 
@@ -69,7 +78,7 @@ package body System.Text_IO is
 
    function Is_Rx_Ready return Boolean is
    begin
-      return (LSR and LSR_DR) /= 0;
+      return UART_Present and then (LSR and LSR_DR) /= 0;
    end Is_Rx_Ready;
 
    -----------------
@@ -78,7 +87,7 @@ package body System.Text_IO is
 
    function Is_Tx_Ready return Boolean is
    begin
-      return (LSR and LSR_THRE) /= 0;
+      return not UART_Present or else (LSR and LSR_THRE) /= 0;
    end Is_Tx_Ready;
 
    ---------
@@ -87,7 +96,9 @@ package body System.Text_IO is
 
    procedure Put (C : Character) is
    begin
-      Data := Character'Pos (C);
+      if UART_Present then
+         Data := Character'Pos (C);
+      end if;
    end Put;
 
    ----------------------------

@@ -32,8 +32,15 @@
 --  This package defines the console I/O interface for the simplified version
 --  of ``Ada.Text_IO`` used in embedded systems with limited I/O capabilities.
 
+--  Upstream has pragma No_Elaboration_Code_All inside the package. It is
+--  transitive, and the body now reaches System.BB.Board_Parameters, which
+--  reads the Console configuration through the MPFS_Runtime_Config renaming
+--  and so cannot carry it (CONTRACT.md 7.3). The non-transitive restriction
+--  (a configuration pragma, hence before the unit) still holds this unit
+--  itself free of elaboration code.
+pragma Restrictions (No_Elaboration_Code);
+
 package System.Text_IO is
-   pragma No_Elaboration_Code_All;
    pragma Preelaborate;
 
    --  The interface uses two subprograms for each direction: one for the ready

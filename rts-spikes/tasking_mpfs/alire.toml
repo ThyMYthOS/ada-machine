@@ -22,7 +22,6 @@ light_tasking_mpfs = { path = "../light_tasking_mpfs" }
 light_tasking_mpfs.Harts_Mask     = 2
 light_tasking_mpfs.Memory_Profile = "lim"
 light_tasking_mpfs.Main_Stack_Size = 16384
-light_tasking_mpfs.Interrupt_Stack_Size = 4096
 light_tasking_mpfs.ITIM_Ways      = 0
 light_tasking_mpfs.DTIM_Ways      = 0
 

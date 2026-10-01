@@ -161,9 +161,15 @@ item 5).
 | `DDR_Present` | Boolean | `false` |
 | `DDR_Cached_KB` / `DDR_NonCached_KB` / `DDR_WCB_KB` | Integer | `0` |
 | `Console` | Enum `mmuart0`..`mmuart4`, `ram_fifo`, `none` | `mmuart0` |
-| `Interrupt_Stack_Size` | Integer | `8192` |
-| `Secondary_Stack_Size` | Integer | `2048` |
+| `Interrupt_Stack_Size` | Integer (`light_tasking_mpfs`, `embedded_mpfs` only) | `8192` |
+| `Secondary_Stack_Size` | Integer | `1048576` (`light_mpfs`), `524288` (the other two) |
 | `MPFS_PARTITION` | String | `""` (empty = standalone mode) |
+
+**What the last three actually do** (RTS-PRODUCTION.md A4, CONSOLE_DEAD; before it none of them did anything but enter `Config_Tag`):
+
+- `Console` selects `System.BB.Board_Parameters.UART_Base_Address` through a static conditional expression in `rts_support_mpfs/src/s-bbbopa.ads`; `none` discards output, and `ram_fifo` (no driver) is refused by `mpfs_config_checks.ads` check 10.
+- `Interrupt_Stack_Size` is `System.BB.Parameters.Interrupt_Stack_Size` (`s-bbpara.ads`), which `s-bbinte.adb` sizes the per-CPU interrupt stacks from; the linker script only brackets them, so there is no `--defsym`. `light_mpfs` has no interrupt stacks and does not declare the variable.
+- `Secondary_Stack_Size` is `System.Parameters.Runtime_Default_Sec_Stack_Size` (`s-parame.ads`), the constant the binder reads for the environment task's and the default-sized tasks' secondary stacks. The defaults are the values the runtimes hard-coded before (1 MiB, 512 KiB, 512 KiB), so the shipped images are unchanged. `gnatbind -D` in an application still overrides it. Both sizes must be multiples of 16 (compile-time check, negative builds `chk_secstack_*` / `chk_intstack_*`).
 
 Only `light_tasking_mpfs` and `embedded_mpfs` also declare `Max_CPUs`-affecting behaviour; they derive it from `Harts`, they do not add a variable.
 

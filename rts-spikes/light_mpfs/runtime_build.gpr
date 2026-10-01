@@ -41,7 +41,6 @@ project Runtime_Build is
      & "-" & Light_Mpfs_Config.Boot_Role
      & "-" & Light_Mpfs_Config.Privilege
      & "-" & Light_Mpfs_Config.Console
-     & "-" & Light_Mpfs_Config.Interrupt_Stack_Size
      & "-" & Light_Mpfs_Config.Secondary_Stack_Size
      & "-" & Light_Mpfs_Config.L2_Cache_Ways
      & "-" & Light_Mpfs_Config.L2_LIM_Ways

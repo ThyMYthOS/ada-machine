@@ -4,7 +4,8 @@
 #
 #   name     the executable name AND the <name> in the "TEST <name>: PASS" line
 #   dir      directory under rts-spikes/ holding the application
-#   serial   0 or 1: which QEMU serial port (MMUART0 / MMUART1) the verdict is on
+#   serial   0..4: which QEMU serial port (MMUART0 .. MMUART4) the verdict is on. A `pass`
+#            test must also leave every OTHER port silent (run_tests.sh).
 #   expect   pass | xfail
 #   observe  xfail only: a grep -E regexp that MUST match QEMU's `-d int,guest_errors`
 #            trace or either serial port -- the signature of the documented failure.
@@ -23,4 +24,7 @@ textio_test	tests/textio_test	0	pass	-	-
 tasking_test	tests/tasking_test	0	xfail	epc:0x[0-9a-f]+, tval:0x0*c002080, desc=fault_store	PLIC_INIT: System.BB.RISCV_PLIC.Initialize clears the enable block with 64-bit stores (memset); QEMU's PLIC faults on non-32-bit accesses, so every tasking image traps at Initialize_Board before main (RTS-PRODUCTION.md A4)
 protected_test	tests/protected_test	0	xfail	epc:0x[0-9a-f]+, tval:0x0*c002080, desc=fault_store	PLIC_INIT: same defect as tasking_test -- the image never reaches main
 exceptions_test	tests/exceptions_test	0	xfail	epc:0x[0-9a-f]+, tval:0x0*c002080, desc=fault_store	PLIC_INIT: same defect as tasking_test (and behind it, EH_FRAME_HDR: the unwinder finds no .eh_frame_hdr, see RTS-PRODUCTION.md A4)
-console_test	tests/console_test	1	xfail	^TEST console_test: PASS	CONSOLE_DEAD: the Console configuration value is only part of Config_Tag; UART_Base_Address is hard-wired to MMUART0 (s-bbbopa.ads), so Console => mmuart1 still prints on MMUART0
+console_test	tests/console_test	1	pass	-	-
+console_mmuart2_test	tests/console_mmuart2_test	2	pass	-	-
+console_mmuart3_test	tests/console_mmuart3_test	3	pass	-	-
+console_mmuart4_test	tests/console_mmuart4_test	4	pass	-	-

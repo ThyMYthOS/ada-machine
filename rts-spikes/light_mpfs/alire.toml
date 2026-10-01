@@ -166,11 +166,8 @@ Console.values = [
 ]
 Console.default = "mmuart0"
 
-Interrupt_Stack_Size.type = "Integer"
-Interrupt_Stack_Size.default = 8192
-
 Secondary_Stack_Size.type = "Integer"
-Secondary_Stack_Size.default = 2048
+Secondary_Stack_Size.default = 1048576
 
 MPFS_PARTITION.type = "String"
 MPFS_PARTITION.default = ""

@@ -11,14 +11,19 @@
 #
 #  THE PROTOCOL (tests/common/test_report.ads): a test prints
 #      TEST <name>: START ... "  FAIL: <what>" lines ... TEST <name>: PASS|FAIL
-#  on a guest serial port (column 3 of the list says which: 0 = MMUART0, 1 = MMUART1;
-#  both are always attached, each to its own file). A `pass` test passes only if ALL hold:
+#  on a guest serial port (column 3 of the list says which: 0..4 = MMUART0..MMUART4,
+#  QEMU's first..fifth -serial -- measured, see QEMU.md; all five are always attached,
+#  each to its own file). A `pass` test passes only if ALL hold:
 #      - its image exists                              (else FAIL, never a skip)
 #      - "TEST <name>: START" was printed              (the program really ran)
 #      - "TEST <name>: PASS" was printed               (it reached its verdict)
 #      - no "TEST <name>: FAIL" line, and no "  FAIL:" line
 #      - every line of <dir>/console.expected, if the file exists, appears on the
 #        port (output is asserted by the HOST: a program cannot check its own wire)
+#      - NOTHING was written to any OTHER serial port. This is what makes a test of
+#        the Console configuration value mean something: a console that prints on
+#        MMUART0 although MMUART1 was selected (CONSOLE_DEAD) must not pass just
+#        because the test also looked at the right port.
 #  and fails with the reason otherwise: a failed check, a missing sentinel (hang,
 #  crash, silence), a missing line, or a timeout. If <dir>/console.in exists its
 #  bytes are fed to the serial port as the guest's input.
@@ -82,7 +87,7 @@ awk -F'\t' '
            print "BADHEADER" > "/dev/stderr"; bad = 1 }
          next }
   NF != 6 || $1 == "" || $2 == "" || $5 == "" || $6 == "" ||
-  ($3 != "0" && $3 != "1") || ($4 != "pass" && $4 != "xfail") ||
+  $3 !~ /^[0-4]$/ || ($4 != "pass" && $4 != "xfail") ||
   ($4 == "xfail" && ($5 == "-" || $6 == "-")) { printf "BADROW\t%s\n", $0; bad = 1; next }
   { print }
   END { exit bad ? 1 : 0 }
@@ -90,7 +95,7 @@ awk -F'\t' '
 if [ $? -ne 0 ]; then
   cat "$tmpd/awk.err" >&2
   grep '^BADROW' "$rows" | while IFS= read -r l; do printf '  %s\n' "$l" >&2; done
-  fail "$TEST_LIST is malformed: the first non-comment line must be the 'name dir serial expect observe why' header (TAB-separated); every row needs all six fields, serial 0|1, expect pass|xfail, and an xfail row a real observe regexp and reason"
+  fail "$TEST_LIST is malformed: the first non-comment line must be the 'name dir serial expect observe why' header (TAB-separated); every row needs all six fields, serial 0..4, expect pass|xfail, and an xfail row a real observe regexp and reason"
 fi
 [ -s "$rows" ] || fail "$TEST_LIST lists no tests; an empty list would make this pass vacuously"
 
@@ -133,12 +138,14 @@ for name in $names; do
     failures=$((failures + 1)); continue
   fi
 
-  con0="$tmpd/$name.console0"; con1="$tmpd/$name.console1"
+  conbase="$tmpd/$name.console"
   err="$tmpd/$name.stderr"; log="$tmpd/$name.qemulog"
-  : > "$con0"; : > "$con1"; : > "$log"
-  verdict="$con0"; [ "$serial" = 1 ] && verdict="$con1"
+  : > "$log"
+  consoles=
+  for i in 0 1 2 3 4; do : > "$conbase$i"; consoles="$consoles $conbase$i"; done
+  verdict="$conbase$serial"
   #  A comma in a path must be doubled for QEMU's option parser.
-  q0=$(printf '%s' "$con0" | sed 's/,/,,/g'); q1=$(printf '%s' "$con1" | sed 's/,/,,/g')
+  q0=$(printf '%s' "${conbase}0" | sed 's/,/,,/g')
   qlog=$(printf '%s' "$log" | sed 's/,/,,/g')
 
   set -- -M "$QEMU_MACHINE" -m 2G -display none -monitor none -bios none -kernel "$img" -no-reboot
@@ -148,7 +155,10 @@ for name in $names; do
   else
     set -- "$@" -serial "file:$q0"
   fi
-  set -- "$@" -serial "file:$q1"
+  for i in 1 2 3 4; do
+    qi=$(printf '%s' "$conbase$i" | sed 's/,/,,/g')
+    set -- "$@" -serial "file:$qi"
+  done
   [ "$expect" = xfail ] && set -- "$@" -d int,guest_errors -D "$qlog"
 
   #  The trace of a guest stuck in a trap loop grows without bound (measured: 2.4 GB
@@ -163,7 +173,7 @@ for name in $names; do
     while [ "$(date +%s)" -lt "$end" ]; do
       final_line "$name" "$verdict" && break
       if [ "$expect" = xfail ]; then
-        grep -Eq -- "$observe" "$log" "$con0" "$con1" && break
+        grep -Eq -- "$observe" "$log" $consoles && break
       fi
       sleep 0.1 2>/dev/null || sleep 1
     done
@@ -177,8 +187,11 @@ for name in $names; do
   qpid=; wdog=
 
   #  Show the test's own lines (the serial ports only, never QEMU stderr).
-  tr -d '\r' < "$con0" | sed 's/^/    | /'
-  if [ -s "$con1" ]; then echo "    | -- MMUART1 --"; tr -d '\r' < "$con1" | sed 's/^/    | /'; fi
+  for i in 0 1 2 3 4; do
+    if [ -s "$conbase$i" ]; then
+      echo "    | -- MMUART$i --"; tr -d '\r' < "$conbase$i" | sed 's/^/    | /'
+    fi
+  done
 
   reason=
   if [ "$expect" = xfail ]; then
@@ -186,7 +199,7 @@ for name in $names; do
     grep -Eq "^TEST $name: START" "$verdict" && started="DID print its START line"
     if grep -Eq "^TEST $name: PASS" "$verdict"; then
       reason="UNEXPECTED PASS on serial $serial although this row documents a known failure ($why). The defect looks fixed: change the row's expect to 'pass'."
-    elif ! grep -Eq -- "$observe" "$log" "$con0" "$con1"; then
+    elif ! grep -Eq -- "$observe" "$log" $consoles; then
       reason="it failed, but NOT in the documented way: nothing matched /$observe/ in QEMU's trace or on either serial port within ${TEST_TIMEOUT}s (the test $started). Documented failure: $why. Either the defect changed -- re-document the row -- or this is a new failure."
     fi
     if [ -n "$reason" ]; then
@@ -217,6 +230,16 @@ for name in $names; do
       fi
     done < "$dir/console.expected"
     [ "$missing" -eq 0 ] || reason="$missing line(s) of $dir/console.expected never appeared on serial $serial"
+  fi
+
+  #  A pass test must be silent on every port but its own.
+  if [ -z "$reason" ]; then
+    stray=
+    for i in 0 1 2 3 4; do
+      [ "$i" = "$serial" ] && continue
+      [ -s "$conbase$i" ] && stray="$stray MMUART$i"
+    done
+    [ -z "$stray" ] || reason="output appeared on${stray}, but the test belongs to MMUART$serial and nothing may be written to another port"
   fi
 
   if [ -n "$reason" ]; then

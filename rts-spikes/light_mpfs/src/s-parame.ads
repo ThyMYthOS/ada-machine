@@ -46,6 +46,8 @@
 --  Note: do not introduce any pragma Inline statements into this unit, since
 --  otherwise the relinking and rebinding capability would be deactivated.
 
+with MPFS_Runtime_Config;
+
 package System.Parameters is
    pragma Pure;
 
@@ -63,9 +65,17 @@ package System.Parameters is
    Unspecified_Size : constant Size_Type := Size_Type'First;
    --  Value used to indicate that no size type is set
 
-   Runtime_Default_Sec_Stack_Size : constant Size_Type := 1 * 1024 * 1024;
-   --  The run-time chosen default size for secondary stacks that may be
-   --  overridden by the user with the use of binder -D switch.
+   Runtime_Default_Sec_Stack_Size : constant Size_Type :=
+     Size_Type (MPFS_Runtime_Config.Secondary_Stack_Size);
+   --  The run-time chosen default size for secondary stacks: the
+   --  Secondary_Stack_Size configuration variable (CONTRACT.md 3.2). The
+   --  binder reads this constant when it sizes the environment task's and
+   --  the default-sized tasks' stacks, so no binder switch is needed; an
+   --  application may still override it with gnatbind -D.
+
+   pragma Compile_Time_Error
+     (Runtime_Default_Sec_Stack_Size mod 16 /= 0,
+      "Secondary_Stack_Size must be a multiple of 16 (stack alignment)");
 
    Stack_Grows_Down : constant Boolean := True;
    --  This constant indicates whether the stack grows up (False) or

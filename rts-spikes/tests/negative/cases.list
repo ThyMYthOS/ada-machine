@@ -45,14 +45,22 @@ chk_ddr	config	light	Memory_Profile="ddr_by_bootloader"	Memory_Profile => ddr_by
 light_task	source	light	light_task	violation of restriction "No_Tasking"	the light floor rejects a task declaration
 light_protected	source	light	light_protected	file s-taprob.ads not found	the light floor rejects a protected object
 light_real_time	source	light	light_real_time	"Ada.Real_Time" is not a predefined library unit	the light floor has no Ada.Real_Time (so no delay until)
+chk_console_ram_fifo	config	light	Console="ram_fifo"	Console => ram_fifo is not implemented	check 10 (CONSOLE_DEAD): a Console value with no driver is refused, not silently ignored
+chk_secstack_light	config	light	Secondary_Stack_Size=1001	Secondary_Stack_Size must be a multiple of 16	Secondary_Stack_Size reaches s-parame.ads (the variable was read by no source before A4's CONSOLE_DEAD repair)
 control_light_tasking	control	light_tasking	-	-	the light-tasking application builds in the scratch tree
 chk_mask_mix_gpr_light_tasking	config	light_tasking	Harts_Mask=3	value "3" is illegal for typed string "hart_mask"	check 2's value is stopped earlier, by the project file's typed string
 chk_l2_sum_light_tasking	config	light_tasking	L2_Cache_Ways=2	L2_Cache_Ways + L2_LIM_Ways + L2_Scratchpad_Ways must be 16	check 4 fires on this leaf too (its own config package and membership list)
 chk_dtim_light_tasking	config	light_tasking	DTIM_Ways=1	only the e51 (Harts_Mask => 1) has a configurable DTIM	check 7 on this leaf
 chk_itim_light_tasking	config	light_tasking	Harts_Mask=6 ITIM_Ways=1	ITIM is per-hart private	check 8: ITIM with a multi-hart mask (message continues "; a multi-hart image has no single ITIM")
 chk_ddr_light_tasking	config	light_tasking	Memory_Profile="ddr_by_bootloader"	Memory_Profile => ddr_by_bootloader needs DDR_Present => True	check 9 on this leaf
+chk_console_ram_fifo_light_tasking	config	light_tasking	Console="ram_fifo"	Console => ram_fifo is not implemented	check 10 on this leaf
+chk_secstack_light_tasking	config	light_tasking	Secondary_Stack_Size=1001	Secondary_Stack_Size must be a multiple of 16	Secondary_Stack_Size reaches this leaf's s-parame.ads
+chk_intstack_light_tasking	config	light_tasking	Interrupt_Stack_Size=4100	Interrupt_Stack_Size must be a multiple of 16	Interrupt_Stack_Size reaches this leaf's s-bbpara.ads (it was hard-coded to 8 KiB before)
 control_embedded	control	embedded	-	-	the embedded application builds in the scratch tree
 chk_l2_sum_embedded	config	embedded	L2_Cache_Ways=2	L2_Cache_Ways + L2_LIM_Ways + L2_Scratchpad_Ways must be 16	check 4 fires on this leaf too (its own config package and membership list)
 chk_dtim_embedded	config	embedded	DTIM_Ways=1	only the e51 (Harts_Mask => 1) has a configurable DTIM	check 7 on this leaf
 chk_itim_embedded	config	embedded	Harts_Mask=6 ITIM_Ways=1	ITIM is per-hart private	check 8: ITIM with a multi-hart mask (message continues "; a multi-hart image has no single ITIM")
 chk_ddr_embedded	config	embedded	DDR_Present=false	Memory_Profile => ddr_by_bootloader needs DDR_Present => True	check 9 on this leaf (the application's own profile, with DDR switched off)
+chk_console_ram_fifo_embedded	config	embedded	Console="ram_fifo"	Console => ram_fifo is not implemented	check 10 on this leaf
+chk_secstack_embedded	config	embedded	Secondary_Stack_Size=1001	Secondary_Stack_Size must be a multiple of 16	Secondary_Stack_Size reaches this leaf's s-parame.ads
+chk_intstack_embedded	config	embedded	Interrupt_Stack_Size=4100	Interrupt_Stack_Size must be a multiple of 16	Interrupt_Stack_Size reaches this leaf's s-bbpara.ads

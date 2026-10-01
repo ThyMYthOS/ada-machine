@@ -98,9 +98,9 @@ the one place they differ. It lives in GPR because there is no
 | `ITIM_Ways` / `DTIM_Ways` | Integer 0..3 | 0 / 0 | feed the five `MPFS_*_ITIM_LENGTH` symbols / `MPFS_DTIM_LENGTH` |
 | `DDR_Present` | Boolean | `false` | gates the three DDR `Defsyms` |
 | `DDR_Cached_KB` / `DDR_NonCached_KB` / `DDR_WCB_KB` | Integer | 0 | bounds not pinned by CONTRACT.md; chosen as 1 GiB / 256 MiB / 256 MiB in KB, the largest alias each region has (RTS-POLARFIRE.md §1.2) |
-| `Console` | Enum, 7 values | `mmuart0` | not yet consumed by this leaf's own project files (tier-3's `s-textio.adb` owns the console; RTS-POLARFIRE.md §8 item 8) |
-| `Interrupt_Stack_Size` | Integer | 8192 | bounds not pinned; chosen as 256 .. 1 MiB |
-| `Secondary_Stack_Size` | Integer | 2048 | bounds not pinned; chosen as 0 .. 1 MiB |
+| `Console` | Enum, 7 values | `mmuart0` | selects the console UART in tier 3 (`s-bbbopa.ads`/`s-textio.adb`); this leaf's own project files do not read it beyond `Config_Tag` |
+| `Interrupt_Stack_Size` | Integer | 8192 | per-CPU interrupt stack (`s-bbpara.ads`); bounds not pinned; chosen as 256 .. 1 MiB |
+| `Secondary_Stack_Size` | Integer | 524288 | `Runtime_Default_Sec_Stack_Size` (`s-parame.ads`); bounds not pinned; chosen as 0 .. 1 MiB |
 | `MPFS_PARTITION` | String | `""` | empty = standalone mode; non-empty selects a generated `partition-<name>.ld` (RTS-POLARFIRE.md §6.1) |
 
 `provides = ["gnat_rts=3.0.0"]` — the top of the ordered capability scale
