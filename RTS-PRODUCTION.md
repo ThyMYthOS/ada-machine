@@ -8,7 +8,7 @@ A plan for turning `rts-spikes/` into runtime crates other people can depend on.
 
 ## Where we actually are
 
-Honest reading of the spike as it stands: **281 tracked files, 52 commits, six applications that build — and, since [A1](#a1-get-one-byte-out-of-qemu), three of them execute and print under QEMU.**
+Honest reading of the spike as it stands: **286 tracked files, six applications that build — and, since [A1](#a1-get-one-byte-out-of-qemu), three of them execute and print under QEMU, checked by CI on every push ([A3](#a3-ci)).**
 
 *This sentence used to end "…and not one instruction that has ever executed", which was the single most important line in this document. It is no longer true, and that is the largest thing that has changed. What remains untrue is the version of it that matters most: nothing has run on **real silicon** ([A5](#a5-real-hardware)).*
 
@@ -19,7 +19,7 @@ Honest reading of the spike as it stands: **281 tracked files, 52 commits, six a
 | The profile chain (`light` ⊆ `light-tasking` ⊆ `embedded`) | **no counter-example**, on a weak sample — [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) ✔ |
 | The images run | **under QEMU, yes** — `clock_switch_e51`, `hello_mpfs` and `hello_envm_mpfs` print their own output ([A1](#a1-get-one-byte-out-of-qemu) ✔). On silicon, still **unknown** ([A5](#a5-real-hardware)) |
 | Startup handles the four boot scenarios | **yes** — hart gate derived from `Harts_Mask`, `.data` copied when LMA ≠ VMA, role-conditional parking ([A6](#a6-rework-start-rams-for-the-four-boot-scenarios) ✔) |
-| Regressions get caught | **no.** `make verify` prints a table; it asserts nothing |
+| Regressions get caught | **at the image level, yes** — `make verify` asserts every image's metrics against `metrics.golden` per compiler ([A2](#a2-make-the-metrics-assertions-rather-than-decoration) ✔), `make smoke` asserts the console output under QEMU, and both run in CI on Linux ([A3](#a3-ci) ✔). The runtime's own behaviour — tasking, exceptions, interrupts — is still untested ([A4](#a4-a-test-suite-that-exercises-the-runtimes-own-surface)) |
 | Someone else can use it | **no.** Path pins, hand-written `ada_source_path`, `Config_Tag` |
 | It survives a toolchain bump | **untested.** `populate.sh` has guards, but they have only ever seen 15.1.2 |
 
@@ -44,7 +44,7 @@ microchip-icicle-kit Microchip PolarFire SoC Icicle Kit
 
 What I measured, so this is not oversold: QEMU accepts both `hello_mpfs` (U54, hard-float) and `clock_switch_e51` (E51, soft-float) via `-M microchip-icicle-kit -kernel <elf>` **without complaint** — no load error, no illegal-instruction abort — and produced **no console output** within ~15–20 s in either case. So the emulator is a real path, and getting the first byte out of it is a bounded piece of work, not a formality. Likely causes to work through, in order of suspicion: QEMU's Icicle model expects HSS in eNVM and may need `-bios none` for a direct `-kernel` boot; the machine's hart-release behaviour may not match what our startup assumes; and our MMUART base/divisor may disagree with QEMU's model.
 
-That task is [A1](#a1-get-one-byte-out-of-qemu). With [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware) done, it is the next thing to do and the largest remaining unknown in Phase A.
+That task was [A1](#a1-get-one-byte-out-of-qemu), now done: with `-bios none` all three console images print under QEMU, and [A3](#a3-ci) runs them in CI.
 
 ---
 
@@ -357,17 +357,17 @@ graph LR
     A4 -.->|"Class C makes A0's<br/>result strong"| A0
 ```
 
-**A0 → A1 → A2 → A3 is the whole recommendation**, and A0 is done. It converts a design that is argued into a design that is exercised, it is the cheapest work in the plan, and everything after it gets safer because a regression becomes visible the same day.
+**A0 → A1 → A2 → A3 was the whole recommendation, and it is done**, together with A6. The design is now exercised rather than argued: every push builds all six images on Linux, asserts their metrics per compiler, and boots the three console images under QEMU. A regression in what the images *are* or what they *print* is visible the same day.
 
-**A1 is next**, and it is the largest remaining unknown in Phase A: open-ended debugging rather than mechanical work, which is why A0 went ahead of it.
+**Next, in parallel: A4 and B1.** They touch different parts of the tree and answer different questions. A4 makes the runtime's own behaviour regression-checked, not just the images' shape — it is what Phase D needs before it starts. B1 is the one mechanism that could still invalidate the design (below), so it goes early *for information*, out of the phase order.
 
-A2 is embarrassing to be missing and takes an afternoon: the numbers this project quotes as evidence are currently checked by eye. A0 reinforced why — its own first run reported 386/386 passing while compiling nothing at all.
+**After those: A5**, which needs a board and is now the largest unknown in the plan — QEMU cannot say whether the clock tree is right.
 
 Note the dashed edge: **A4 loops back to A0.** Class C tests are what make the boundary map strong rather than merely negative, so A0 is worth re-running once the `Report` retarget exists.
 
 **B1 is the one that could invalidate something.** It is the only mechanism in the design that has never been demonstrated. If `pre-build` ordering turns out not to give the leaf a chance to write `ada_source_path` before binding, the fallback — vendoring tier 1 into each leaf — undoes most of the sharing the hierarchy exists for. Worth doing early *for information*, even out of order.
 
-**Do not start Phase D before A3** (now done). D2 through D4 are where multi-hart timing bugs live, and debugging those without a regression suite is how the schedule disappears.
+**Do not start Phase D before A4.** A3 catches regressions in the images, but D2 through D4 are where multi-hart timing bugs live, and debugging those without tests of tasking and interrupts is how the schedule disappears.
 
 ---
 
@@ -386,6 +386,6 @@ Note the dashed edge: **A4 loops back to A0.** Class C tests are what make the b
 
 ## Housekeeping, worth doing today
 
-- **47 commits are unpushed** on `claude/gnat-runtimes-alire-crates-401089`.
+- ~~47 commits are unpushed~~ — **done:** everything is on GitHub's `rts` branch, which CI builds.
 - `light_tasking_pico/alire/settings.toml` still names deleted crates (`rts_sources_gcc15_arm`, `rts_support_rp2040`) — generated and untracked, harmless, but it will confuse someone.
-- `rts_support_pico/ld/memory-map.ld`'s `(rx)` comment reads as a guarantee; `ld` does not enforce region attributes ([RTS.md A.25](RTS.md#a25)).
+- ~~`rts_support_pico/ld/memory-map.ld`'s `(rx)` comment reads as a guarantee~~ — **done:** the comment now says what is enforced (the `ASSERT` and `LENGTH(flash)`) and nothing more ([RTS.md A.25](RTS.md#a25)).
