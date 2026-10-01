@@ -143,11 +143,13 @@ Do this before A3 — it is what makes CI meaningful rather than a build-only sm
 
 ### A3. CI
 
+> ### ✔ DONE
+
 Build all five applications and run the QEMU smoke test on every push. Needs the two toolchains and `alr`; a container or a cached toolchain install.
 
 > **Exit:** a red build on a deliberately broken commit, from a clean checkout — which also proves the `make populate` prerequisite is honestly documented.
 
-> **Status: workflow committed, not yet run on GitHub.** [`.github/workflows/rts-spikes.yml`](.github/workflows/rts-spikes.yml) runs `make all` (`build → verify → smoke`) on `ubuntu-26.04`; the exit criterion needs a red run on a broken commit and a green one on a good commit *on GitHub*, so **A3 is not done** until the first push has produced both. Local proxy, passed: a `git clone` into a path containing a space, `make all` from nothing on macOS/aarch64 (green, `metrics.golden` unchanged), and `make all` going red at `verify` for a source change that moves `.text` and at `smoke` for one that changes console output. What changed to make that honest:
+> **Status when committed, before any GitHub run.** [`.github/workflows/rts-spikes.yml`](.github/workflows/rts-spikes.yml) runs `make all` (`build → verify → smoke`) on `ubuntu-26.04`; the exit criterion needs a red run on a broken commit and a green one on a good commit *on GitHub*, so **A3 is not done** until the first push has produced both. Local proxy, passed: a `git clone` into a path containing a space, `make all` from nothing on macOS/aarch64 (green, `metrics.golden` unchanged), and `make all` going red at `verify` for a source change that moves `.text` and at `smoke` for one that changes console output. What changed to make that honest:
 >
 > - **A fresh machine could not run `make build` at all.** `populate` copies tier 1 out of the installed toolchains, and the only thing that installed them (`alr build`) ran after it. Worse, the leaf manifests said `gnat_*_elf = "^15"`, and the community index now also carries 15.2.1 and 15.3.1: measured, a clean machine resolves `^15` to **15.3.1**, so even a successful fetch gave the wrong compiler. The manifests now say `"=15.1.2"` and `make toolchains` (a prerequisite of `populate`) installs both compilers with `alr build --stop-after=post-fetch` (measured to fetch dependencies and compile nothing; the fresh download of the 15.1.2 compilers themselves has not been run).
 > - **`make smoke`** asserts the three console outputs listed in `rts-spikes/smoke.expected`, and fails — never skips — without a QEMU ≥ 10.1. Ubuntu 24.04's packaged QEMU (8.2.2) is below that floor: it boots `-kernel` only together with `-dtb` ([`QEMU.md`](rts-spikes/QEMU.md)).
@@ -161,7 +163,9 @@ Build all five applications and run the QEMU smoke test on every push. Needs the
 >
 > **Response: the golden file is keyed on (app, compiler)**, the compiler being the image's own `GNAT Version:` string — not the host, because the compiler is the variable. Each host checks its own rows; `make bless` rewrites only the current compiler's and keeps the rest; an unknown compiler fails with "no baseline" and prints the rows to seed. The six `15.1.0` rows were seeded verbatim from run 2's output, after confirming they differ from the Mac rows only where the explanation says they should.
 >
-> **Third run ([36887999831](https://github.com/ThyMYthOS/ada-machine/actions/runs/36887999831)): green** — the first. On a fresh Linux runner from a clean checkout: `verify OK: 6 application(s) match metrics.golden exactly` against the `15.1.0` rows, and `smoke OK: 3 image(s)` under QEMU 10.2.1. The same commit is green under `make all` on the Mac against the `15.0.1` rows. **Remaining for A3:** a red run on a deliberately broken commit. Run 1 went red on a real difference, but one caused by the compiler rather than by a commit; the deliberate test is a throwaway branch changing `Hello` to `Jello` in `hello_mpfs` — the same length, so `verify` should stay green and only `smoke` go red, which is the one path no run has exercised.
+> **Third run ([36887999831](https://github.com/ThyMYthOS/ada-machine/actions/runs/36887999831)): green** — the first. On a fresh Linux runner from a clean checkout: `verify OK: 6 application(s) match metrics.golden exactly` against the `15.1.0` rows, and `smoke OK: 3 image(s)` under QEMU 10.2.1. The same commit is green under `make all` on the Mac against the `15.0.1` rows. That left one path unexercised: a red run on a deliberately broken commit. Run 1 went red on a real difference, but the compiler caused it, not a commit.
+>
+> **Fourth run ([36890306683](https://github.com/ThyMYthOS/ada-machine/actions/runs/36890306683)): red, exactly as intended.** A throwaway branch, `ci-red-check`, never to be merged, changed `Hello` to `Jello` in `hello_mpfs` — the same length, so the image's metrics do not move. `make build` and `make verify` passed (`verify OK: 6 application(s) match metrics.golden exactly`, compiler `15.1.0`); `make smoke` failed on `hello_mpfs` alone, `MISSING: "Hello from PolarFire SoC"`, while `clock_switch_e51` and `hello_envm_mpfs` passed; the diagnostic steps still ran. Together with run 3 that meets the exit criterion: green on a good commit, red on a broken one, both from a clean checkout on GitHub. One observation: the cross-compiler cache **missed** on the new branch even though earlier runs had saved it, because GitHub scopes caches to the branch that saved them plus the default branch, and `rts` is not the default. Every new branch therefore downloads both compilers once; saving the cache from a run on `main` would make it shared.
 
 ### A4. A test suite that exercises the runtime's own surface
 
@@ -343,7 +347,7 @@ Note what [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware
 ```mermaid
 graph LR
     A0["A0 ACATS boundary map ✔<br/><i>compile-only — done</i>"] --> A2["A2 golden metrics ✔"]
-    A1["A1 QEMU boots ✔"] --> A2 --> A3["A3 CI"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
+    A1["A1 QEMU boots ✔"] --> A2 --> A3["A3 CI ✔"] --> A4["A4 test suite"] --> A5["A5 hardware P1/P2"]
     A2 --> A6["A6 startup rework ✔<br/><i>4 boot scenarios</i>"] --> A5
     A6 --> D1
     A3 --> B1["B1 emit ada_source_path"] --> B2["B2 drop Config_Tag"] --> B4["B4 publish"]
@@ -363,7 +367,7 @@ Note the dashed edge: **A4 loops back to A0.** Class C tests are what make the b
 
 **B1 is the one that could invalidate something.** It is the only mechanism in the design that has never been demonstrated. If `pre-build` ordering turns out not to give the leaf a chance to write `ada_source_path` before binding, the fallback — vendoring tier 1 into each leaf — undoes most of the sharing the hierarchy exists for. Worth doing early *for information*, even out of order.
 
-**Do not start Phase D before A3.** D2 through D4 are where multi-hart timing bugs live, and debugging those without a regression suite is how the schedule disappears.
+**Do not start Phase D before A3** (now done). D2 through D4 are where multi-hart timing bugs live, and debugging those without a regression suite is how the schedule disappears.
 
 ---
 
