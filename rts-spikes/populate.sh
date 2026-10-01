@@ -9,15 +9,20 @@
 # prune deleted a correctly-listed hand-authored file three times; owning the
 # files removes the mechanism rather than adding a fourth guard to it.
 set -e
-T=$(ls -d "$HOME"/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_*/riscv64-elf/lib/gnat 2>/dev/null | head -1)
-[ -n "$T" ] || { echo "error: gnat_riscv64_elf 15.1.2 not installed"; exit 1; }
+#  The Makefile passes both; the defaults make `sh populate.sh` work on its own.
+#  On a fresh machine the toolchains below do not exist yet: `make populate`
+#  installs them first (toolchains.sh); running this script directly does not.
+GNAT_VERSION=${GNAT_VERSION:-15.1.2}
+ALIRE_TC_DIR=${ALIRE_TC_DIR:-$HOME/.local/share/alire/toolchains}
+T=$(ls -d "$ALIRE_TC_DIR"/gnat_riscv64_elf_"$GNAT_VERSION"_*/riscv64-elf/lib/gnat 2>/dev/null | head -1)
+[ -n "$T" ] || { echo "error: gnat_riscv64_elf $GNAT_VERSION not installed under $ALIRE_TC_DIR (run 'make toolchains', or 'make populate', which does)"; exit 1; }
 #  Tier 1 serves both targets now (CONTRACT.md 7.19), so populating it in full
 #  needs BOTH toolchains. The ARM half is optional: without it the RISC-V leaves
 #  still build, because 122 of the 136 units only one target uses are 128-bit
 #  and packed-array support that no 32-bit list names anyway. A published crate
 #  would vendor the merged result and need neither toolchain.
-TA=$(ls -d "$HOME"/.local/share/alire/toolchains/gnat_arm_elf_15.1.2_*/arm-eabi/lib/gnat 2>/dev/null | head -1)
-[ -n "$TA" ] || echo "note: gnat_arm_elf not installed -- ARM-only tier-1 units will be reported MISSING"
+TA=$(ls -d "$ALIRE_TC_DIR"/gnat_arm_elf_"$GNAT_VERSION"_*/arm-eabi/lib/gnat 2>/dev/null | head -1)
+[ -n "$TA" ] || echo "note: gnat_arm_elf $GNAT_VERSION not installed -- ARM-only tier-1 units will be reported MISSING"
 here=$(cd "$(dirname "$0")" && pwd)
 
 copy() {   # copy <list> <dest> <src-dir>...

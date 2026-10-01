@@ -1,0 +1,27 @@
+# smoke.expected -- what each console-producing image must print under QEMU.
+# Read by `make smoke` (smoke.sh). Edit by hand, in the same commit as the change
+# to the application that moves the text; unlike metrics.golden there is no
+# `bless`, because a wrong string here would be blessed silently.
+#
+# One row per (application, string), TAB-separated:
+#   app      directory name under rts-spikes/
+#   string   a FIXED string (not a regexp) that must occur somewhere on the
+#            guest console, i.e. what the program wrote to MMUART0. QEMU's own
+#            messages go to stderr and are never searched. A line may be listed
+#            several times for several strings; all must appear. Lines end in
+#            CR LF on the wire, so do not anchor or include a line ending.
+#
+# Only images that call Ada.Text_IO belong here. tasking_mpfs and embedded_app
+# boot but never print (QEMU.md, "Memory_Profile results"), so there is nothing
+# to assert for them; their silence is not a pass, they are just not covered.
+#
+# Why these three strings, and not the first line of each:
+#   clock_switch_e51   the LAST line, written after the code staged into DTIM has
+#                      run -- the earlier lines print before the thing under test
+#   hello_mpfs         the whole point is "an Ada program ran"; the greeting is it
+#   hello_envm_mpfs    printed from a non-constant String whose bytes exist only
+#                      if start.S copied .data from eNVM -- it fails if it did not
+app	string
+clock_switch_e51	E51 monitor: switch complete
+hello_mpfs	Hello from PolarFire SoC
+hello_envm_mpfs	XIP DATA COPY OK

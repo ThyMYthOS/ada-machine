@@ -20,6 +20,32 @@ make qemu                       # clock_switch_e51, the app A1 names
 make qemu QEMU_APP=hello_mpfs   # the other console-producing image
 ```
 
+### Asserting it: `make smoke` (A3)
+
+`make qemu` *shows* output and exits 0 whatever it saw. `make smoke` is the
+assertion CI runs: [`smoke.sh`](smoke.sh) boots every image listed in
+[`smoke.expected`](smoke.expected) and **fails** unless each expected string
+is on the guest's console. It differs from `make qemu` in two deliberate ways:
+the serial port goes to a file (`-serial file:...`, with `-display none
+-monitor none`) so QEMU's own stderr can never satisfy an expectation, and a
+boot ends as soon as its strings appear, with `SMOKE_TIMEOUT` (20 s) as the
+backstop that kills it. It fails — never skips — on: QEMU missing or unusable,
+QEMU older than 10.1, no `microchip-icicle-kit` machine, a missing image, an
+empty or malformed `smoke.expected`, and an image that prints nothing.
+
+**QEMU must be 10.1 or newer, and this is the one fact here that was read, not
+run.** `hw/riscv/microchip_pfsoc.c` at v8.2.2, v9.2.0 and v10.0.0 only treats
+`-kernel` as the payload when `-dtb` is also given (`kernel_as_payload`);
+without `-dtb` it loads HSS instead, so `-bios none -kernel` would start none of
+our code. v10.1.0 and v10.2.1 no longer have that variable and carry the
+"does not generate a device tree" warning that every run here prints. The
+command line in this file was measured on 11.0.1 and 11.1.1 only. Ubuntu 24.04
+(`ubuntu-latest`) packages QEMU 8.2.2, which is below the floor; Ubuntu 26.04
+packages 10.2.1, which is above it — so CI runs on `ubuntu-26.04`, and
+`smoke.sh` refuses an older QEMU with that explanation (override: `QEMU_MIN=0`).
+On Ubuntu 26.04 the RISC-V binaries are in `qemu-system-riscv`, not
+`qemu-system-misc`.
+
 ### How the run is bounded, and the way that does *not* work
 
 A `-kernel` bare-metal image never exits on its own, so the target must

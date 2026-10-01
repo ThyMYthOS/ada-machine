@@ -153,7 +153,10 @@ type = "String"
 default = ""
 
 [[depends-on]]
-gnat_riscv64_elf = "^15"
+#  EXACTLY 15.1.2, not "^15": tier 1 is a snapshot of that release's runtime
+#  sources (populate.sh asserts it), and "^15" also admits 15.2.1 / 15.3.1, which
+#  a fresh machine would resolve to (RTS-PRODUCTION.md A3).
+gnat_riscv64_elf = "=15.1.2"
 rts_sources_gcc15 = "*"
 rts_core_riscv64 = "*"
 rts_support_mpfs = "*"

@@ -51,7 +51,7 @@ check_tool() {   # path  what  dirvar-name  dirvar-value
   if [ ! -x "$1" ] || ! "$1" --version >/dev/null 2>&1; then
     err "$2 not usable: '$1'"
     printf "       %s is '%s' (empty means the Alire toolchain glob matched nothing).\n" "$3" "$4" >&2
-    printf '       Install it (alr toolchain --select) or pass %s=<bin dir> to make.\n' "$3" >&2
+    printf '       Run `make toolchains` (installs the pinned cross compilers through Alire) or pass %s=<bin dir> to make.\n' "$3" >&2
     return 1
   fi
 }
@@ -178,6 +178,16 @@ if [ ! -f "$GOLDEN" ]; then
   exit 1
 fi
 
+#  Say WHERE this measurement was taken. metrics.golden was blessed on
+#  macOS/aarch64; whether the same 15.1.2 cross compiler built for Linux/x86_64
+#  produces byte-identical text/data/bss/attributes had never been checked
+#  (RTS-PRODUCTION.md A3). If a CI run differs from the golden file while the
+#  same commit passes on the Mac, this line and the expected/actual pairs below
+#  are the whole diagnosis: they name the host and the exact compiler build.
+tcname() { basename "$(dirname "${1:-?}")"; }
+printf 'measured on: %s; riscv toolchain %s; arm toolchain %s\n' \
+  "$(uname -sm)" "$(tcname "${RV_TC:-}")" "$(tcname "${ARM_TC:-}")"
+
 #  awk reads the golden file, then the measurement. It prints the human table
 #  and every mismatch, and exits non-zero on any of: a malformed or empty
 #  golden row, a duplicate app, an app on one side only, or any differing field.
@@ -242,4 +252,8 @@ END {
   if (measure_errors > 0) { printf "FAIL: %d measurement error(s) above\n", measure_errors; bad++ }
   if (bad > 0) { printf "verify FAILED (%d problem(s)). If the change is intended: make bless, and commit %s with it.\n", bad, golden; exit 1 }
   printf "verify OK: %d application(s) match %s exactly\n", na, golden
-}' "$GOLDEN" "$tmp"
+}' "$GOLDEN" "$tmp" || {
+  rc=$?
+  echo "hint: if EVERY application differs (or the same commit passes on another host), suspect the compiler build or host, not the source -- compare 'measured on' above with the host metrics.golden was blessed on (macOS/aarch64)." >&2
+  exit $rc
+}

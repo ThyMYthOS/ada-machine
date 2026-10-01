@@ -1,0 +1,133 @@
+#  CI for rts-spikes/ (RTS-PRODUCTION.md A3): build all six applications, assert
+#  their metrics against metrics.golden, boot the console-producing ones under
+#  QEMU and assert their output. One command does it: `make all` in rts-spikes/ --
+#  the same command, on the same Makefile, as on a developer's Mac.
+#
+#  This workflow had NOT run on GitHub when it was written. Steps whose comment
+#  says UNVERIFIED rest on documentation or a guess (action inputs, apt package
+#  names, cache paths); the Makefile and scripts they call were exercised
+#  locally, from a clean clone, on macOS -- see RTS-PRODUCTION.md A3.
+name: rts-spikes
+
+#  `push` only, not `pull_request` as well: a branch with an open PR would run
+#  every build twice. workflow_dispatch is the manual "run it again" button.
+on:
+  push:
+    paths:
+      - "rts-spikes/**"
+      - ".github/workflows/rts-spikes.yml"
+  workflow_dispatch:
+
+#  A newer push to the same ref supersedes a running build.
+concurrency:
+  group: rts-spikes-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  #  Everything was measured with these exact versions. GNAT_VERSION must equal
+  #  GNAT_VERSION in rts-spikes/Makefile (it names the cache paths below).
+  ALR_VERSION: "2.1.0"
+  GNAT_VERSION: "15.1.2"
+
+jobs:
+  make-all:
+    #  NOT ubuntu-latest, and NOT ubuntu-24.04. The QEMU in the runner's apt is
+    #  the QEMU we get, and it must be >= 10.1: before that the microchip-icicle-
+    #  kit machine only boots `-kernel` together with `-dtb`, so `-bios none
+    #  -kernel` starts nothing of ours. Ubuntu 24.04 (== ubuntu-latest) packages
+    #  QEMU 8.2.2; Ubuntu 26.04 packages 10.2.1. A pinned label also means the
+    #  image cannot change under us when "latest" moves. (RTS-PRODUCTION.md A3.)
+    runs-on: ubuntu-26.04
+    #  A hung QEMU or a stuck download must not burn hours. make smoke has its
+    #  own per-image bound; this is the backstop for everything else.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      #  UNVERIFIED: the package name and the 10.2.1 version are read from
+      #  packages.ubuntu.com, not from a runner.
+      #  QEMU. The riscv binaries are in `qemu-system-riscv` on Ubuntu 26.04
+      #  (qemu-system-misc no longer carries them there; on 24.04 it did).
+      #  --no-install-recommends skips the UEFI/iPXE firmware we never use.
+      #  The two diagnostic lines come first on purpose, so a failure here, or a
+      #  QEMU that is too old, is readable from the top of the log. The grep is
+      #  the check: it exits 1 -- failing the step -- if the machine is absent.
+      - name: Install QEMU
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-riscv
+          qemu-system-riscv64 --version
+          qemu-system-riscv64 -M help | grep -i microchip
+
+      #  UNVERIFIED: the action's input names (`version`, `toolchain`) and the
+      #  @v6 tag are read from its action.yml, not exercised.
+      #  Alire 2.1.0, pinned. `toolchain` is left at the action's default
+      #  (`alr toolchain --select gnat_native gprbuild`) on purpose: that is the
+      #  configuration `make all` was measured with on the Mac, where the build
+      #  gets its gnat from the cross-compiler dependency and the native one just
+      #  sits selected. Selecting only gprbuild would likely work and would save a
+      #  download, but it is a configuration nobody has run here.
+      #  The action's own cache covers the alr install and ~/.local/share/alire AT
+      #  THE MOMENT IT RUNS, i.e. before any cross compiler is installed -- which
+      #  is why those need their own cache, below.
+      - uses: alire-project/setup-alire@v6
+        with:
+          version: ${{ env.ALR_VERSION }}
+
+      #  UNVERIFIED: that Linux Alire puts the compilers at the path below (the
+      #  Mac does, measured; the code path is the same) and that actions/cache
+      #  accepts the glob.
+      #  The two cross compilers: the only large thing a build downloads, and
+      #  the safe thing to cache. Alire installs each as
+      #  ~/.local/share/alire/toolchains/<crate>_<version>_<hash>. Keyed on the
+      #  four leaf manifests, which are where `gnat_*_elf = "=15.1.2"` lives, so
+      #  changing the pin invalidates it.
+      #  A stale or wrong restore cannot go unnoticed: `make toolchains` looks
+      #  for exactly 15.1.2 and fetches whatever is missing.
+      - name: Restore cross compilers
+        id: xtc
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.local/share/alire/toolchains/gnat_riscv64_elf_${{ env.GNAT_VERSION }}_*
+            ~/.local/share/alire/toolchains/gnat_arm_elf_${{ env.GNAT_VERSION }}_*
+          key: xtc-${{ runner.os }}-${{ runner.arch }}-${{ env.GNAT_VERSION }}-${{ hashFiles('rts-spikes/light_mpfs/alire.toml', 'rts-spikes/light_tasking_mpfs/alire.toml', 'rts-spikes/embedded_mpfs/alire.toml', 'rts-spikes/light_tasking_pico/alire.toml') }}
+
+      - name: Show environment
+        run: |
+          uname -srm
+          make --version | head -n 1
+          alr --version
+          alr -n toolchain
+          ls ~/.local/share/alire/toolchains
+
+      #  The bootstrap step: on a fresh runner the compilers do not exist, and
+      #  populate (the first thing `make build` does) copies tier 1 out of them.
+      #  `make toolchains` is also what `make all` runs first, so this step only
+      #  separates the download from the build in the log (and makes the cache
+      #  save below possible even if the build then fails).
+      - name: Install cross compilers
+        working-directory: rts-spikes
+        timeout-minutes: 20
+        run: make toolchains
+
+      - name: Save cross compilers
+        if: steps.xtc.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.local/share/alire/toolchains/gnat_riscv64_elf_${{ env.GNAT_VERSION }}_*
+            ~/.local/share/alire/toolchains/gnat_arm_elf_${{ env.GNAT_VERSION }}_*
+          key: ${{ steps.xtc.outputs.cache-primary-key }}
+
+      #  build -> verify -> smoke. Each phase prints "==> make <phase>"; the first
+      #  to fail stops the chain and is the last such line above the error.
+      - name: make all
+        working-directory: rts-spikes
+        timeout-minutes: 30
+        run: make all
