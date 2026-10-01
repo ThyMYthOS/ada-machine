@@ -27,7 +27,23 @@
 #
 #  Idempotent, and leaves the file untouched (timestamp too) when the content
 #  is unchanged, so it is safe to run on every build.
+#
+#  MODE ($1: post-fetch | pre-build; default pre-build). Strict only where it
+#  can be: in pre-build, which is immediately before the compile. post-fetch
+#  ALSO runs for a path-pinned leaf -- on a workspace's first sync, measured in
+#  CI run 36916251336 -- and in this tree that sync happens in `make
+#  toolchains`, BEFORE populate has copied tier 1 out of the compiler it is
+#  installing. A missing directory in post-fetch therefore means "not populated
+#  yet", not "wrong": it writes nothing, says so, and leaves the verdict to
+#  pre-build. In a fetched closure every dependency is deployed before the
+#  leaf's post-fetch runs, so there the file is written as before.
 set -eu
+
+mode=${1:-pre-build}
+case $mode in
+  post-fetch | pre-build) ;;
+  *) echo "gen-ada-source-path: unknown mode '$mode' (post-fetch | pre-build)" >&2; exit 1 ;;
+esac
 
 tpl=ada_source_path.in
 out=ada_source_path
@@ -60,13 +76,20 @@ while IFS= read -r line || [ -n "$line" ]; do
     *) path=$line ;;
   esac
   if [ ! -d "$path" ]; then
-    echo "$me: '$path' (from '$line') is not a directory -- did 'make populate' run?" >&2
-    bad=1; continue
+    #  In post-fetch a missing directory is expected (see MODE): count, don't shout.
+    [ "$mode" = post-fetch ] || echo "$me: '$path' (from '$line') is not a directory -- did 'make populate' run?" >&2
+    bad=$((bad + 1)); continue
   fi
   printf '%s\n' "$path" >> "$tmp"
 done < "$tpl"
 
-[ "$bad" -eq 0 ] || exit 1
+if [ "$bad" -ne 0 ]; then
+  if [ "$mode" = post-fetch ]; then
+    echo "$me: post-fetch: $bad template director(ies) not there yet (tier 1 not populated?); $out not written, pre-build will check" >&2
+    exit 0
+  fi
+  exit 1
+fi
 [ -s "$tmp" ] || { echo "$me: $tpl lists no directories" >&2; exit 1; }
 
 if [ -f "$out" ] && cmp -s "$tmp" "$out"; then

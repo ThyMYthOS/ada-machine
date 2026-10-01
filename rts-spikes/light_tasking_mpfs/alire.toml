@@ -43,11 +43,11 @@ gnat_riscv64_elf = "=15.1.2"
 #  for the measurements.
 [[actions]]
 type = "post-fetch"
-command = ["sh", "gen-ada-source-path.sh"]
+command = ["sh", "gen-ada-source-path.sh", "post-fetch"]
 
 [[actions]]
 type = "pre-build"
-command = ["sh", "gen-ada-source-path.sh"]
+command = ["sh", "gen-ada-source-path.sh", "pre-build"]
 
 [configuration]
 output_dir = "gnat_config"

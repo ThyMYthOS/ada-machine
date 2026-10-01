@@ -237,7 +237,7 @@ end Runtime_Build;
   ```
 
   (tasking/embedded add `@rts_sources_gcc15@/libgnarl` — and **not** a gnarl-side configuration directory: there is none.) It must list the same directories as the leaf's `Source_Dirs`, in the same order.
-- `gen-ada-source-path.sh` — byte-identical in every leaf (until C1 generates the leaves). It substitutes each `@crate@` by `$<CRATE>_ALIRE_PREFIX`, which Alire exports to every action, writes `ada_source_path`, and **fails the build** naming any directory that does not exist (GNAT itself ignores a stale entry silently, [RTS-GUIDE §11.2](../RTS-GUIDE.md#112-a-missing-ada_source_path-entry-is-fatal-a-stale-one-is-silent)). It is wired as a `post-fetch` and a `pre-build` action in the leaf's `alire.toml`; the generated file is gitignored.
+- `gen-ada-source-path.sh` — byte-identical in every leaf (until C1 generates the leaves). It substitutes each `@crate@` by `$<CRATE>_ALIRE_PREFIX`, which Alire exports to every action, writes `ada_source_path`, and in `pre-build` **fails the build** naming any directory that does not exist; in `post-fetch` it defers instead, writing nothing, because a path-pinned workspace's first sync runs it before `make populate` has created tier 1 (GNAT itself ignores a stale entry silently, [RTS-GUIDE §11.2](../RTS-GUIDE.md#112-a-missing-ada_source_path-entry-is-fatal-a-stale-one-is-silent)). It is wired as a `post-fetch` and a `pre-build` action in the leaf's `alire.toml`; the generated file is gitignored.
 
 Both work, in-tree (path-pinned) and fetched, from the same template; `make fetched-check` is the proof for the second ([RTS-PRODUCTION.md B1](../RTS-PRODUCTION.md#b1-generate-ada_source_path--the-one-unproven-mechanism) has what was measured and why both action kinds).
 
