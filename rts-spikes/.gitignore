@@ -41,3 +41,6 @@ rts_sources_gcc15/librestrictions/
 */gnat_config/light_pico_config.*
 */gnat_config/light_tasking_pico_config.*
 */gnat_config/embedded_pico_config.*
+
+#  Written by `make verify`: this host's measured rows (CI uploads it).
+metrics.measured

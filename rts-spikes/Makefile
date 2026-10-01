@@ -50,9 +50,11 @@ ALIRE_TC_DIR := $(HOME)/.local/share/alire/toolchains
 TOOLCHAIN   = $(firstword $(wildcard $(ALIRE_TC_DIR)/gnat_riscv64_elf_$(GNAT_VERSION)_*/bin))
 SIZE        = $(TOOLCHAIN)/riscv64-elf-size
 READELF     = $(TOOLCHAIN)/riscv64-elf-readelf
+STRINGS     = $(TOOLCHAIN)/riscv64-elf-strings
 ARM_TC      = $(firstword $(wildcard $(ALIRE_TC_DIR)/gnat_arm_elf_$(GNAT_VERSION)_*/bin))
 ARM_SIZE    = $(ARM_TC)/arm-eabi-size
 ARM_READELF = $(ARM_TC)/arm-eabi-readelf
+ARM_STRINGS = $(ARM_TC)/arm-eabi-strings
 
 #  Two targets now live side by side, so each application carries its own
 #  inspection toolchain: riscv64-elf for the PolarFire leaves, arm-eabi for the
@@ -128,16 +130,17 @@ SMOKE_EXPECTED := smoke.expected
 SMOKE_TIMEOUT  := 20
 QEMU_MIN       := 10.1
 
-.PHONY: all toolchains populate build verify smoke bless amp qemu clean help
+.PHONY: all toolchains populate build verify smoke bless sections amp qemu clean help
 
 help:
-	@echo "all        build -> verify -> smoke (what CI runs; build implies populate implies toolchains)"
+	@echo "all        build -> verify -> smoke (the phases CI runs, there as separate steps; build implies populate implies toolchains)"
 	@echo "toolchains install the pinned cross compilers ($(GNAT_VERSION)) through Alire if absent; needs alr + network, once"
 	@echo "populate   copy runtime sources from the installed toolchain, run all guards (implies toolchains)"
 	@echo "build      build every application (implies populate)"
 	@echo "verify     ASSERT every built image matches metrics.golden (text/data/bss/entry/ISA/ABI); non-zero on any drift"
 	@echo "smoke      ASSERT every console-producing image prints its smoke.expected strings under QEMU (needs QEMU >= $(QEMU_MIN))"
-	@echo "bless      rewrite metrics.golden from the current images (review the git diff, commit it with the change)"
+	@echo "bless      rewrite THIS compiler's rows of metrics.golden (other compilers' rows kept); review the diff, commit it"
+	@echo "sections   print size -A for every built image, to compare two builds section by section"
 	@echo "amp        build the E51 + U54 partitions and check they do not collide"
 	@echo "qemu       boot QEMU_APP (default clock_switch_e51) under QEMU and SHOW its console (asserts nothing; use smoke)"
 	@echo "clean      remove build output (keeps populated sources)"
@@ -201,8 +204,11 @@ build: populate
 #  verify measures what is ON DISK; it does not build. Use `make all`
 #  (build + verify + smoke) when the sources may be newer than the images.
 GOLDEN := metrics.golden
-METRICS_ENV = GOLDEN='$(GOLDEN)' RV_SIZE='$(SIZE)' RV_READELF='$(READELF)' \
-              ARM_SIZE='$(ARM_SIZE)' ARM_READELF='$(ARM_READELF)' \
+#  verify also writes this host's measured rows here (gitignored); CI uploads it.
+MEASURED := metrics.measured
+METRICS_ENV = GOLDEN='$(GOLDEN)' MEASURED='$(MEASURED)' \
+              RV_SIZE='$(SIZE)' RV_READELF='$(READELF)' RV_STRINGS='$(STRINGS)' \
+              ARM_SIZE='$(ARM_SIZE)' ARM_READELF='$(ARM_READELF)' ARM_STRINGS='$(ARM_STRINGS)' \
               RV_APPS='$(APPS)' ARM_APPS='$(ARM_APPS)' \
               RV_TC='$(TOOLCHAIN)' ARM_TC='$(ARM_TC)'
 
@@ -218,6 +224,13 @@ smoke:
 bless:
 	@$(METRICS_ENV) sh metrics.sh bless
 	@echo "review with: git diff $(GOLDEN) -- and commit it with the change that caused it"
+
+#  Section-by-section sizes. `size`'s text column lumps code and rodata
+#  together, so when two builds differ only in text this is how to tell
+#  whether code or data moved. CI prints it; run it here and diff the two.
+sections:
+	@for a in $(APPS); do echo "==> $$a"; '$(SIZE)' -A "$$a/bin/$$a" | sed -n '3,$$p'; done
+	@for a in $(ARM_APPS); do echo "==> $$a"; '$(ARM_SIZE)' -A "$$a/bin/$$a" | sed -n '3,$$p'; done
 
 #  Build both partitions, then do the check no single link can do: compare the
 #  PT_LOAD segments of two separately linked images for overlap.
