@@ -1,6 +1,6 @@
 --  Build-profile compiler switches shared by Runtime_Build and
 --  Ravenscar_Build. Adapted from the upstream embedded-polarfiresoc
---  runtime shipped in gnat_riscv64_elf 15.1.2
+--  runtime shipped in gnat_riscv64_elf 15.1.2 (identical in 15.3.1)
 --  (~/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_*/riscv64-elf/
 --  lib/gnat/embedded-polarfiresoc/target_options.gpr), trimmed to what this
 --  spike's fixed `for Library_Kind use "static";` (CONTRACT.md §3.4) needs:

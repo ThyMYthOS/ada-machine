@@ -42,8 +42,8 @@ rts_support_mpfs = "*"
 #  back to the native compiler. Both avrada_rts (gnat_avr_elf) and
 #  embedded_rp2040 (gnat_arm_elf) declare theirs the same way.
 #  EXACTLY 15.3.1, not "^15": tier 1 is a snapshot of that release's runtime
-#  sources (populate.sh asserts it), and "^15" also admits 15.2.1 / 15.3.1, which
-#  a fresh machine would resolve to (RTS-PRODUCTION.md A3).
+#  sources (populate.sh asserts it), and "^15" admits any 15.x in the index --
+#  a fresh machine resolves it to the newest (RTS-PRODUCTION.md A3, C3).
 gnat_riscv64_elf = "=15.3.1"
 
 #  ada_source_path is GENERATED from ada_source_path.in (RTS-PRODUCTION.md B1,

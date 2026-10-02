@@ -16,7 +16,7 @@ this repository's to edit (`s-bbbopa.ads`, `s-textio.ads/.adb` are edited).*
 
 The `.ads`/`.adb`/`.S`/`.h` files under `src/` were **not vendored** in
 this repository. `make populate` (from the `rts-spikes/` root) copies
-them out of the locally installed `gnat_riscv64_elf` 15.1.2 toolchain,
+them out of the locally installed `gnat_riscv64_elf` 15.3.1 toolchain,
 named by the committed `src.lst`. `src/` and `src.lst` are otherwise
 untouched here, with one exception: `src/s-bbbopa.ads` (see below) and
 the new `src/mpfs_config_checks.ads` are this crate's own, hand-authored

@@ -4,10 +4,10 @@
 --  their own version of this file.
 --
 --  Derived from the installed gnat_riscv64_elf 15.1.2 light-polarfiresoc
---  runtime, then extended along the lines of avrada_rts's
---  avr_tool_options.gpr: this project, not runtime.xml, is the single
---  place the target ISA is decided, and it exports a Builder package for
---  applications to rename. See CONTRACT.md §3.6.
+--  runtime (its file is identical in 15.3.1), then extended along the
+--  lines of avrada_rts's avr_tool_options.gpr: this project, not
+--  runtime.xml, is the single place the target ISA is decided, and it
+--  exports a Builder package for applications to rename. See CONTRACT.md §3.6.
 
 with "gnat_config/light_mpfs_config.gpr";
 

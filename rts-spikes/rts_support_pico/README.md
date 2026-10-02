@@ -52,7 +52,7 @@ succeeds at `4096`.
 ## The device axis
 
 This crate serves both devices, and the split is measured rather than guessed.
-`gnat_arm_elf` 15.1.2 ships no RP2350 board runtime at all (only the generic
+`gnat_arm_elf` ships no RP2350 board runtime at all (checked in 15.1.2 and 15.3.1) (only the generic
 `light-cortex-m33f` and friends), so the RP2350 half was taken from the
 published `light_rp2350` / `light_tasking_rp2350` crates. Under this tree's
 ownership rule -- tier 1 tracks upstream, everything below it is ours

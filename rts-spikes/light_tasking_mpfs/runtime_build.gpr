@@ -241,7 +241,7 @@ project Runtime_Build is
    ------------------------------------------------------------------
    --  Compiler switches -- matching the shipped light-tasking-
    --  polarfiresoc runtime's own runtime_build.gpr (read from the
-   --  installed gnat_riscv64_elf 15.1.2 toolchain) so this leaf is not
+   --  installed gnat_riscv64_elf 15.1.2 (identical in 15.3.1) toolchain) so this leaf is not
    --  guessing at conventions the vendor runtime already settled.
    ------------------------------------------------------------------
 

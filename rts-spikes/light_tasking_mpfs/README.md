@@ -265,7 +265,7 @@ both `Source_List_File`s) succeeded.
   restriction.
 - **`target_options.gpr`** is modelled directly on (and mostly copied
   from) the shipped `light-tasking-polarfiresoc` runtime's own file, read
-  from the installed `gnat_riscv64_elf` 15.1.2 toolchain.
+  from the installed `gnat_riscv64_elf` 15.1.2 (identical in 15.3.1) toolchain.
 
 ## Populate
 

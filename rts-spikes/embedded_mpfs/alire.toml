@@ -154,8 +154,8 @@ default = ""
 
 [[depends-on]]
 #  EXACTLY 15.3.1, not "^15": tier 1 is a snapshot of that release's runtime
-#  sources (populate.sh asserts it), and "^15" also admits 15.2.1 / 15.3.1, which
-#  a fresh machine would resolve to (RTS-PRODUCTION.md A3).
+#  sources (populate.sh asserts it), and "^15" admits any 15.x in the index --
+#  a fresh machine resolves it to the newest (RTS-PRODUCTION.md A3, C3).
 gnat_riscv64_elf = "=15.3.1"
 rts_sources_gcc15 = "*"
 rts_core_riscv64 = "*"

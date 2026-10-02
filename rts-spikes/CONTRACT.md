@@ -2,7 +2,7 @@
 
 **Read this before touching any crate.** Every name below is pinned. Seven crates are built in parallel against this document; if a crate invents its own name for anything here, the set will not compose.
 
-Target: PolarFire SoC, `riscv64-elf`, per [../RTS-POLARFIRE.md](../RTS-POLARFIRE.md). Toolchain: `gnat_riscv64_elf` 15.1.2.
+Target: PolarFire SoC, `riscv64-elf`, per [../RTS-POLARFIRE.md](../RTS-POLARFIRE.md). Toolchain: `gnat_riscv64_elf` 15.3.1 (`gnat_arm_elf` 15.3.1 for the RP2040/RP2350 leaf); pinned exactly, see [RTS-PRODUCTION.md C3](../RTS-PRODUCTION.md#c3-rehearse-a-gcc-upgrade).
 
 ---
 
