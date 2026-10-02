@@ -41,6 +41,16 @@ _start:
 .option pop
         la sp, __stack_end
 
+        /* Disable interrupts before anything can park: wfi wakes on any
+         * pending interrupt enabled in mie even with mstatus.MIE clear,
+         * and a hart handed over from an earlier stage may still have a
+         * stale mie, a set MIE and an old mtvec. The PLIC and mtimecmp
+         * power up random (RTS-PRODUCTION.md A5).
+         */
+        li      t0, MSTATUS_MIE
+        csrc    mstatus, t0
+        csrw    mie, zero
+
 #if MPFS_BOOT_ROLE_PRIMARY
         /* Primary: this hart may be any hart the reset ROM (or, on real
          * hardware, a multi-hart HSS release) sends to this same entry
@@ -53,8 +63,8 @@ _start:
          *
          * A hart whose bit is clear parks in `infinite_loop` below. That
          * loop is structurally ready for a release protocol (CLINT MSIP +
-         * WFI) but does not implement one -- release is D2/SMP work
-         * (RTS-PRODUCTION.md D2), out of scope here.
+         * WFI, with only mie.MSIE enabled) but does not implement one --
+         * release is D2/SMP work (RTS-PRODUCTION.md D2), out of scope here.
          */
         csrr t1, mhartid
         li   t0, 1
@@ -63,13 +73,6 @@ _start:
         and  t0, t0, t2
         beqz t0, infinite_loop
 #endif
-
-        /* Disable interrupts */
-        li      t0, MSTATUS_MIE
-        csrc    mstatus, t0
-
-        /* Clear time, software and external interrupt enable*/
-        csrw mie, zero
 
         /* Copy .data from its load address to its run address, if they
          * differ (XIP from eNVM: LMA in envm, VMA in l2lim -- see
@@ -109,25 +112,25 @@ _start:
         call main
         call __gnat_exit
 
-#if MPFS_BOOT_ROLE_PRIMARY
 infinite_loop:
         wfi
         j infinite_loop
-#endif
 
         .globl __gnat_exit
         .type __gnat_exit,@function
-        .globl _abort
-        .type abort,@function
-abort:
 __gnat_exit:
 
-        /* reset the board by writing 0xDEAD to MSS_RESET_CR */
+#if MPFS_BOOT_ROLE_PRIMARY
+        /* MSS_RESET_CR resets every hart, so only an image that owns the
+         * whole MSS may do it; a secondary parks and leaves the rest
+         * (and its supervisor) running.
+         */
         li t0, 0x20002018
         li t1, 0xDEAD
         sw t1, (t0)
+#endif
 
-        j __gnat_exit
+        j infinite_loop
 
         /* Weak alias _exit to __gnat_exit */
         .weak      _exit

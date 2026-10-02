@@ -497,7 +497,7 @@ So [§6.1](#61-the-three-artifacts)'s third artifact narrows: what a partition n
 These are real patches to `rts_support_mpfs`, and they are prerequisites, not nice-to-haves:
 
 1. **De-hardcode the hart index.** `CLINT_Mtimecmp_Offset = 16#4008#` must become `0x4000 + 8·mhartid` computed at run time; `PLIC_Hart_Id = 1` must become a per-hart context derivation (MPFS gives the E51 an M-mode context and each U54 M- and S-mode contexts, so context ≠ hart id). Without this, SMP is impossible and single-core is stuck on hart 1.
-2. **Parameterise the startup hart set.** Both `start-ram.S` and `start-ram-smp.S` bake in which harts run and which park. They need a mask from the linker/`System_Map`.
+2. **Parameterise the startup hart set.** Both `start-ram.S` and `start-ram-smp.S` bake in which harts run and which park. They need a mask from the linker/`System_Map`. *(Single-hart case done in the spike's own `start.S`: the gate tests bit `mhartid` of `Harts_Mask`, interrupts are masked before any hart parks, and `__gnat_exit` resets the MSS only for a `primary` image — RTS-PRODUCTION.md A6. Still open for SMP: a parked hart has no release path; it should enable only `mie.MSIE` and wait on its CLINT MSIP.)*
 3. **Make the float source variants config-selected**, not target-selected — the three files (`s-dorepr.adb`, `s-lidosq.adb`, `s-lisisq.adb`) that differ between soft and hard float.
 4. **Add `zicsr`** to the E51 arch string, or place `.option arch, +zicsr` in the startup asm.
 5. **Replace the flat 128 MB DDR memory map** with the region set of [§1.2](#12-memory-regions), in the symbolic-length form of [§6.1](#61-the-three-artifacts) — every `ORIGIN` literal, every variable `LENGTH` a `--defsym`.
