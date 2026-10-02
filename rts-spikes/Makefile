@@ -28,10 +28,10 @@
 #  never see a collision between two SEPARATELY linked partitions
 #  (RTS-POLARFIRE.md 6.3). This file sees both ELFs, so `make amp` checks it.
 
-#  THE PINNED COMPILER. Tier 1 is a byte snapshot of GNAT 15.1.2's runtime
+#  THE PINNED COMPILER. Tier 1 is a byte snapshot of GNAT 15.3.1's runtime
 #  sources (populate.sh asserts it), so the compiler that builds against it must
-#  be exactly that release. The leaf manifests say `gnat_riscv64_elf = "=15.1.2"`
-#  / `gnat_arm_elf = "=15.1.2"` for the same reason -- `^15` also admits 15.2.1
+#  be exactly that release. The leaf manifests say `gnat_riscv64_elf = "=15.3.1"`
+#  / `gnat_arm_elf = "=15.3.1"` for the same reason -- `^15` also admits 15.2.1
 #  and 15.3.1, which the community index now carries, and a fresh machine would
 #  have been handed 15.3.1 (RTS-PRODUCTION.md A3).
 #
@@ -45,7 +45,7 @@
 #  toolchains do not exist when make parses this file, and `make toolchains`
 #  creates them mid-run. A `:=` would freeze an empty TOOLCHAIN at parse time
 #  and every path below would degrade to "/riscv64-elf-size".
-GNAT_VERSION := 15.1.2
+GNAT_VERSION := 15.3.1
 ALIRE_TC_DIR := $(HOME)/.local/share/alire/toolchains
 TOOLCHAIN   = $(firstword $(wildcard $(ALIRE_TC_DIR)/gnat_riscv64_elf_$(GNAT_VERSION)_*/bin))
 SIZE        = $(TOOLCHAIN)/riscv64-elf-size
@@ -200,7 +200,7 @@ all:
 
 #  A fresh machine has no toolchains, and `populate` copies tier 1 OUT of them,
 #  so before this target existed `make build` could not work on one at all
-#  (populate.sh stopped with "gnat_riscv64_elf 15.1.2 not installed"; the thing
+#  (populate.sh stopped with "gnat_riscv64_elf 15.3.1 not installed"; the thing
 #  that installs it, `alr build`, runs after populate). toolchains.sh closes the
 #  loop with an idempotent, pinned install. Silent no-op once they exist.
 toolchains:

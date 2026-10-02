@@ -6,12 +6,12 @@
 #  installed gnat_riscv64_elf / gnat_arm_elf toolchains. On a machine that has
 #  never built anything those directories do not exist, and the only thing in
 #  the old flow that created them was `alr build` -- which runs AFTER populate.
-#  So `make build` stopped at "gnat_riscv64_elf 15.1.2 not installed" on every
+#  So `make build` stopped at "gnat_riscv64_elf 15.3.1 not installed" on every
 #  fresh machine, and the "prerequisite" was something a person had to have done
 #  by hand, once, without being told how.
 #
 #  HOW. The compilers are ordinary Alire dependencies of the leaf runtimes
-#  (`gnat_riscv64_elf = "=15.1.2"` in light_mpfs etc.), so asking Alire to get
+#  (`gnat_riscv64_elf = "=15.3.1"` in light_mpfs etc.), so asking Alire to get
 #  an application's dependencies installs them. `alr build --stop-after=
 #  post-fetch` does exactly that and stops before any compilation, which is why
 #  it can run before populate. (`alr toolchain --select` is NOT used: it would
@@ -22,14 +22,14 @@
 #  but the compiler is not where the Makefile and populate.sh will look.
 #
 #  Inputs (environment, set by the Makefile):
-#    GNAT_VERSION   15.1.2
+#    GNAT_VERSION   15.3.1
 #    ALIRE_TC_DIR   <alire cache>/toolchains   (default $HOME/.local/share/alire/toolchains)
 #
 #  POSIX sh only.
 
 set -u
 
-GNAT_VERSION=${GNAT_VERSION:-15.1.2}
+GNAT_VERSION=${GNAT_VERSION:-15.3.1}
 ALIRE_TC_DIR=${ALIRE_TC_DIR:-$HOME/.local/share/alire/toolchains}
 here=$(cd "$(dirname "$0")" && pwd)
 

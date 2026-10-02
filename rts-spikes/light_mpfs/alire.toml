@@ -41,10 +41,10 @@ rts_support_mpfs = "*"
 #  otherwise fails with `no compiler for language "Asm_Cpp"` as gprbuild falls
 #  back to the native compiler. Both avrada_rts (gnat_avr_elf) and
 #  embedded_rp2040 (gnat_arm_elf) declare theirs the same way.
-#  EXACTLY 15.1.2, not "^15": tier 1 is a snapshot of that release's runtime
+#  EXACTLY 15.3.1, not "^15": tier 1 is a snapshot of that release's runtime
 #  sources (populate.sh asserts it), and "^15" also admits 15.2.1 / 15.3.1, which
 #  a fresh machine would resolve to (RTS-PRODUCTION.md A3).
-gnat_riscv64_elf = "=15.1.2"
+gnat_riscv64_elf = "=15.3.1"
 
 #  ada_source_path is GENERATED from ada_source_path.in (RTS-PRODUCTION.md B1,
 #  which has the measurements behind this block). It names directories of the

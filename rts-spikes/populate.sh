@@ -12,7 +12,7 @@ set -e
 #  The Makefile passes both; the defaults make `sh populate.sh` work on its own.
 #  On a fresh machine the toolchains below do not exist yet: `make populate`
 #  installs them first (toolchains.sh); running this script directly does not.
-GNAT_VERSION=${GNAT_VERSION:-15.1.2}
+GNAT_VERSION=${GNAT_VERSION:-15.3.1}
 ALIRE_TC_DIR=${ALIRE_TC_DIR:-$HOME/.local/share/alire/toolchains}
 T=$(ls -d "$ALIRE_TC_DIR"/gnat_riscv64_elf_"$GNAT_VERSION"_*/riscv64-elf/lib/gnat 2>/dev/null | head -1)
 [ -n "$T" ] || { echo "error: gnat_riscv64_elf $GNAT_VERSION not installed under $ALIRE_TC_DIR (run 'make toolchains', or 'make populate', which does)"; exit 1; }

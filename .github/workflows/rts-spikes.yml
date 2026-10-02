@@ -32,7 +32,7 @@ env:
   #  Everything was measured with these exact versions. GNAT_VERSION must equal
   #  GNAT_VERSION in rts-spikes/Makefile (it names the cache paths below).
   ALR_VERSION: "2.1.0"
-  GNAT_VERSION: "15.1.2"
+  GNAT_VERSION: "15.3.1"
 
 jobs:
   make-all:
@@ -87,10 +87,10 @@ jobs:
       #  The two cross compilers: the only large thing a build downloads, and
       #  the safe thing to cache. Alire installs each as
       #  ~/.local/share/alire/toolchains/<crate>_<version>_<hash>. Keyed on the
-      #  four leaf manifests, which are where `gnat_*_elf = "=15.1.2"` lives, so
+      #  four leaf manifests, which are where `gnat_*_elf = "=15.3.1"` lives, so
       #  changing the pin invalidates it.
       #  A stale or wrong restore cannot go unnoticed: `make toolchains` looks
-      #  for exactly 15.1.2 and fetches whatever is missing.
+      #  for exactly 15.3.1 and fetches whatever is missing.
       - name: Restore cross compilers
         id: xtc
         uses: actions/cache/restore@v4

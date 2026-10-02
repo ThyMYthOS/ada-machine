@@ -90,7 +90,7 @@ def find_toolchain_gcc(explicit):
     if explicit:
         return explicit
     pattern = os.path.expanduser(
-        "~/.local/share/alire/toolchains/gnat_riscv64_elf_15.1.2_*/bin/riscv64-elf-gcc")
+        "~/.local/share/alire/toolchains/gnat_riscv64_elf_15.3.1_*/bin/riscv64-elf-gcc")
     matches = sorted(glob.glob(pattern))
     if not matches:
         return None
@@ -164,7 +164,7 @@ def main():
     ap.add_argument("--cap", type=int, default=30,
                      help="passed to select_tests.py when --manifest is not given (default: %(default)s)")
     ap.add_argument("--gcc", default=None,
-                     help="path to riscv64-elf-gcc (default: newest gnat_riscv64_elf_15.1.2_* toolchain found)")
+                     help="path to riscv64-elf-gcc (default: newest gnat_riscv64_elf_15.3.1_* toolchain found)")
     ap.add_argument("--rts-spikes-root", default=RTS_SPIKES_ROOT,
                      help="path to rts-spikes/ containing the three leaf dirs (default: %(default)s)")
     ap.add_argument("--out-dir", default=os.path.join(HERE, "out"),
@@ -180,7 +180,7 @@ def main():
 
     gcc = find_toolchain_gcc(args.gcc)
     if not gcc or not os.path.exists(gcc):
-        print("error: riscv64-elf-gcc not found (gnat_riscv64_elf_15.1.2 toolchain "
+        print("error: riscv64-elf-gcc not found (gnat_riscv64_elf_15.3.1 toolchain "
               "not installed under ~/.local/share/alire/toolchains/). "
               "Pass --gcc explicitly.", file=sys.stderr)
         return 1
