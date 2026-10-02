@@ -26,7 +26,7 @@ kept -- delete it yourself):
 
 The one thing shared with the real installation is the compiler directory
 (`toolchain.dir`): the cross compilers are ~1.5 GB and are pinned to exactly
-15.1.2, and this check is about the runtime sources, not about downloading GNAT.
+15.3.1, and this check is about the runtime sources, not about downloading GNAT.
 If the compiler is not there yet, Alire installs it there -- which is what
 `make toolchains` would have done.
 

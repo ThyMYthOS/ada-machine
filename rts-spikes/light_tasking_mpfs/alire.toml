@@ -33,10 +33,10 @@ rts_core_riscv64 = "*"
 rts_support_mpfs = "*"
 #  See light_mpfs/alire.toml: the cross compiler is what puts riscv64-elf-gcc
 #  in the build environment, not an assumption about the caller's PATH.
-#  EXACTLY 15.1.2, not "^15": tier 1 is a snapshot of that release's runtime
+#  EXACTLY 15.3.1, not "^15": tier 1 is a snapshot of that release's runtime
 #  sources (populate.sh asserts it), and "^15" also admits 15.2.1 / 15.3.1, which
 #  a fresh machine would resolve to (RTS-PRODUCTION.md A3).
-gnat_riscv64_elf = "=15.1.2"
+gnat_riscv64_elf = "=15.3.1"
 
 #  ada_source_path is GENERATED from ada_source_path.in, at post-fetch and at
 #  pre-build -- see light_mpfs/alire.toml for why both, and RTS-PRODUCTION.md B1
