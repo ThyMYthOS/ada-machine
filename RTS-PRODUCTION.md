@@ -10,7 +10,7 @@ A plan for turning `rts-spikes/` into runtime crates other people can depend on.
 
 Honest reading of the spike as it stands: **286 tracked files, six applications that build — and, since [A1](#a1-get-one-byte-out-of-qemu), three of them execute and print under QEMU, checked by CI on every push ([A3](#a3-ci)).**
 
-*This sentence used to end "…and not one instruction that has ever executed", which was the single most important line in this document. It is no longer true, and that is the largest thing that has changed. What remains untrue is the version of it that matters most: nothing has run on **real silicon** ([A5](#a5-real-hardware)).*
+*This sentence used to end "…and not one instruction that has ever executed", which was the single most important line in this document. It is no longer true, and that is the largest thing that has changed. What remains untrue is the version of it that matters most: until [A5](#a5-real-hardware), nothing had run on **real silicon**. A5 has now started: five images and three probes have run on an Icicle Kit, **partially** — the board's clock tree was never brought up, so nothing timed has run there.*
 
 | | Status |
 |---|---|
@@ -240,6 +240,8 @@ The last two rows have no ACATS equivalent and stay ours: the `light` floor is a
 >
 > **Deferred until [A5](#a5-real-hardware).** The repair is not applied until the unmodified `Initialize` has run on an Icicle Kit. If the real PLIC accepts 64-bit stores, this is a QEMU model limitation, not a runtime defect, and the right response may be different (a QEMU-only workaround, or a second emulator — see [EMULATORS.md](rts-spikes/EMULATORS.md)). Until then the `xfail` rows stay as they are.
 >
+> **Answered on hardware ([A5](#a5-real-hardware)): the real PLIC accepts 64-bit stores.** A probe `sd` into `0x0C00_2080` did not trap and read back correctly, and `tasking_test` and `protected_test` run the unmodified `Initialize` through to `main` on an Icicle Kit. So PLIC_INIT is a **QEMU model limitation, not a runtime defect**. The per-register repair above is still harmless on silicon and would let the QEMU suite exercise tasking, but it is a choice about the emulator, not a fix; it has not been applied, and it moves `metrics.golden`.
+>
 > <a id="eh_frame_hdr"></a>**EH_FRAME_HDR — embedded exception propagation aborts in the unwinder (diagnosed, not repaired).** With PLIC_INIT repaired in the scratch copy, `exceptions_test` reaches `TEST exceptions_test: START` — so `ddr_by_bootloader` **does** print under QEMU, answering [QEMU.md](rts-spikes/QEMU.md)'s open question — then dies at the first raise: `ebreak` in `uw_init_context_1` (`unwind-dw2.c:1343` per the line table; from memory of that source it is the `gcc_assert` on the unwinder's own frame — the libgcc source was not at hand). The image has **no `.eh_frame_hdr` section**, and the bare-board unwinder (`unwind-dw2-fde-bb.c`) finds FDEs only through it. The vendor runtime gets one from `--specs=link-zcx.spec` (`-u _Unwind_Find_FDE --eh-frame-hdr`); this leaf links with `-nostartfiles`, which drops that spec's `*endfile` part, and this toolchain's `ld` (binutils 2.44, `riscv64-elf`) **rejects `--eh-frame-hdr` outright** (`unrecognized option`), also when passed as `-Wl,`. Passing `--specs=` anyway linked but still produced no section. The causal chain (no `.eh_frame_hdr` ⇒ the assert) is **inferred**, not shown by a repair; whether any switch makes this `ld` emit one is **unresolved**. If it cannot, embedded exception propagation needs a different mechanism on this toolchain.
 >
 > <a id="console_dead"></a>**CONSOLE_DEAD — the `Console` configuration value selected nothing. REPAIRED.** `UART_Base_Address` was the literal `16#2000_0000#` in `s-bbbopa.ads`; `Console` only entered `Config_Tag`; a `Console => mmuart1` build printed on MMUART0 and nothing on MMUART1 (`console_test`, which was `xfail`). `Interrupt_Stack_Size` and `Secondary_Stack_Size` were likewise read by no source (`s-bbpara.ads` hard-coded 8 KiB; `s-parame.ads` hard-coded 512 KiB / 1 MiB).
@@ -269,7 +271,7 @@ The last two rows have no ACATS equivalent and stay ours: the `light` floor is a
 >
 > **Not done.** *ACATS execution (the `Report` retarget and Class C runs) was not attempted:* its targets — Annex D tasking and exception tests on `light-tasking`/`embedded` — are exactly the images that cannot reach `main` (PLIC_INIT) or propagate an exception (EH_FRAME_HDR), so there is nothing to run them on, and a `light` run would execute almost none of Class C. No counts are claimed. This is also why [A0](#a0-map-the-profile-boundary-with-acats--compile-only-no-hardware)'s "strong version" is still pending. *Real interrupts* (PLIC sources) and *multi-hart* behaviour wait for D1/D2. *CI:* verified in run [36923218568](https://github.com/ThyMYthOS/ada-machine/actions/runs/36923218568). Both guesses held: the runner image has `rsync`, and QEMU 10.2.1's trace prints the `riscv_cpu_do_interrupt:` line the `xfail` rows match. The step takes about 6 minutes there (3 locally), almost all of it the negative builds. The run before it ([36916251336](https://github.com/ThyMYthOS/ada-machine/actions/runs/36916251336)) failed earlier, in `make toolchains`, on a B1 interaction now fixed (see the B1 table); this one downloaded both compilers fresh and got through it.
 >
-> **Next, in order:** settle whether `ld` can emit `.eh_frame_hdr` (it decides whether `embedded` can propagate exceptions at all). PLIC_INIT is **deferred until A5** has run the unmodified `Initialize` on a board; then repair it (or not), re-bless, flip the rows and see which of `tasking_test`/`protected_test` stay green on a loaded runner.
+> **Next, in order:** settle whether `ld` can emit `.eh_frame_hdr` (it decides whether `embedded` can propagate exceptions at all). PLIC_INIT is **answered by A5**: the real PLIC accepts the 64-bit stores, so repairing it is now a choice about QEMU, not a runtime fix (re-bless and flip the rows only if taken).
 
 ### A5. Real hardware
 
@@ -278,6 +280,29 @@ QEMU is a model; it will happily emulate a clock tree we programmed wrongly. The
 > **Exit:** P1 and P2 pass on an Icicle Kit, with the QEMU suite from A4 also green there.
 
 **First question for the board: [PLIC_INIT](#plic_init).** Does the unmodified `RISCV_PLIC.Initialize`, with its 64-bit stores into the enable block, survive on the real PLIC? That answer decides whether A4's PLIC repair is a runtime fix or a QEMU workaround.
+
+> **Status: started, not done.** Measured on an Icicle Kit (MPFS250T_ES, JTAG IDCODE `0x0F81A1CF`) from Ubuntu 24.04 over its embedded FlashPro6, **LIM only, no DDR** (DDR work was descoped), with images loaded by JTAG. **P1 is half-met** (E51 and U54 images run from LIM; one U54 image traps for a reason QEMU cannot show), **P2 is not started**, and the exit criterion is **not met**. Tooling is in [`rts-spikes/hw/`](rts-spikes/hw/): `start_openocd.sh`, `run_image.py`, `run_probe.py` and the `probe_*.S` sources. Everything below was measured on the board unless marked otherwise.
+>
+> **The board's state is the first finding.** It sits in boot mode 0 (idle): all five harts spin in the boot ROM at `0x2000_312E`, polling `[0x2000_2004]`. No HSS runs, so there is no PLL set-up, `mtime` does not tick (below), and `SOFT_RESET_CR` holds every MMUART in reset with its clock gated (`SUBBLK_CLOCK_CR = 0x1`). The runtime's console driver [assumes a boot stage did all of that](rts-spikes/rts_support_mpfs/README.md) (CONSOLE_DEAD), and the assumption is not academic: on this board the first run printed nothing on any port. `run_image.py` stands in for the boot stage by clocking and releasing MMUART0..4 and programming a divisor, so every console result below is *given that stand-in*. The idle-boot APB clock is about 40 MHz (divisors 21 to 23 give clean 115200, where 150 MHz would have needed 81), so a driver that derived a divisor from the HSS-era clock would be wrong here. The CP2108 maps `if0N` to MMUART*N* for N = 0..3; MMUART4 has no USB port.
+>
+> | Item | Result on silicon |
+> |---|---|
+> | **PLIC_INIT** (the first question) | **Answered: the real PLIC accepts 64-bit stores.** `sd zero, 0x0C00_2080` neither traps nor reads back wrong (`probe_plic.S`). `tasking_test` and `protected_test` run the unmodified `Initialize` and reach `main`, printing `TEST …: START` and their first checks. QEMU's refusal is a model limitation ([PLIC_INIT](#plic_init)) |
+> | PLIC at power-up | **Random.** Hart 1's enable words, every priority and the pending bits hold noise (sources 3 and 4 pending, most likely L2 ECC events from uninitialised LIM; the source identity is inferred, not checked). With the enable block untouched a claim returned **3**, not 90. After the 64-bit clear that `Initialize` performs, an MMUART0 THRE interrupt is delivered to hart 1 (`mcause 0x8000…000B`) and a claim returns **90**, completing cleanly (`probe_irq.S`). So `Initialize` is not optional on hardware, and QEMU's zeroed PLIC would never have shown it |
+> | Timer interrupt | With `mtimecmp` forced at or below `mtime`, MTIP reaches hart 1 (`mcause 0x8000…0007`) and is cleared by writing `mtimecmp`. Delivery works; **a counting `mtime` has not been demonstrated** |
+> | **`mtime` does not tick** | CLINT `mtime` reads 0, both from the debugger and from a running hart across 6,000,000 cycles. It is writable but does not count. Not started by: toggling `RTC_CLOCK_CR` (period 100, 125, 80), the `CLOCK_CONFIG_CR` 1 MHz enable, releasing the TIMER reset, the Microchip HAL's `mtime` write sequence, or replaying its SCB timer, SGMII clock receiver and PLL-mux writes (all read back correctly). The RTC reference is most likely behind the MSS PLL bring-up that HSS performs (inferred). Consequently any `delay until` blocks forever: `tasking_test` and `protected_test` stall in the idle task at their first timed wait, and their timed checks, the elapsed-time bound and the `Timing_Event` release are **unverified on hardware** |
+> | `hello_mpfs` (U54, hart 1, `lim`) | Prints `Hello from PolarFire SoC (U54 hart 1, LIM)` on MMUART0, then takes an **illegal-instruction trap at `0x0180_8000`**, which is `Fast_Path.Tick`. The application's linker script places it in ITIM and says "the image must copy it before calling"; nothing copies it and nothing enables the ITIM ways. An **application defect, not a runtime one**, and QEMU hides it because the line is printed first and the trap then loops silently |
+> | `clock_switch_e51` (E51, hart 0, `lim`) | **Runs on the E51:** all three lines print, no trap, and `L2 WayEnable` reads `1` afterwards, so the register is real and the `Prepare`-into-DTIM-then-`Switch` sequence works while the E51 keeps executing from LIM. **Negative control:** the same image on U54 hart 2 parks silently with no trap, so the A6 `Harts_Mask` gate holds on silicon. `MSS_Clock_Config` is still the `UNVERIFIED` `0`, so this image never writes a clock register and says nothing about the clock tree |
+> | `Console` variable | `console_test`, `console_mmuart2_test` and `console_mmuart3_test` each print `TEST …: PASS` on their own MMUART and on no other (CONSOLE_DEAD repair confirmed, with the boot-stage stand-in). MMUART4 is untestable here |
+> | `textio_test` | Prints through `awaiting a line on the console`; the input half was not fed |
+> | LIM | The window at `0x0800_0000` reads and writes. It is **ECC memory, uninitialised at power-up**: fetching an instruction line that was only partly written raised an instruction access fault (`mcause 1`) in the loader, so the loader writes whole 64-byte lines. Not seen in any image run, whose startup clears `.bss` itself |
+> | Toolchain on Linux | The five RISC-V images built here (`gnat_riscv64_elf` 15.3.1, Ubuntu) have exactly the `metrics.golden` rows macOS produced for `15.3.0`: `make verify` shows no difference on any of them. That closes the "assumed" Linux case in C3. The ARM image could not be checked (no `gnat_arm_elf` 15.3.1 here), so `make verify` still fails on `hello_rp2040` |
+>
+> **A hazard.** `exceptions_test` links at DDR (`0x8000_0000`) and loading it hung hart 1: a bus access to untrained DDR **never completes and never faults**, and OpenOCD then cannot attach (`Hart 1 failed to halt`) until the board is power-cycled.
+>
+> **Not done.** The `ddr_by_bootloader` profile and `exceptions_test` (DDR descoped); `hello_envm_mpfs` and eXecute-in-place from eNVM (no eNVM was programmed; SoftConsole's boot-mode programmer, which drives Libero's `fpgenprog`, is the route); P2 (hart 3, an ISR in that hart's ITIM), blocked on D1's hart-indexed CLINT/PLIC (`PLIC_Hart_Id` and the `mtimecmp` offset are literals for hart 1) and on `mtime`; and the A4 QEMU suite on the board. One run of `tasking_test` recorded a misaligned-load trap in `Delay_Until` that three other runs did not; it is **not reproduced and not explained**, so it is not claimed as a finding.
+>
+> **Next, in order:** (1) get `mtime` counting, by running Microchip's HAL (the `mpfs-gpio-interrupt` example, `LIM-Debug` configuration, no DDR) once as a boot stage, which also gives a real clock tree to check the console divisor and `Clock_Frequency` against; that unblocks every timed test. (2) Decide what the runtime owes the console on a board with no HSS: the clock and reset bits and a divisor are left to "the boot stage" today. (3) Fix `hello_mpfs`'s ITIM call or drop `Fast_Path` from it. (4) Then P2.
 
 ### A6. Rework `start-ram.S` for the four boot scenarios
 
@@ -337,6 +362,51 @@ Plus two defects to sweep up: `.type _start_rom,@function` names a symbol that d
 > **Exit:** `clock_switch_e51` runs on **hart 0** under QEMU; an `envm`-profile image has correct `.data`; a `secondary` build contains no parking code; all four cells of the table build.
 
 Optional and last, because it touches nine list files: rename to `start.S`, since a file that also handles XIP is no longer "ram".
+
+### A7. MSS initialisation for primary images
+
+**Why.** [A5](#a5-real-hardware) found that a `primary` image on a board with no HSS runs on an unconfigured MSS: the UARTs are held in reset, the APB clock is about 40 MHz, `mtime` does not tick and there is no PLL. The runtime's console driver and `Ada.Real_Time` both assume a boot stage did that work, and nothing provides it. A7 provides it.
+
+**Inputs.** The MSS Configurator's XML (`mss_clocks`, `mss_pll`, `mss_cfm`, `sgmii_cfm`, `mss_io`, `cache`, `pmp_h0..4`, `mpu_*`, `apb_split`) and INI, plus [`PolarfireSoC.svd`](rts-spikes/rts_support_mpfs/PolarfireSoC.svd), which is **the reference** for register layout (decision below). A first draft of the sequence exists as an Ada boot loader that was reviewed for this plan; its defects are listed under Step 2.
+
+**Decisions** (made 2026-10-02):
+
+1. **One library, two thin mains.** `mpfs_mss_init` is a boot-stage crate (`No_Elaboration_Code`; no `Text_IO`, exceptions, secondary stack or tasking). A UBL main uses it for boot mode 2 (sNVM to E51 DTIM); linked-in startup for `Boot_Role => primary` uses it for JTAG/development. It is **not** L0 runtime: it needs hundreds of registers where the runtime keeps a handful ([README §10.1](README.md#101-the-l0l1-seam-why-the-runtime-must-not-depend-on-the-pac)), and the runtime must not own a UART driver ([§10.3](README.md#103-adatext_io-and-the-console-channel-a-runtime-fifo-application-wired-transport) rule 3).
+2. **The SVD is the reference; the PAC is generated from it** by `svd2ada` into a crate `mpfs_pac` (README §9), never hand-edited. The SVD is itself generated from vendor documentation by a script that is still fragile, so every SVD change is a reviewed diff, and fixes belong in the SVD (or its patch overlay), not in the Ada.
+3. **Plan recorded as A7; implementation in waves** on separate branches, listed below.
+
+**Step 0 — a cheap experiment before any design.** Run the reference boot-loader sequence unchanged on the board over JTAG on hart 0, using [`rts-spikes/hw`](rts-spikes/hw/). Does `mtime` tick, is `cycle`/`mtime` about 600, does MMUART0 print at 115200 without the debugger stand-in? That tells us whether the known sequence closes A5's blocker before any generator work.
+
+**Step 1 — register-access rules.** 32-bit volatile per-register writes only; no whole-peripheral aggregate stores (they write read-only and status registers in a compiler-chosen order and width). A script greps the disassembly for `sd`/`memcpy` into MSS ranges, and a probe like `probe_plic.S` measures whether SYSREG and SCB tolerate 64-bit accesses at all. Ordering stays hand-written Ada (it is the vendor sequence); values come from the generator. Code that changes `ENVM_CR`, `CLOCK_CONFIG_CR` or `MSSCLKMUX` must not run from eNVM: it runs from DTIM/LIM, reusing `clock_switch_e51`'s `.switch_code` mechanism. Every wait loop has a timeout and a defined failure, recorded in LIM for a probe to read.
+
+**Step 2 — fix the reference sequence's defects** before it is blessed: the 500 ns delay is computed from the wrong clock (`10e6` gives 5 cycles; it must come from the 80 MHz boot clock); PLL values are hand-copied although the XML has them, with a `FIXME` that the XML says `0x8` for `REG_LOADPHS_B`; it sets `MSSCLKMUX.CLK_STANDBY_SEL` true where the generated constant says false; the PLL lock wait has no timeout; PMP/MPU, `APBBUS_CR`, the virtual boot ROM and hart release are commented out.
+
+**Step 3 — generator.** Refuse an unknown `xml_format_version` ([RTS-POLARFIRE.md](RTS-POLARFIRE.md) risk 8); stamp a hash of the XML into the output; emit a derived `Clocks` package (CPU/AXI/APB/RTC Hz) that replaces the literals in `s-bbbopa.ads` and the console divisor; emit a readback table per register (`exact | masked | skip`).
+
+**Step 4 — phased bring-up, each measured on the board** (exit criterion in brackets):
+
+1. *Clocks, RTC, console.* SYSREG enables, RTC divisor, SCB timer, PLL, glitch-less switch, baud from the APB clock. [`mtime` at 1 MHz; `tasking_test` and `protected_test` run every timed check; the console works with no stand-in. This closes A5's open `mtime` item.]
+2. *Memory system.* L2 ways from the XML, LIM ECC zeroing (still unmeasured), PMP/MPU, `APBBUS_CR`, bus-error unit, virtual boot ROM and hart release (also D2's parking release).
+3. *MSSIO and IOMUX* from `mss_io`, using the SCB `MSSIO_CONTROL_CR` handshake.
+4. *DDR and SGMII training.* **Out of scope for now**; `Boot_Init => full` reserves the slot, and DDR stays "by bootloader".
+
+**Step 5 — verification.** After init, halt the hart and compare every readable register against the generated readback table; check PLL lock, the `cycle`/`mtime` ratio and the UART baud; run init twice and across power cycles (init must detect an already-configured clock tree and skip it, or it re-locks a PLL the CPU is running from); negative builds for an unknown XML version, `Boot_Init` with `Boot_Role => secondary`, and a stale XML hash. **QEMU is not a check here**: it does not model the SCB/PLL window.
+
+**Configuration.** `Boot_Init` (`none | clocks | io | full`), valid only with `Boot_Role => primary`; a `Compile_Time_Error` rejects `secondary`, with a negative build test. `start.S` calls the library after the stack and hart gate and before the `.data` copy. `.text` grows, so `metrics.golden` is re-blessed per compiler in the same commit.
+
+**Risks.** The XML must come from the same Libero design as the bitstream on the board: a wrong IOMUX or bank voltage can disable or mis-drive pins, so confirm the design before Step 4.3. The reference XML is for a custom `mpfs250t` design, not the Icicle reference, so its IOMUX and bank values differ from the reset defaults measured in A5.
+
+**Waves.**
+
+| Wave | Branch | Work | Needs the board |
+|---|---|---|---|
+| 1 | `a7-pac` | `mpfs_pac` crate generated from the SVD, with a regeneration script | no |
+| 1 | `a7-step0` | Step 0 experiment on the board, plus the register-width probe | **yes** |
+| 1 | `a7-gen` | generator hardening (Step 3), fed by the XML and the PAC | no |
+| 2 | `a7-init` | `mpfs_mss_init`, `Boot_Init`, `start.S` hook, checks and negative builds | no |
+| 2 | `a7-verify` | readback and functional verification on the board (Steps 4.1 and 5) | **yes** |
+
+> **Exit:** `Boot_Init => clocks` on a `primary` image brings the MSS up from boot mode 0 on an Icicle Kit with no debugger stand-in: `mtime` ticks at 1 MHz, the console prints at 115200, and `tasking_test` and `protected_test` pass every timed check.
 
 ---
 
