@@ -424,7 +424,7 @@ Measured at **six files against tier 1's ~1050**, one of them an empty `pragma P
 
 ### C3. Rehearse a GCC upgrade
 
-The `assert_identical` guards in `populate.sh` have only ever run against 15.1.2. They exist precisely for the case where a compiler release breaks a sharing assumption — so run that case deliberately, on the next available toolchain, and measure the churn.
+The `assert_identical` guards in `populate.sh` had only ever run against 15.1.2. They exist precisely for the case where a compiler release breaks a sharing assumption — so run that case deliberately, on the next available toolchain, and measure the churn.
 
 > **Exit:** a written report: which guards fired, how many files moved, how long it took. That number is what a downstream user needs in order to trust the crate.
 

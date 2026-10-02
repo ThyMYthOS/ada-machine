@@ -31,9 +31,10 @@
 #  THE PINNED COMPILER. Tier 1 is a byte snapshot of GNAT 15.3.1's runtime
 #  sources (populate.sh asserts it), so the compiler that builds against it must
 #  be exactly that release. The leaf manifests say `gnat_riscv64_elf = "=15.3.1"`
-#  / `gnat_arm_elf = "=15.3.1"` for the same reason -- `^15` also admits 15.2.1
-#  and 15.3.1, which the community index now carries, and a fresh machine would
-#  have been handed 15.3.1 (RTS-PRODUCTION.md A3).
+#  / `gnat_arm_elf = "=15.3.1"` for the same reason -- `^15` admits any 15.x
+#  the community index carries (15.1.2, 15.2.1, 15.3.1 today), and a fresh
+#  machine is handed the newest (RTS-PRODUCTION.md A3). Moving the pin is a
+#  rehearsed operation: RTS-PRODUCTION.md C3 has the 15.1.2 -> 15.3.1 numbers.
 #
 #  Alire deploys a compiler crate into <cache>/toolchains/<crate>_<ver>_<hash>,
 #  where <hash> is the first 8 hex digits of the release's per-host archive

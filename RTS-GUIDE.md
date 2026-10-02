@@ -274,7 +274,7 @@ project-files = ["runtime_build.gpr", "ravenscar_build.gpr"]
 provides = ["gnat_rts=2.0.0"]
 
 [[depends-on]]
-gnat_arm_elf = "^15"          # the compiler is a real dependency, not a PATH assumption
+gnat_arm_elf = "=15.3.1"      # a real dependency, not a PATH assumption -- and exact: tier 1 is a snapshot of it
 rts_sources_gcc15 = "^15.1"
 rts_support_myfamily = "^1.0"
 

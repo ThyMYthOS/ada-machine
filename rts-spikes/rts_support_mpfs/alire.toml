@@ -17,7 +17,7 @@ and the shared linker memory map (`ld/mpfs-memory.ld`) plus the five
 committed `Memory_Profile` placement scripts.
 
 The sources are **not vendored** in this repository: `make populate`
-copies them out of the locally installed `gnat_riscv64_elf` 15.1.2
+copies them out of the locally installed `gnat_riscv64_elf` 15.3.1
 toolchain, named by the committed `src.lst`. A fresh clone therefore
 does not build until `make populate` has run -- see CONTRACT.md S1 and
 this crate's own `README.md`.

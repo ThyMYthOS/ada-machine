@@ -3,7 +3,7 @@
 --  here are appended to the corresponding variables there.
 --
 --  Copied, not reinvented: this is the same file the shipped
---  gnat_riscv64_elf 15.1.2 light-tasking-polarfiresoc runtime uses
+--  gnat_riscv64_elf 15.1.2 (identical in 15.3.1) light-tasking-polarfiresoc runtime uses
 --  (read from the installed toolchain), so this leaf's compiler switches
 --  match the vendor runtime's own conventions rather than guessing at
 --  them.

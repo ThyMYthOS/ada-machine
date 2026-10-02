@@ -54,14 +54,14 @@ tooling that generated them, and do not commit anything under
 
 ## Version
 
-This snapshot corresponds to the **`gnat_riscv64_elf` 15.1.2** Alire
-toolchain (the source of `populate.sh`'s copies). The underlying
-compiler driver in that toolchain identifies itself as
-`riscv64-elf-gcc (GCC) 15.0.1 20250418 (prerelease)` — i.e. a GCC 15
-development snapshot as packaged by AdaCore under the `15.1.2` release
-number; there is no meaningful distinction between "the GCC 15 snapshot"
-and "gnat_riscv64_elf 15.1.2" for the purposes of this crate; they name
-the same artifact. A GCC/toolchain upgrade means re-running `populate.sh`
+This snapshot corresponds to the **`gnat_riscv64_elf` / `gnat_arm_elf`
+15.3.1** Alire toolchains (the source of `populate.sh`'s copies), whose
+compiler identifies itself as GCC 15.3.0 (`GNAT Version: 15.3.0`). The
+previous pin, 15.1.2, was a GCC 15.0.1 20250418 prerelease on macOS and
+GCC 15.1.0 on Linux under one release number; its tier-1 sources are
+byte-identical to 15.3.1's (RTS-PRODUCTION.md C3), so the move changed
+no file here. The Alire release number, not the GCC version, is what
+this crate is versioned against. A GCC/toolchain upgrade means re-running `populate.sh`
 against the new installation and bumping this crate's version — the
 version-test boundary RTS.md §3 and §7 argue for.
 

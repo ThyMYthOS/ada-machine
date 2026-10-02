@@ -16,10 +16,12 @@
 #
 #  KEYED ON THE COMPILER, NOT THE HOST. Every row carries the `GNAT Version:`
 #  string the binder embedded in that image, and a measurement is compared only
-#  against the row for the same (app, compiler). Measured on the first CI run:
-#  Alire's gnat_riscv64_elf / gnat_arm_elf 15.1.2 is GCC 15.0.1 20250418
-#  (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64 -- one crate
-#  version, two compilers -- and every image's text differed. CI run 2 traced
+#  against the row for the same (app, compiler). Measured on the first CI run,
+#  when the pin was 15.1.2: Alire's gnat_riscv64_elf / gnat_arm_elf 15.1.2 was
+#  GCC 15.0.1 20250418 (prerelease) on macOS/aarch64 but GCC 15.1.0 on
+#  Linux/x86_64 -- one crate version, two compilers -- and every image's text
+#  differed. (15.3.1, the current pin, reports 15.3.0 on macOS; RTS-PRODUCTION.md
+#  C3.) CI run 2 traced
 #  it exactly: .text (code) is the SAME size on both hosts; only .rodata moves,
 #  because the binder embeds "GNAT Version: <compiler>\0" (43 bytes on the Mac,
 #  21 on Linux), and the next 4-/8-aligned object turns that into exactly -20
@@ -197,10 +199,11 @@ if [ "$mode" = bless ]; then
 #
 # KEYED ON (app, compiler). A measurement is compared only with the row for the
 # compiler that built it, so each host checks its own rows and `make bless`
-# rewrites only those. Measured: Alire's 15.1.2 cross compilers are GCC 15.0.1
-# 20250418 (prerelease) on macOS/aarch64 but GCC 15.1.0 on Linux/x86_64. Code
-# (.text) is the same size under both; .rodata differs by the embedded
-# "GNAT Version:" string plus alignment (-20 bytes ARM, -24 RISC-V). A compiler
+# rewrites only those. Why: one Alire crate version can be two compilers --
+# 15.1.2 was GCC 15.0.1 20250418 (prerelease) on macOS/aarch64 but GCC 15.1.0 on
+# Linux/x86_64. Code (.text) was the same size under both; .rodata differed by
+# the embedded "GNAT Version:" string plus alignment (-20 bytes ARM, -24 RISC-V).
+# Rows for a compiler no longer pinned are deleted with the pin change. A compiler
 # with no rows here fails verify with "no baseline", and prints the rows to add.
 # Rows for another host's compiler are seeded from that host's verify output.
 #

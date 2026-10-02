@@ -180,8 +180,8 @@ aggregate, it does not replace the per-file notices.
 
 ## Version
 
-This snapshot corresponds to the **`gnat_riscv64_elf` 15.1.2** Alire
-toolchain, the same one `rts_sources_gcc15` is versioned against (see
+This snapshot corresponds to the **`gnat_riscv64_elf` 15.3.1** Alire
+toolchain (byte-identical to the 15.1.2 snapshot it replaced; RTS-PRODUCTION.md C3), the same one `rts_sources_gcc15` is versioned against (see
 that crate's README for the GCC-snapshot identity note). A
 GCC/toolchain upgrade means re-running `populate.sh` against the new
 installation and bumping this crate's version in lockstep with

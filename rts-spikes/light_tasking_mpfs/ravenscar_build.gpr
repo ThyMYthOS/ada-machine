@@ -59,7 +59,7 @@ project Ravenscar_Build is
    ------------------------------------------------------------------
    --  Compiler switches -- matching the shipped light-tasking-
    --  polarfiresoc runtime's own ravenscar_build.gpr (read from the
-   --  installed gnat_riscv64_elf 15.1.2 toolchain).
+   --  installed gnat_riscv64_elf 15.1.2 (identical in 15.3.1) toolchain).
    ------------------------------------------------------------------
 
    --  Runtime-only switches, as in runtime_build.gpr. GNARL_ADAFLAGS

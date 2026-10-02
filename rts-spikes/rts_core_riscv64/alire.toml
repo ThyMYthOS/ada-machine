@@ -6,7 +6,7 @@ Tier 2 of the runtime crate hierarchy: the RISC-V architecture core --
 assembly. Source-only and never built by Alire (these units need
 `-gnatg -nostdinc`, the cross compiler and no runtime, which is a bootstrap
 cycle); a leaf crate compiles them. Sources are populated from an installed
-`gnat_riscv64_elf` 15.1.2 by `populate.sh` rather than vendored -- see
+`gnat_riscv64_elf` 15.3.1 by `populate.sh` rather than vendored -- see
 CONTRACT.md section 1.
 """
 version = "0.1.0-dev"
