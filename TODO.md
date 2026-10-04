@@ -582,6 +582,43 @@ latent break.
       itself, to be ordinary prover-timing flakiness inherent to that already-accepted
       residual bucket, not something this change introduced).
 
+### 13. Bus claims for shared buses (README §8.5, D20)
+README §8.5 adds exclusive bus tenure ("bus claim") as an L3 concern: a
+`Machine.Generic_Bus_Claim` signature, per-execution-model arbiters, `Acquire`/`Release`
+as `is null` driver formals, and common `Config` records. Nothing is implemented, and
+**no spike exercises contention** -- every spike has exactly one device per bus, so the
+design is unvalidated (same one-data-point bar as #1 and #11). Ties into #2 (the arbiter
+reuses `Machine.Generic_Critical_Section`) and #12 (`Generic_SPI_Binding`/the I²C
+binding are where a driver's transfers get bracketed).
+
+- [ ] Add `Busy` to `Machine.I2C.Transaction_Status` / `Machine.SPI.Transaction_Status`
+      (beside `Timed_Out`; **not** to the L2 `Bus_Status`), and the minimal
+      `Machine.I2C.Config` (speed) / `Machine.SPI.Config` (mode, clock, bit order)
+      records. Settle the record contents (README §19 open question 12) before
+      freezing.
+- [ ] Add `machine/src/machine-generic_bus_claim.ads` (formals: `Config`, `Acquire
+      (Cfg, Status : in out)`, `Release`, plus an ISR-safe `Try_Acquire` form).
+- [ ] Implement the arbiter in `machine_blocking` first (critical-section-guarded flag,
+      timeout → `Timed_Out`, non-recursive), with the ghost `Held` and `Post => not
+      Held` on its operations, in the style of #2's `In_Critical`; verify with
+      GNATprove. Then `machine_async` (grant completion via generic formal procedure)
+      and `machine_tasking` (protected object) once the blocking shape is settled.
+- [ ] Thread `Acquire`/`Release` (defaulted `is null`, README §14.1) through `bme280`
+      and the `machine_regmap` bindings, with `Acquire` ordered before CS assertion
+      and `Release` after deassertion (CS itself needs no claim). Confirm the
+      single-device AVR build is byte-identical to today's (null formals fold away).
+- [ ] Prove it under contention: add a `host_test` case with two drivers (e.g. two
+      scripted mock devices, or `bme280` plus `time_rng_target`'s register file) on
+      one mock I²C bus; assert no interleaving, `Busy`/`Timed_Out` on a held bus, and
+      `Release` running after a failed transaction (§7.1 rule 8). Optionally a real
+      second device on a spike's I²C bus.
+- [ ] `boardgen` (§13) is not spiked, so the `shared = true` bus declaration is design
+      only; record it there when `boardgen` is prototyped.
+- **Done when:** two drivers share one bus through one arbiter in `host_test` with
+      the exclusion and fail-clean-release properties asserted, the arbiter's ghost
+      postconditions are proved with no new residual, and the single-device AVR
+      build is unchanged.
+
 ---
 
 ## Not in scope here

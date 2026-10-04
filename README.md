@@ -16,6 +16,7 @@
 - <a id="g-alire"></a>**Alire** — the Ada LIbrary REpository, Ada's package manager and crate ecosystem ([alire.ada.dev](https://alire.ada.dev)).
 - <a id="g-amp"></a>**AMP** — Asymmetric MultiProcessing: cores run separate programs/roles (e.g. PolarFire SoC's E51 monitor core + U54 application cores), as opposed to [SMP](#g-smp).
 - <a id="g-bsp"></a>**BSP (Board Support Package)** — a crate naming a board's pins/devices and providing board init, on top of an MCU [HAL](#g-hal).
+- <a id="g-busclaim"></a>**Bus claim** — exclusive tenure of a shared bus by one driver across a multi-transfer sequence (§8.5); distinct from the §7.1 *transaction*, which is only an error scope.
 - <a id="g-chained"></a>**Chained status (sticky error)** — Ada Machine's error convention (§7.1): fallible operations take `Status : in out` and become no-ops while an error is pending, so multi-step transactions fail all-or-nothing with one handler at the end. Precedents: Go's `errWriter` pattern ([Errors are values](https://go.dev/blog/errors-are-values)), C stdio's sticky `ferror` stream state.
 - <a id="g-crate"></a>**Crate** — an [Alire](#g-alire) package: sources + manifest, resolved by dependency solving.
 - <a id="g-defmt"></a>**defmt (deferred formatting)** — Rust's embedded logging framework ([defmt.ferrous-systems.com](https://defmt.ferrous-systems.com/)): format strings are interned into a host-readable table and never occupy target flash; the target emits only compact event IDs + scalar arguments, the host renders text.
@@ -439,6 +440,7 @@ Rules:
 5. **Async variant:** in `machine_async`, initiation calls (`Start_Write`, `Start_Read`) chain the same way — a pending error skips starting the transfer — and the completion procedure receives the final merged status.
 6. **SPARK synergy:** `in out` requires a defined value on entry — flow analysis rejects transactions that forget `Status := Ok`; a status whose final value is never read is flagged as an ineffective computation. The pattern that is ergonomic is also the pattern that is provable.
 7. **Abort/cleanup exception:** teardown operations — those invoked *to establish* the fail-clean state of rule 2 (e.g. `Cancel_Transfer` after a DMA timeout, a bus reset after a lockup) — are the single exception to skip-if-pending. They are called precisely *because* an error is already pending, so they must run regardless. They therefore do **not** take a chained `in out Status` (which would make them a no-op exactly when they are needed): they take no status, or — if they must report their own result — an `out`-only status, never `in out`. Their contract is best-effort and idempotent (safe to call whether or not a transfer is in flight), and the transaction owner keeps its own pending status unchanged across the call.
+8. **Bus claims are teardown pairs:** where a bus is shared (§8.5), `Acquire` is the *first* chained step of the transaction — a failed claim sets `Busy` (or `Timed_Out`) and everything after it is skipped — and `Release` follows rule 7: it takes no chained status and runs even with an error pending, so a failed transaction never leaves the bus claimed. Rule 3 extends naturally: the transaction owner is the claim holder.
 
 Known cost, accepted: during debugging, skipped calls can surprise ("why did `Read_Reg` not execute?"). Mitigations: the transaction has exactly one status object to watch, statuses are plain values (breakpoint/trace-friendly, unlike unwinding), and rule 3 keeps transaction extent lexically visible.
 
@@ -529,6 +531,47 @@ The [A0B](#g-a0b) insight, ported: operations *start* a transfer and signal comp
 ### 8.3 `machine_tasking` — Ravenscar/Jorvik integration
 
 Protected objects wrapping the event plumbing: interrupt handlers as protected procedures, entries for completion, `delay until` for timeouts. Requires light-tasking or embedded runtime; the manifest says so. Deliberately thin — applications with tasking may equally use `machine_async` + suspension objects.
+
+### 8.5 Bus claims: exclusive tenure across several drivers
+
+§7.1's *transaction* is an error scope — it makes a multi-step transfer fail all-or-nothing but does not stop another driver on the same bus from interleaving its own transfers. Drivers that perform a multi-transfer sequence which must not be interrupted by another driver (an I²C register-pointer write followed by a read, a burst split over several calls) need **exclusive tenure** of the bus. This section calls that a **[bus claim](#g-busclaim)**, to keep it apart from the §7.1 transaction and from `Transaction_Status`. I²C is the common case — many devices on two wires is the standard topology — but SPI buses with several chip-selects are equally eligible.
+
+**Placement.** A claim is an L3 concern, not L2 (§5): L2 holds no state beyond the hardware and never waits (D2), while the right reaction to contention depends on the execution model — wait with a timeout (blocking), refuse or queue with a grant completion (async), a protected entry with a ceiling priority (tasking). The contract is therefore a *signature* in `machine`, like `Generic_Critical_Section` (§14.4), implemented by the adapters:
+
+```ada
+generic
+   type Config is private;                   --  e.g. Machine.I2C.Config (below)
+   with procedure Acquire (Cfg    : Config;
+                           Status : in out Transaction_Status);
+                                             --  claim the bus; Busy / Timed_Out on failure
+   with procedure Release;                   --  teardown (§7.1 rule 8): no status, never skipped
+package Machine.Generic_Bus_Claim is end;
+```
+
+- `machine_blocking`: a flag guarded by the critical section; `Acquire` spins up to the caller's timeout, then reports `Timed_Out`.
+- `machine_async`: the flag plus a *grant* completion, delivered through a generic formal procedure like every other completion (§8.2); no access types.
+- `machine_tasking`: a protected object (§8.3).
+- `Busy` is added to `Transaction_Status` beside `Timed_Out`, **not** to the L2 `Bus_Status` — L2 cannot observe contention.
+
+**Drivers never decide whether a bus is shared.** An L4 driver takes the claim as null-object formals (§14.1):
+
+```ada
+generic
+   with package I2C is new Machine.Blocking.Generic_I2C_Master (<>);
+   with procedure Acquire (Status : in out Machine.I2C.Transaction_Status) is null;
+   with procedure Release is null;
+package BME280 is …
+```
+
+An application with one device per bus wires nothing and pays zero bytes — the AVR case. Whether a bus *can* safely be shared is a system question (device addresses, speed grades, voltage levels, SPI modes), so it is answered at the application or board level: the application (or the L6 description, §13) instantiates **one arbiter per bus** — D7's one-package-per-instance — and passes the same `Acquire`/`Release` to every driver on that bus. Nothing about sharing is hard-coded in a driver.
+
+**Common configuration.** Devices on one bus often need different settings, so the class packages offer a small, shared `Config` vocabulary for the *most common* settings only — `Machine.I2C.Config` (bus speed: standard/fast/fast-plus) and `Machine.SPI.Config` (mode 0–3, clock rate, bit order). `Acquire` takes the `Config` the driver needs; the arbiter re-applies it only when it differs from the active one. Anything more exotic stays native L2 configuration (D8) — the shared record is a convenience for the usual case, not a configuration abstraction. For I²C a single speed per bus is the norm, so the board description usually fixes it and `Config` merely asserts agreement; for SPI it is genuinely per-device.
+
+**Rules.**
+1. **Chip-select needs no claim.** A CS GPIO belongs to exactly one driver and cannot be shared; only the bus is contended. A driver acquires the bus *before* asserting its own CS and releases it after deasserting.
+2. **Non-recursive.** Acquiring a bus already held by the caller is a contract violation, not a nested count (SPARK-checked through the ghost `Held` below).
+3. **ISR callers cannot wait.** From interrupt context only a `Try_Acquire` form (immediate `Busy`) is offered, mirroring the never-block rule for L2.
+4. **Provable release.** As with `In_Critical` in `machine_async`, each arbiter exposes a ghost `Held`; every driver transaction carries `Post => not Held`, so "released on every path" is a proof obligation rather than a convention.
 
 ### 8.4 Optional: `machine_classes` — tagged adapter for runtime polymorphism
 
@@ -713,6 +756,7 @@ Initialization is MCU-specific by design (§2, §6.1) — but *wiring a known bo
 
 - **Output:** a generated Ada package (`Board`) containing the L2 `Enable`/`Configure` calls in correct order, the [signature](#g-signature) instantiations, and the driver instantiations (`Board.Env_Sensor` ready to use) — plus optionally pre-wired `On_Interrupt` attachments for `machine_async` users. Precedent for gpr-metadata-driven generation: [startup_gen](https://github.com/AdaCore/startup-gen).
 - **A tool crate (`boardgen`), not a library:** it runs before compilation (Alire pre-build action or explicit invocation); its output is committed or generated into the build tree. Nothing at runtime knows a devicetree existed. Generation-not-ifdef is the proven approach for covering hardware diversity ([svd2rust](https://docs.rust-embedded.org/book/design-patterns/hal/gpio.html), modm-devices).
+- **Bus sharing is declared here:** when a `[devices.*]` entry names a bus that already has another device, the file must say `shared = true` on the bus, and the generator then instantiates one §8.5 arbiter and wires its `Acquire`/`Release` into every driver on that bus; without it, a second device on the bus is a generation-time error rather than a silent interleaving hazard.
 - **Validation at generation time:** pin-mux conflicts, wrong bus assignments, address clashes are reported by the generator with board-schematic vocabulary — errors caught before the compiler runs, in terms a hardware person understands.
 - **Scope:** 32-bit-class targets and up. Not offered for AVR: an ATmega program wires two or three instantiations by hand (§6.3) and gains nothing from a generator; keeping AVR out preserves the "no machinery below the floor" rule.
 - **Relation to L5:** `maker_<board>` crates are natural consumers — a `maker` board port can be largely `boardgen` output.
@@ -765,6 +809,8 @@ package Machine.Generic_Critical_Section is end;
 ```
 
 implemented by each `<mcu>_hal` (and by `machine_tasking` via a protected object where tasking semantics demand it). Portable code never touches interrupt-enable bits directly.
+
+A critical section protects a few instructions against an ISR; exclusive tenure of a shared bus across many transfers is a different tool, built on top of it — see the bus claims of §8.5.
 
 ### 14.5 Configuration and test doubles
 
@@ -973,6 +1019,7 @@ Where Ada Machine sits relative to the platforms an embedded developer would act
 | D17 | Typed I/O | Representation-clause'd records + flat codecs with `'Valid_Scalars` receive gate (`machine_typed_io`, §15.2) as the core mechanism; real streams quarantined in `machine_streams` (embedded profile, application-only) | `'Read`/`'Write` as core: tagged + class-wide access (breaks D1/D10), absent from light runtimes, default attributes are compiler-defined — not a wire format between differing nodes; per-component dispatching in bounded-time paths. |
 | D18 | Naming & namespace | Domain status names per class (`Bus_Status`, `Line_Status`, `Transaction_Status`); two-axis grid: class packages hold hardware vocabulary + data-phase signatures, spec-crate-owned `Machine.<Exec>` roots hold execution-semantics contracts (`Machine.Blocking.Generic_I2C_Master`) with adapter crates providing the implementation children (`Machine.Blocking.I2C`); `Machine.*` reserved to AMRM crates, third parties use own roots (§6.3, §6.7, §16) | Generic `Status_Kind`: a workaround name carrying no meaning; blocking signatures inside class packages: misplace the execution model and hide the master role; separate `Machine_Block`-style roots: fragment the namespace the AMRM must document; open `Machine.*`: uncoordinated children make the standard's namespace a land grab. |
 | D19 | I2C target/slave role + RNG (spike 4, Appendix D) | `Machine.I2C.Generic_Target` as a peer signature to `Generic_Master` under the same `Machine.I2C` class package, chained on the same `Bus_Status`, but event-driven (address-match/direction/STOP) rather than caller-initiated (FIFO push/pop) — the role, not the class, decides the shape; `Machine.RNG` as a new class with one narrow signature (`Generic_Source`, one native word per call, no byte-run convenience); the register-file *responder* built on top (`Time_RNG_Target`) kept spike-local rather than folded into `machine`/`machine_regmap` | A single combined "target-mode I2C" signature mixing register-file semantics into `machine`: conflates a genuinely new *bus role* (proven once) with an *application-level protocol choice* (which registers, what they mean) that has no claim to portability yet; folding `Time_RNG_Target`-style logic into `machine_regmap` now would standardize a wire protocol from a single example, the same mistake §6.3's "standardize proven classes only" rule exists to prevent. |
+| D20 | Shared-bus exclusion | Bus claims (§8.5) in L3: `Machine.Generic_Bus_Claim` signature implemented per execution model; drivers take `Acquire`/`Release` as `is null` formals (§14.1); one arbiter per bus wired by application/L6; `Busy` in `Transaction_Status`; common `Config` records for the usual I²C/SPI settings; `Release` is a §7.1 teardown, non-recursive, ghost `Held` for proof | Claims in L2: stateful and execution-model-specific, breaks never-block (D2); drivers deciding sharing themselves: it is a system property, and hard-wires locking cost into single-device AVR builds; reusing the §7.1 chained status alone: error scope gives no exclusion; one global bus lock: serialises unrelated buses. |
 
 ## 19. Open questions and roadmap
 
@@ -989,6 +1036,8 @@ Where Ada Machine sits relative to the platforms an embedded developer would act
 9. Log event interning (§14.2): how to assemble the host-side rendering table for [defmt](#g-defmt)-style deferred formatting without proc macros — convention (enum + comment pragma harvested by a tool), a `boardgen` sibling, or plain per-crate event documentation? Also: wire format of `Machine.Log.Arg` (single scalar vs. fixed tuple vs. per-event record).
 10. svd2ada gap analysis (§9): which of the required capabilities (array folding, `Volatile_Full_Access`/`Object_Size` steering, plain-word views, SPARK aspects from SVD access attributes, vendor-extension annotations) exist today, which to upstream, and whether an svdtools-equivalent patch tool must be written for the Ada pipeline or [svdtools](https://github.com/rust-embedded/svdtools) itself can be reused as-is (it is generator-agnostic — it patches SVD, not Rust). Note the existing `<name>.svd2ada` helper-file hook as the natural attachment point for annotations.
 11. Remote register maps (§15.4): schema for the bus-binding annotation (I2C/SPI, address encoding, auto-increment, endianness per register); whether `--unlocated` becomes an svd2ada mode or a separate back-end sharing its SVD front end; interaction of generated `Modify` shadows with SPARK state abstraction.
+12. Bus claims (§8.5): exact contents of the common `Machine.I2C.Config`/`Machine.SPI.Config` records; whether the async grant completion needs a queue depth or just a single pending waiter; `Try_Acquire` shape for ISR callers; priority-ceiling policy of the tasking arbiter under Jorvik. No spike exercises contention yet — an I²C bus with two drivers (or spike 3 with a second SPI device) is the proving ground.
+
 
 **Roadmap sketch**
 
