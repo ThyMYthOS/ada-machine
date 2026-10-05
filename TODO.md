@@ -619,6 +619,44 @@ binding are where a driver's transfers get bracketed).
       postconditions are proved with no new residual, and the single-device AVR
       build is unchanged.
 
+### 14. Peripherals with several interfaces (README §6.1, §6.3, §8.6, D21)
+README §8.6 specifies how a peripheral that supports several interfaces (USART as UART,
+modem-line UART, IrDA or SPI master; SSP as Motorola/TI/Microwire) is packaged and
+switched: parent package per instance, child package per interface with its own data
+phase, `Config` for framing, a companion signature for modem lines, Tier A static
+exclusion via SPARK preconditions, Tier B within-class switching through the #13 claim,
+cross-class switching static only. Nothing is implemented, and no spike has more than
+one interface on a peripheral. Depends on #13 for Tier B.
+
+- [ ] Settle the Microwire question first (README §19 open question 13): read the PL022
+      TRM / RP2040 datasheet for how Microwire uses the Tx/Rx FIFOs and decide whether
+      it is a variant of `Machine.SPI.Generic_Master` or its own signature. The
+      online survey only established "half-duplex with a control phase".
+- [ ] Add `Machine.UART.Generic_Modem_Lines` (polled `Set_RTS`/`Set_DTR`,
+      `Get_CTS`/`Get_DSR`/`Get_DCD`/`Get_RI`; changes through the existing UART
+      `Event_Set`; RI trailing-edge only) and add `Frame_Format` (Motorola/TI) to
+      `Machine.SPI.Config` (#13).
+- [ ] Restructure `atmega328p_hal`: `ATmega328P.USART0` becomes the parent (shared
+      `Is_Idle`, `Disable`), the current UART body moves to `ATmega328P.USART0.UART`
+      with `Enable (Config)`/`Is_Active` (a volatile read of the mode-select bits, no
+      RAM mirror), and add `ATmega328P.USART0.MSPIM` as the second, structurally
+      different interface (the cheapest real data point; checks that the SPI settings
+      can go into the same write that selects MSPIM, and whether TX/RX must be disabled
+      before changing UMSEL — not confirmed by the survey). Update `HAL_Info`, the
+      conformance unit and the UART log sink wiring (#10) for the new names.
+- [ ] Prove Tier A exclusion: `Enable` with `Pre => not Is_Active (Any)`, data-phase
+      operations with `Pre => Is_Active (This)`, `Disable` as a statusless teardown
+      (§7.1 rule 7); GNATprove must discharge a UART-then-MSPIM switch sequence and
+      reject using an interface that is not enabled.
+- [ ] Tier B in `host_test`: a scripted mock with two interfaces behind the #13 arbiter,
+      asserting `Busy` while a transfer is active, switching only after `Is_Idle`, and
+      `Disable` running after a failed transaction.
+- [ ] `boardgen` (§13) is not spiked: the `interface =` key and its pin check are design
+      only until it is prototyped.
+- **Done when:** AVR USART0 runs the unchanged UART driver path and an MSPIM-based SPI
+      path as two interface children, the exclusion is proved, the Microwire question
+      has an explicit answer, and Tier B switching is exercised in `host_test`.
+
 ---
 
 ## Not in scope here
