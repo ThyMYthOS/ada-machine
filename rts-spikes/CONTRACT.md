@@ -21,6 +21,8 @@ rts-spikes/
 ├── rts_support_mpfs/        tier 3 — owned    PolarFire SoC
 ├── rts_support_pico/        tier 3 — owned    RP2040 + RP2350
 │
+├── mpfs_pac/                L1 PAC, not a tier (see note below)
+│
 ├── light_mpfs/              leaf — riscv64-elf, light
 ├── light_tasking_mpfs/      leaf — riscv64-elf, light-tasking
 ├── embedded_mpfs/           leaf — riscv64-elf, embedded
@@ -65,6 +67,13 @@ things follow that are worth stating, because both were bought with pain:
 The one exception, marked as such: `rts_sources_gcc15/libgnat-patched/` holds
 bodies we own *inside* the tier that syncs. `.gitignore` excludes tier 1's
 populated directories and re-admits exactly that one.
+
+**`mpfs_pac` is not a tier-1/2/3 crate and does not belong in the §2 pinned
+table below.** It is an L1 PAC crate in the sense of [README.md §9](../README.md#9-pac-crates-l1)/[§10.1](../README.md#101-the-l0l1-seam-why-the-runtime-must-not-depend-on-the-pac)
+— an ordinary, buildable, `Preelaborate` crate with no bootstrap cycle and no
+dependency relationship with `rts_support_mpfs` or any leaf. Do not describe it
+as "tier-3, source-only, never built by Alire" (that description, and the
+`abstract project` shape it implies, belongs only to the crates in §2).
 
 ---
 

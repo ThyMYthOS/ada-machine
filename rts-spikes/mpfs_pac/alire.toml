@@ -1,0 +1,43 @@
+name = "mpfs_pac"
+description = "PolarFire SoC Peripheral Access Crate (PAC)"
+long-description = """
+L1 PAC crate for the Microchip PolarFire SoC (one E51 monitor core plus
+four U54 application cores, riscv64-elf), per README.md §9. Unlike the
+tier-1/2/3 crates elsewhere in this spike, it is an **ordinary buildable
+crate**: `Preelaborate`, no elaboration code, no subprograms beyond
+trivial accessors (README.md §9 rule 5). It has no dependency on, and no
+crate relationship with, the runtime crates (`rts_support_mpfs` and
+friends) -- see README.md §10.1 on why the runtime keeps its own private
+register subset instead of depending on the PAC.
+
+`svd/PolarfireSoC.svd` is the single curated copy of the vendor SVD for
+this project (README.md §9 rule 1/3): nothing else in the repo vendors
+its own copy, so a future SVD fix applies here once.
+
+The PAC is generated from it via `generate_pac.sh`, which runs svd2ada
+and then `merge_duplicates.py`. The merge step is **required, not a
+convenience**: svd2ada has no mechanism to merge SVD-level duplicate
+peripheral definitions (e.g. the CAN/GPIO/I2C/MMUART/MSRTC/MSTIMER/SPI/
+WDOG families) into one generic type with several instances, so it
+emits one full, separately-named type per instance. `merge_duplicates.py`
+is the deterministic, scripted substitute for that missing svd2ada
+feature, run as part of every regeneration -- not a one-off hand-edit of
+generated output, which is what README.md §9 rule 1 actually forbids.
+The generated package root is `MPFS_MSS` (matching this project's
+`MPFS_*` naming elsewhere, and distinct from the already-shipped
+`MPFS` root package in `mpfs_system` -- `MPFS.System_Map` -- which this
+crate has no dependency on), with one child package per SVD peripheral.
+
+**Never hand-edit the files `generate_pac.sh` produces**: they are the
+authoritative source, and any manual change to them would be silently
+overwritten by the next generation run. Fixes to peripheral data belong
+in the SVD or in `generate_pac.sh`/`merge_duplicates.py` themselves.
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+tags = ["embedded", "riscv", "polarfire-soc", "amp"]
+
+project-files = ["mpfs_pac.gpr"]

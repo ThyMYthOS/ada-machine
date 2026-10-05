@@ -367,7 +367,7 @@ Optional and last, because it touches nine list files: rename to `start.S`, sinc
 
 **Why.** [A5](#a5-real-hardware) found that a `primary` image on a board with no HSS runs on an unconfigured MSS: the UARTs are held in reset, the APB clock is about 40 MHz, `mtime` does not tick and there is no PLL. The runtime's console driver and `Ada.Real_Time` both assume a boot stage did that work, and nothing provides it. A7 provides it.
 
-**Inputs.** The MSS Configurator's XML (`mss_clocks`, `mss_pll`, `mss_cfm`, `sgmii_cfm`, `mss_io`, `cache`, `pmp_h0..4`, `mpu_*`, `apb_split`) and INI, plus [`PolarfireSoC.svd`](rts-spikes/rts_support_mpfs/PolarfireSoC.svd), which is **the reference** for register layout (decision below). A first draft of the sequence exists as an Ada boot loader that was reviewed for this plan; its defects are listed under Step 2.
+**Inputs.** The MSS Configurator's XML (`mss_clocks`, `mss_pll`, `mss_cfm`, `sgmii_cfm`, `mss_io`, `cache`, `pmp_h0..4`, `mpu_*`, `apb_split`) and INI, plus [`PolarfireSoC.svd`](rts-spikes/mpfs_pac/svd/PolarfireSoC.svd), which is **the reference** for register layout (decision below). A first draft of the sequence exists as an Ada boot loader that was reviewed for this plan; its defects are listed under Step 2.
 
 **Decisions** (made 2026-10-02):
 

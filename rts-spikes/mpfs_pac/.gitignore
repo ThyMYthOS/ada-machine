@@ -1,0 +1,11 @@
+# Generated PAC files
+src/mpfs_mss*.ads
+src/mpfs_mss*.ali
+
+# Build artifacts
+lib/
+obj/
+bin/
+*.ali
+*.o
+*.tmp

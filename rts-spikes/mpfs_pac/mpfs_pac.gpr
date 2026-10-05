@@ -1,0 +1,21 @@
+--  Ordinary buildable crate (README.md §9: PAC crates are L1, not part of
+--  the tier-1/2/3 runtime-build hierarchy) -- compiles under whatever
+--  Target/Runtime the including project selects. No Library_* attributes:
+--  a PAC this size needs no separate static-library step; the consuming
+--  project compiles these sources directly, same as any other dependency.
+
+project Mpfs_Pac is
+
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj";
+   for Create_Missing_Dirs use "true";
+
+   package Compiler is
+      for Default_Switches ("ada") use
+        ("-gnatwa", "-gnatQ", "-gnat2022",
+         "-gnatw.X");  --  Disable warnings for No_Exception_Propagation
+                        --  (the light profile's floor) -- every app crate
+                        --  in this project already does the same.
+   end Compiler;
+
+end Mpfs_Pac;
