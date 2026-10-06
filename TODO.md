@@ -482,48 +482,104 @@ after #3.
       UART-backed sink using the deferred-formatting + static-threshold facility, and
       `host_test` verifies emitted events via a recording sink. **Met.**
 
-### 11. Close spike 4's open items (I²C target + RNG, Appendix D)
+### 11. Close spike 4's open items (I²C target + RNG, Appendix D) — DONE
 Spike 4 (`spike4_g474`, STM32G474) introduced two new `machine` signatures --
 `Machine.I2C.Generic_Target` and `Machine.RNG.Generic_Source` -- plus a
 spike-local responder (`time_rng_target`), proven against one real HAL
 (`stm32g474_hal`, GNATprove-clean) and a scripted `host_test` mock (latch
 consistency, repeated-START register-pointer persistence, settable-epoch
 write, all passing). Several things were deliberately deferred rather than
-silently glossed over (README §18 D19, Appendix D):
+silently glossed over (README §18 D19, Appendix D). All closed:
 
-- [ ] Verify `stm32g474_pac`'s RCC enable-bit positions (`AHB2ENR.RNGEN`,
-      `APB1ENR1.I2C1EN`) against RM0440's actual register tables -- currently
-      transcribed from memory/CMSIS convention and flagged as such in
-      `stm32g474_pac-rcc.ads`, the one unverified fact in an otherwise
-      CMSIS-header-cross-checked PAC.
-- [ ] Recompute `STM32G474.I2C1`'s `TIMINGR` placeholder against the real
-      core clock (STM32CubeMX's I2C timing tool, or RM0440's worked
-      examples) before any real hardware bring-up.
-- [ ] Add bus-fault detection (`BERR`/`ARLO`) to `STM32G474.I2C1.Pop`/`.Push`
-      -- deferred in this first cut; `Status` currently never leaves `Ok` in
-      either, which is why GNATprove flags both `Status` parameters as
-      "not modified, could be IN" (an honest reflection of the gap, not a
-      separate bug).
-- [ ] Decide whether `Machine.I2C.Generic_Target` / `Machine.RNG.Generic_Source`
-      promote to the README §6.3 v1 list, or need revision, once a second
-      *structurally different* target-mode I2C controller exists (e.g. AVR
-      TWI in target mode, or a legacy-IP STM32 for contrast) -- the same
-      one-data-point bar `Machine.I2C.Generic_Master` was itself held to
-      until item 1 (above) closed it by adding AVR TWI as a second,
-      structurally different controller.
-- [ ] Decide whether `Time_RNG_Target`'s register-file responder deserves a
-      generic `Machine.I2C.Generic_Target_Regfile` (the mirror of
-      `Machine.Regmap.Generic_Device`) once a second target-mode
-      application exists -- kept spike-local for now (§6.3).
-- [ ] Attempt a real cross-build once a `gnat_arm_elf` toolchain +
-      `embedded_stm32g4xx` (damaki) resolve in a given environment --
-      unlike RP2040/ESP32-C3, a published Alire runtime crate already
-      exists for this family, so this may be closer than the other three
-      spikes' cross-build gaps.
+- [x] **Verify `stm32g474_pac`'s RCC enable-bit positions against a primary
+      source -- and it found a real bug.** Checked against ST's `cmsis-device-g4`
+      `stm32g474xx.h` (read in the browser pane and grepped for the `*_Pos`
+      macros, not from search-result summaries, several of which were
+      contradictory or invented): `AHB2ENR.RNGEN` was **bit 18 (the L4
+      position) but is bit 26 on the G4** -- the RNG would have been unclocked
+      on silicon while every test passed. Fixed in `stm32g474_pac-rcc.ads`;
+      `GPIOAEN`/`GPIOBEN` (0/1), `TIM2EN` (0), `I2C1EN` (21), the RCC register
+      offsets and `RNG_BASE` were right. Not RM0440 itself (the PDF was not
+      read) -- the CMSIS header is ST's own machine-readable source for the
+      same facts. Also surfaced and fixed: the RNG's 48 MHz clock comes from
+      HSI48, which is **off after reset** (`CRRCR`, offset 0x98, `HSI48ON`
+      bit 0 -- added to the PAC; `STM32G474.RNG.Enable` now starts it with a
+      plain write, no wait: L2 never waits and `Is_Ready` already gates on
+      DRDY). `CCIPR.CLK48SEL` reset-to-HSI48 is relied on, not rewritten --
+      that default is from search results, not the CMSIS header.
+- [x] **Recompute `STM32G474.I2C1`'s `TIMINGR`.** Replaced the placeholder
+      `0x2000_090E` (SCLDEL = 0, which violates the setup-time constraint)
+      with `0x30420F13` (standard mode, I2CCLK = 16 MHz = HSI16 = PCLK1, the
+      reset-default clock this HAL runs on), with the arithmetic in
+      `stm32g474-i2c1.adb`: tPRESC 250 ns, SCLDEL 1250 ns, SDADEL 500 ns,
+      SCLL 5.0 us, SCLH 4.0 us against the I2C v2 timing constraints.
+      **Derived by hand, not run through STM32CubeMX and not copied from
+      RM0440's example table** (the survey could not retrieve it) -- the
+      value matches my recollection of ST's 16 MHz standard-mode example but
+      that is not a verification. **Trap found:** the Alire runtime
+      `embedded_stm32g4xx` defaults to a 170 MHz PLL clock, which would make
+      this value wrong; a real-runtime build must pin `SYSCLK_Src = HSI16`
+      (below).
+- [x] **Bus-fault detection in `STM32G474.I2C1.Pop`/`.Push`.** `BERR` (ISR
+      bit 8) -> `Bus_Error`, `ARLO` (bit 9) -> `Arbitration_Lost`, bit
+      positions from the CMSIS header; `OVR` deliberately not mapped
+      (cannot occur with clock stretching on, `NOSTRETCH = 0`). Skip-if-pending
+      and `Data := 0` preserved. First attempt cleared the flag in `Pop`/`Push`
+      and GNATprove rightly objected (`"ICR" might not be written` on the
+      skip path); the flags are now cleared at the transaction boundary
+      (`Ack_Address`/`Clear_Stop` write `ICR` with the error-clear bits too),
+      keeping `Pop`/`Push` write-free on the error path (fail clean, §7.1
+      rule 2). The "Status not modified, could be IN" notes are gone.
+- [x] **Second structurally different target-mode controller, and the
+      promotion decision.** Added `ATmega328P.I2C_Target`
+      (`atmega328p_hal/src/atmega328p-i2c_target.ads/.adb`, TWI slave mode:
+      one `TWINT` flag plus a `TWSR` status code, versus STM32's separate
+      flags) -- instantiates `Machine.I2C.Generic_Target` unchanged
+      (`tests/conformance.ads`), flow/proof clean, `spike2_avr` (both bus
+      variants) still cross-builds. It needed three documented
+      contortions, none a signature change: `Ack_Address` cannot always
+      release the stretch (a read phase needs `TWDR` loaded first, costing
+      one bit of L2 state, `Acked`); a read phase ends with the master's NACK
+      status, not a STOP event; clock stretching is intrinsic, so there is no
+      overrun to report. The signature's comments now say so. **Decision:
+      `Generic_Target` promoted to the v1 list.** Likewise a second RNG:
+      `ESP32C3.RNG` (a bare `SYSCON` data register, `0x6002_6000 + 0xB0`,
+      checked against esp-idf `reg_base.h`/`syscon_reg.h`) has no ready or
+      health flags at all and instantiates `Machine.RNG.Generic_Source`
+      unchanged; the signature's comment now says `Ok` never means "true
+      random" (entropy-source enabling is native config -- esp-idf documents
+      RF/ADC noise sources). **Decision: `Generic_Source` promoted.** Also
+      added `Has_I2C_Target`/`Has_RNG` to `Machine.HAL_Info.Descriptor`
+      (HALs close aggregates with `others => False`) and moved
+      `STM32G474.HAL_Info` onto the Descriptor. **Evidence level, plainly:**
+      the second instances are compiled, flow/proof-checked and
+      conformance-instantiated, not run on silicon or against a TWI model; the
+      decision is reversible. README §6.3, D19 and Appendix D updated.
+- [x] **`Machine.I2C.Generic_Target_Regfile`: decided not to generalise.**
+      `Time_RNG_Target` is still the only target-mode application; the
+      mirror of `Regmap.Generic_Device` waits for a second one (§6.3, same
+      one-data-point rule). It stays spike-local.
+- [x] **Real cross-build attempted -- and it works.** In a scratch copy
+      (repo manifests untouched), adding `gnat_arm_elf` 15.3.1 (already
+      installed) and `embedded_stm32g4xx` 16.0.0 (fetched by Alire) plus the
+      runtime project-file lines links a Cortex-M4 (`7E-M`) ELF, ~67 kB text.
+      Recipe and the `SYSCLK_Src = HSI16` requirement are recorded in
+      `spike4_g474/alire.toml`; not made the default build so `make` needs no
+      runtime download. Not flashed or run.
 - **Done when:** the RCC/TIMINGR facts are checked against RM0440, `Pop`/
       `Push` either detect bus faults or the deferral is reflected in a
       signature-level comment (not just a HAL-body one), and the
       v1-promotion/generalization questions have an explicit answer either way.
+      **Met**, with the qualifications above (CMSIS header rather than RM0440;
+      `TIMINGR` hand-derived). `make all` (21 crates + spike2_avr's I2C
+      variant) and `make test` pass; `gnatprove` on `stm32g474_hal` (+ its
+      conformance project) proves all checks, `spike4_g474` is residual-for-
+      residual identical to the pre-change baseline, `atmega328p_hal`'s new
+      package and `esp32c3_hal`'s new `ESP32C3.RNG` add no residual beyond
+      the expected "Status not modified" on the health-less RNG. The two
+      pre-existing `tests/conformance.adb` SPARK errors (a volatile call in
+      `GPIO*_Get`) in the ATmega/ESP32 conformance projects are unrelated and
+      untouched.
 
 ### 12. Chip-select semantics over Digital_Out (`Machine.SPI.Generic_Chip_Select`)
 Proposal (review feedback, 2026-07-22): a zero-cost wrapper over

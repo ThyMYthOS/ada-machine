@@ -23,12 +23,22 @@ generic
                                           --  False = master is writing
                                           --  (we receive)
    with procedure Ack_Address;
-                                          --  release the clock stretch
-                                          --  and begin the phase; not
+                                          --  acknowledge the match and
+                                          --  begin the phase; not
                                           --  chained (§7.1 carve-out for
                                           --  control-plane acks, same
                                           --  reasoning as abort/cleanup
-                                          --  ops -- it doesn't touch data)
+                                          --  ops -- it doesn't touch data).
+                                          --  Releases the clock stretch
+                                          --  for a write phase; for a
+                                          --  read phase the stretch may
+                                          --  be held until the first
+                                          --  Push if the hardware needs
+                                          --  the byte loaded first (AVR
+                                          --  TWI), in which case
+                                          --  Is_Address_Matched is false
+                                          --  from here on, and Can_Push
+                                          --  true
    with function  Can_Pop return Boolean;
                                           --  a byte from the master is
                                           --  available (write phase)
@@ -41,9 +51,13 @@ generic
                                           --  supply one byte for the
                                           --  master to read
    with function  Is_Stop return Boolean;
-                                          --  STOP (or repeated START into
-                                          --  a new address match) ended
-                                          --  the transaction
+                                          --  the transaction has ended:
+                                          --  STOP, repeated START into a
+                                          --  new address match, or -- on
+                                          --  hardware that reports it
+                                          --  that way (AVR TWI) -- the
+                                          --  master's NACK on the last
+                                          --  byte of a read phase
    with procedure Clear_Stop;
                                           --  acknowledge Is_Stop; not
                                           --  chained, same reasoning as

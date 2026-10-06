@@ -5,9 +5,15 @@
 --  exactly why this spike's target board was picked (see README's plan).
 --
 --  This is the first target/slave-mode L2 in this repo -- spikes 1-3
---  only ever drove the MCU as bus master. Bus-fault detection (BERR/
---  ARLO) is out of scope for this first cut, same footing as the rest
---  of this spike's "logic-only, no real bus" validation.
+--  only ever drove the MCU as bus master. Pop and Push detect the two
+--  bus faults a clock-stretching target can see -- BERR (misplaced
+--  START/STOP) -> Bus_Error, ARLO -> Arbitration_Lost -- and skip the data
+--  access. The sticky flags are cleared at the transaction boundary
+--  (Ack_Address / Clear_Stop), not in Pop/Push, so those stay write-free
+--  on the error path (fail clean, §7.1 rule 2). Overrun/underrun
+--  (OVR) cannot occur with stretching on (NOSTRETCH = 0, left at its
+--  reset value), so it is deliberately not mapped. Validation is still
+--  "logic-only, no real bus".
 with Machine.I2C;
 use type Machine.Byte, Machine.I2C.Bus_Status;
 with STM32G474_PAC.RCC, STM32G474_PAC.GPIOB, STM32G474_PAC.I2C1;
@@ -53,7 +59,8 @@ is
           Global => (Input => STM32G474_PAC.I2C1.ISR);
    procedure Pop (Data : out Machine.Byte; Status : in out Machine.I2C.Bus_Status)
      with Inline_Always,
-          Global => (In_Out => STM32G474_PAC.I2C1.RXDR),
+          Global => (Input  => STM32G474_PAC.I2C1.ISR,
+                     In_Out => STM32G474_PAC.I2C1.RXDR),
           Post   => (if Status'Old /= Machine.I2C.Ok
                      then Status = Status'Old and Data = 0);
 
@@ -62,7 +69,8 @@ is
           Global => (Input => STM32G474_PAC.I2C1.ISR);
    procedure Push (Data : Machine.Byte; Status : in out Machine.I2C.Bus_Status)
      with Inline_Always,
-          Global => (In_Out => STM32G474_PAC.I2C1.TXDR),
+          Global => (Input  => STM32G474_PAC.I2C1.ISR,
+                     In_Out => STM32G474_PAC.I2C1.TXDR),
           Post   => (if Status'Old /= Machine.I2C.Ok then Status = Status'Old);
 
    function  Is_Stop return Boolean

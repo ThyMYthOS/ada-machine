@@ -2,10 +2,12 @@
 --  signatures this HAL claims against its own packages.
 with Machine.SPI.Generic_Master;
 with Machine.I2C.Generic_Master;
+with Machine.I2C.Generic_Target;
 with Machine.UART.Generic_Port;
 with Machine.Generic_Clock;
 with Machine.GPIO.Generic_Digital_Out, Machine.GPIO.Generic_Digital_In;
-with ATmega328P.SPI, ATmega328P.GPIO, ATmega328P.I2C, ATmega328P.Clock,
+with ATmega328P.SPI, ATmega328P.GPIO, ATmega328P.I2C, ATmega328P.I2C_Target,
+     ATmega328P.Clock,
      ATmega328P.USART0;
 with ATmega328P_PAC.Port_B;
 
@@ -26,6 +28,19 @@ is
       Push_Read_Request => ATmega328P.I2C.Push_Read_Request,
       Can_Pop           => ATmega328P.I2C.Can_Pop,
       Pop               => ATmega328P.I2C.Pop);
+
+   --  The second target-mode controller (TODO.md #11): checks the *target*
+   --  signature against a structurally different peripheral than STM32G474's.
+   package I2C_Target_Check is new Machine.I2C.Generic_Target
+     (Is_Address_Matched  => ATmega328P.I2C_Target.Is_Address_Matched,
+      Is_Read_From_Master => ATmega328P.I2C_Target.Is_Read_From_Master,
+      Ack_Address         => ATmega328P.I2C_Target.Ack_Address,
+      Can_Pop             => ATmega328P.I2C_Target.Can_Pop,
+      Pop                 => ATmega328P.I2C_Target.Pop,
+      Can_Push            => ATmega328P.I2C_Target.Can_Push,
+      Push                => ATmega328P.I2C_Target.Push,
+      Is_Stop             => ATmega328P.I2C_Target.Is_Stop,
+      Clear_Stop          => ATmega328P.I2C_Target.Clear_Stop);
 
    package Clock_Check is new Machine.Generic_Clock
      (Ticks            => ATmega328P.Clock.Ticks,

@@ -21,9 +21,9 @@ generate_c = false
 #
 # Base addresses (RCC/GPIOA/GPIOB/I2C1/TIM2/RNG) are cross-checked against
 # the STM32G474xx CMSIS device header (stm32duino/Arduino_Core_STM32,
-# itself derived from ST's CMSIS-Device pack). RCC enable-bit *positions*
-# (AHB2ENR.GPIOAEN/GPIOBEN/RNGEN, APB1ENR1.TIM2EN/I2C1EN) are transcribed
-# from memory of the L4/G4-family RCC layout, not yet cross-checked
-# against a fetched primary source -- verify against RM0440's RCC chapter
-# before any real hardware bring-up (this spike's own validation is
-# logic-only, no real bus, so this gap is documented rather than blocking).
+# itself derived from ST's CMSIS-Device pack). The RCC enable-bit
+# *positions* (AHB2ENR.GPIOAEN/GPIOBEN/RNGEN, APB1ENR1.TIM2EN/I2C1EN),
+# the RCC CRRCR HSI48 bits and the I2C1 ISR/ICR error-flag bits were
+# checked against ST's cmsis-device-g4 stm32g474xx.h (TODO.md #11) --
+# which corrected RNGEN from bit 18 (the L4 position) to bit 26. Still
+# unchecked against silicon: this spike's validation is logic-only.

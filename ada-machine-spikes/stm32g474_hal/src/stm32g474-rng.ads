@@ -14,7 +14,8 @@ package STM32G474.RNG
 is
    procedure Enable
      with Global => (In_Out => STM32G474_PAC.RCC.AHB2ENR,
-                     Output => STM32G474_PAC.RNG.CR);
+                     Output => (STM32G474_PAC.RCC.CRRCR,
+                                STM32G474_PAC.RNG.CR));
                     --  CR: Output, not In_Out -- Enable always overwrites
                     --  it outright, never reads the incoming value.
 

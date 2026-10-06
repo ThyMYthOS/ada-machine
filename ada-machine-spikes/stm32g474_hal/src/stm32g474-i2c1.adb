@@ -5,6 +5,31 @@ package body STM32G474.I2C1
 is
    use STM32G474_PAC.I2C1;
 
+   --  TIMINGR for standard mode (100 kHz) with I2CCLK = 16 MHz: this HAL
+   --  never configures a PLL, so the core clock is the reset-default
+   --  HSI16, and I2C1SEL resets to PCLK1 = HSI16 (no RCC divider is
+   --  touched). Fields: PRESC [31:28], SCLDEL [23:20], SDADEL [19:16],
+   --  SCLH [15:8], SCLL [7:0]. Evaluated by hand against the I2C v2
+   --  timing constraints (RM0440, I2C timing section) with the spec's
+   --  worst-case standard-mode edges (tr 1000 ns, tf 300 ns, tSU;DAT
+   --  250 ns, tHD;DAT 0, tVD;DAT 3450 ns), analog filter on, DNF = 0:
+   --    tPRESC = (3+1)/16 MHz                   = 250 ns
+   --    tSCLDEL = (4+1) * 250 ns = 1250 ns      >= tr + tSU;DAT = 1250 ns
+   --    tSDADEL =  2    * 250 ns =  500 ns      in [tf - tAF(min) - 3*tI2CCLK,
+   --                                                tVD;DAT - tr - tAF(max)
+   --                                                - 4*tI2CCLK] ~ [62 ns, 1950 ns]
+   --    tSCLL = (0x13+1) * 250 ns = 5.0 us      >= 4.7 us   (master only)
+   --    tSCLH = (0x0F+1) * 250 ns = 4.0 us      >= 4.0 us   (master only)
+   --  Not run through STM32CubeMX; if the board's real rise time or
+   --  filter settings differ, recompute rather than reuse. A different
+   --  core clock or bus speed needs a different value.
+   Timing_Standard_16MHz : constant Unsigned_32 :=
+     (Unsigned_32 (3)  * 2 ** 28)        --  PRESC
+     or (Unsigned_32 (4)  * 2 ** 20)     --  SCLDEL
+     or (Unsigned_32 (2)  * 2 ** 16)     --  SDADEL
+     or (Unsigned_32 (15) * 2 ** 8)      --  SCLH
+     or Unsigned_32 (19);                --  SCLL
+
    procedure Enable (Cfg : Config := (others => <>)) is
       En1_Now, En2_Now, Mode_Now, Otype_Now, Pupd_Now, Afr_Now : Unsigned_32;
    begin
@@ -42,10 +67,7 @@ is
 
       CR1 := 0;                          --  disable while reconfiguring
 
-      --  Placeholder bus timing (D8, native config) -- re-derive with
-      --  STM32CubeMX's I2C timing calculator against the actual core
-      --  clock before real hardware bring-up; see stm32g474_pac-i2c1.ads.
-      TIMINGR := 16#2000_090E#;
+      TIMINGR := Timing_Standard_16MHz;   --  D8, native config; derivation above
 
       --  Own address: OA1[7:1] takes the unshifted 7-bit address
       --  left-shifted by one (Machine.I2C.Address_7_Bit is documented
@@ -74,7 +96,8 @@ is
 
    procedure Ack_Address is
    begin
-      ICR := ICR_ADDRCF;
+      --  A new transaction must not inherit a stale bus fault.
+      ICR := ICR_ADDRCF or ICR_BERRCF or ICR_ARLOCF;
    end Ack_Address;
 
    function Can_Pop return Boolean is
@@ -84,14 +107,23 @@ is
    end Can_Pop;
 
    procedure Pop (Data : out Machine.Byte; Status : in out Machine.I2C.Bus_Status) is
+      St  : Unsigned_32;
       Raw : Unsigned_32;
    begin
       Data := 0;
       if Status /= Machine.I2C.Ok then
          return;                              --  chained: skip if pending
       end if;
-      Raw  := RXDR;
-      Data := Machine.Byte (Raw and 16#FF#);
+      St := ISR;
+      if (St and ISR_BERR) /= 0 then
+         Status := Machine.I2C.Bus_Error;     --  flag cleared at the
+                                              --  transaction boundary
+      elsif (St and ISR_ARLO) /= 0 then
+         Status := Machine.I2C.Arbitration_Lost;
+      else
+         Raw  := RXDR;
+         Data := Machine.Byte (Raw and 16#FF#);
+      end if;
    end Pop;
 
    function Can_Push return Boolean is
@@ -101,11 +133,20 @@ is
    end Can_Push;
 
    procedure Push (Data : Machine.Byte; Status : in out Machine.I2C.Bus_Status) is
+      St : Unsigned_32;
    begin
       if Status /= Machine.I2C.Ok then
          return;                              --  chained: skip if pending
       end if;
-      TXDR := Unsigned_32 (Data);
+      St := ISR;
+      if (St and ISR_BERR) /= 0 then
+         Status := Machine.I2C.Bus_Error;     --  flag cleared at the
+                                              --  transaction boundary
+      elsif (St and ISR_ARLO) /= 0 then
+         Status := Machine.I2C.Arbitration_Lost;
+      else
+         TXDR := Unsigned_32 (Data);
+      end if;
    end Push;
 
    function Is_Stop return Boolean is
@@ -116,7 +157,9 @@ is
 
    procedure Clear_Stop is
    begin
-      ICR := ICR_STOPCF;
+      --  End of transaction: also where BERR/ARLO raised by Pop/Push are
+      --  cleared (fail clean, §7.1 rule 2), keeping those two write-free.
+      ICR := ICR_STOPCF or ICR_BERRCF or ICR_ARLOCF;
    end Clear_Stop;
 
 end STM32G474.I2C1;

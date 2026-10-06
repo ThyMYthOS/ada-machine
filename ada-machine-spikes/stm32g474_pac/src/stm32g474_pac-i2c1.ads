@@ -27,15 +27,14 @@ is
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#08#;
    OAR1_OA1EN : constant := 2#1# * 2**15;
 
-   --  TIMINGR (0x10) -- bus timing (filter widths, SCL high/low counts).
-   --  Still consulted in target mode (sampling/filter timing, RM0440),
-   --  even though the target never generates the clock itself. Written
-   --  once at Enable time; the exact value is a placeholder computed
-   --  for the default HSI16 core clock (D8: bus timing is native
-   --  configuration, not part of the portable contract, same as
-   --  RP2040.I2C0's HCNT/LCNT) -- re-derive with STM32CubeMX's I2C timing
-   --  calculator (or RM0440's own worked examples) before real hardware
-   --  bring-up rather than trusting this value.
+   --  TIMINGR (0x10) -- PRESC [31:28], SCLDEL [23:20], SDADEL [19:16],
+   --  SCLH [15:8], SCLL [7:0] (CMSIS I2C_TIMINGR_PRESC_Pos = 28). In
+   --  target mode PRESC, SCLDEL and SDADEL (data setup/hold) still
+   --  matter even though the target never generates SCL; SCLH/SCLL only
+   --  matter to a master. Written once at Enable time; the value is
+   --  native configuration (D8, same as RP2040.I2C0's HCNT/LCNT) and is
+   --  derived in stm32g474-i2c1.adb for the I2C kernel clock the HAL
+   --  actually runs (HSI16 = 16 MHz).
    TIMINGR : Unsigned_32
      with Volatile, Async_Readers, Async_Writers, Address => Base + 16#10#;
 
@@ -52,6 +51,11 @@ is
    ISR_ADDR  : constant := 2#1# * 2**3;             --  bit 3: address matched
    ISR_NACKF : constant := 2#1# * 2**4;             --  bit 4
    ISR_STOPF : constant := 2#1# * 2**5;             --  bit 5
+   ISR_BERR  : constant := 2#1# * 2**8;             --  bit 8: bus error
+   ISR_ARLO  : constant := 2#1# * 2**9;             --  bit 9: arbitration lost
+   --  (OVR, bit 10, only occurs with clock stretching disabled; this HAL
+   --  leaves NOSTRETCH = 0, so overrun/underrun cannot happen and is not
+   --  mapped.)
    ISR_DIR   : constant := 2#1# * 2**16;            --  bit 16: 1 = master reads
 
    --  ICR (0x1C) -- write-1-to-clear (§9's converged ESP32-C3 encoding).
@@ -60,6 +64,8 @@ is
           Address => Base + 16#1C#;
    ICR_ADDRCF : constant := 2#1# * 2**3;
    ICR_STOPCF : constant := 2#1# * 2**5;
+   ICR_BERRCF : constant := 2#1# * 2**8;
+   ICR_ARLOCF : constant := 2#1# * 2**9;
 
    --  RXDR (0x24) -- reading dequeues the byte the master wrote and
    --  clears RXNE (a side effect); hardware refills it on the next byte.

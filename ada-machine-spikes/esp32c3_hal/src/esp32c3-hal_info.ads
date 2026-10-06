@@ -13,5 +13,7 @@ is
       Has_SPI    => True,
       Has_I2C    => False,   --  not in the spike subset
       Has_Clock  => False,   --  timekeeping via Ada.Real_Time, not a Machine clock
-      Has_Delays => False);  --  delays come from machine_tasking (delay until)
+      Has_Delays => False,   --  delays come from machine_tasking (delay until)
+      Has_RNG    => True,    --  bare SYSCON data register (ESP32C3.RNG)
+      others     => False);  --  no target-mode I2C
 end ESP32C3.HAL_Info;

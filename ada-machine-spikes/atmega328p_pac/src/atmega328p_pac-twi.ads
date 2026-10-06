@@ -15,7 +15,8 @@ is
    TWSR : Unsigned_8         --  status: TWS7:3 (code), TWPS1:0 (prescaler)
      with Volatile, Async_Readers, Async_Writers,
           Address => System'To_Address (16#B9#);
-   TWAR : Unsigned_8         --  slave address (unused: master-only driver)
+   TWAR : Unsigned_8         --  own slave address TWA6:0 << 1, bit 0 = TWGCE
+                             --  (used only by ATmega328P.I2C_Target)
      with Volatile, Async_Readers, Async_Writers,
           Address => System'To_Address (16#BA#);
    TWDR : Unsigned_8         --  data: address+R/W or one data byte
@@ -59,4 +60,19 @@ is
    TW_MR_SLA_NACK  : constant := 16#48#;
    TW_MR_DATA_ACK  : constant := 16#50#;
    TW_MR_DATA_NACK : constant := 16#58#;
+
+   --  Slave-mode status codes (TODO.md #11: the second, structurally
+   --  different target-mode controller). Same source as the master codes
+   --  above (datasheet status-code tables / avr-libc <util/twi.h>). The
+   --  general-call codes (0x70/0x78/0x90/0x98) are omitted: TWGCE stays 0.
+   TW_SR_SLA_ACK          : constant := 16#60#;  --  Slave Receiver: own SLA+W, ACKed
+   TW_SR_ARB_LOST_SLA_ACK : constant := 16#68#;  --  arb. lost as master, own SLA+W
+   TW_SR_DATA_ACK         : constant := 16#80#;  --  data received, ACKed
+   TW_SR_DATA_NACK        : constant := 16#88#;  --  data received, NACKed
+   TW_SR_STOP             : constant := 16#A0#;  --  STOP / repeated START while addressed
+   TW_ST_SLA_ACK          : constant := 16#A8#;  --  Slave Transmitter: own SLA+R, ACKed
+   TW_ST_ARB_LOST_SLA_ACK : constant := 16#B0#;  --  arb. lost as master, own SLA+R
+   TW_ST_DATA_ACK         : constant := 16#B8#;  --  data sent, master ACKed (wants more)
+   TW_ST_DATA_NACK        : constant := 16#C0#;  --  data sent, master NACKed (done)
+   TW_ST_LAST_DATA        : constant := 16#C8#;  --  last data sent (TWEA = 0), ACKed
 end ATmega328P_PAC.TWI;

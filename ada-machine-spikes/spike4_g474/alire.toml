@@ -24,11 +24,22 @@ machine         = { path = "../machine" }
 time_rng_target = { path = "../time_rng_target" }
 stm32g474_hal   = { path = "../stm32g474_hal" }
 
-# Not cross-built in this environment by default (no gnat_arm_elf/
-# embedded_stm32g4xx toolchain pinned here, §10) -- this crate is the
-# wiring/documentation artifact for Appendix D; host_test is what is
-# actually compiled and run to check the shared Time_RNG_Target logic.
-# Unlike spike1_pico/spike3_esp, a real Alire-published runtime crate
-# for this target *does* exist (damaki's embedded_stm32g4xx) -- pinning
-# it and a matching gnat_arm_elf toolchain is a plausible follow-up if
-# this session's `alr build` can fetch them; see the spike 4 plan notes.
+# Not the default build (host_test is what is compiled and run to check the
+# shared Time_RNG_Target logic), but a real cross-build was verified
+# (TODO.md #11): gnat_arm_elf 15.3.1 + embedded_stm32g4xx 16.0.0 (damaki's
+# Alire-published Ravenscar runtime for this family) link a Cortex-M4
+# (ARMv7E-M) ELF of ~67 kB text. Recipe, applied to a scratch copy:
+#   [[depends-on]]  embedded_stm32g4xx = "*" and gnat_arm_elf = "*"
+#   [configuration.values]                 # keep the clock the HAL assumes!
+#   embedded_stm32g4xx.SYSCLK_Src = "HSI16"
+#   embedded_stm32g4xx.AHB_Pre = "DIV1"
+#   embedded_stm32g4xx.APB1_Pre = "DIV1"
+#   embedded_stm32g4xx.APB2_Pre = "DIV1"
+# and in spike4_g474.gpr: `with "runtime_build.gpr"; with
+# "ravenscar_build.gpr";`, `for Target use runtime_build'Target;`,
+# `for Runtime ("Ada") use runtime_build'Runtime ("Ada");` and a Linker
+# package using Runtime_Build.Linker_Switches. The SYSCLK_Src override is
+# not optional: the runtime defaults to a 170 MHz PLL clock, which would
+# silently break the I2C TIMINGR stm32g474_hal derives for HSI16 (16 MHz).
+# Not made the default so `make` works without the runtime download; not
+# flashed or run.

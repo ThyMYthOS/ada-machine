@@ -9,6 +9,14 @@ is
    procedure Enable is
       En_Now : constant Unsigned_32 := AHB2ENR;
    begin
+      --  The RNG kernel clock is CCIPR.CLK48SEL, which resets to HSI48
+      --  (that reset default is relied on, not rewritten) -- but HSI48
+      --  itself is off after reset, so start it here. No wait for
+      --  HSI48RDY: L2 never waits (§5), and the RNG reports Is_Ready
+      --  only once clock and seed are good (DRDY), so a caller polling
+      --  Is_Ready already waits for exactly this.
+      CRRCR := CRRCR_HSI48ON;   --  other bits (RDY, CAL) are read-only: a
+                                --  plain write, no read-modify-write
       AHB2ENR := En_Now or AHB2ENR_RNGEN;
       CR := CR_RNGEN;
    end Enable;

@@ -12,5 +12,6 @@ is
       Has_SPI    => False,   --  not in the spike subset
       Has_I2C    => True,
       Has_Clock  => True,
-      Has_Delays => False);  --  delays come from machine_blocking over Clock
+      Has_Delays => False,   --  delays come from machine_blocking over Clock
+      others     => False);  --  no target-mode I2C, no RNG
 end RP2040.HAL_Info;

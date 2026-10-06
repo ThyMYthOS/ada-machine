@@ -9,7 +9,16 @@ generic
    with function  Is_Ready return Boolean;   --  a fresh word is available
    with procedure Get_Word (Value : out Word; Status : in out Rng_Status);
                                              --  consume one word; chained
-                                             --  on Rng_Status (§7.1)
+                                             --  on Rng_Status (§7.1). Ok
+                                             --  means a word was delivered
+                                             --  and no health fault was
+                                             --  *reported* -- not that it
+                                             --  is true random: a source
+                                             --  with no health interface
+                                             --  (ESP32-C3) can never
+                                             --  report a fault, and
+                                             --  entropy-source enabling
+                                             --  is native config (D8)
 package Machine.RNG.Generic_Source
   with Pure, SPARK_Mode
 is end Machine.RNG.Generic_Source;

@@ -1,7 +1,7 @@
---  RNG class vocabulary (new in spike 4 -- not yet in the §6.3 v1 list,
---  proposed here as an 8th signature alongside Digital_Out/In, UART,
---  SPI_Master, I2C_Master, Clock, Delays; one data point so far, same
---  bar Generic_Master was held to before being called proven).
+--  RNG class vocabulary (new in spike 4; promoted to the §6.3 v1 list in
+--  TODO.md #11 once a second, structurally different source -- the bare
+--  ESP32-C3 data register, no ready/health flags -- instantiated it
+--  unchanged, the same bar Generic_Master had to clear).
 package Machine.RNG
   with Pure, SPARK_Mode
 is

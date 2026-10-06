@@ -10,8 +10,10 @@
 --  needs one.
 with Machine.SPI.Generic_Master;
 with Machine.UART.Generic_Port;
+with Machine.RNG.Generic_Source;
+with Interfaces;
 with Machine.GPIO.Generic_Digital_Out, Machine.GPIO.Generic_Digital_In;
-with ESP32C3.SPI2, ESP32C3.GPIO, ESP32C3.UART0;
+with ESP32C3.SPI2, ESP32C3.GPIO, ESP32C3.UART0, ESP32C3.RNG;
 
 package Conformance
   with SPARK_Mode
@@ -39,6 +41,14 @@ is
       Put_Frame   => ESP32C3.UART0.Put_Frame,
       Is_Rx_Ready => ESP32C3.UART0.Is_Rx_Ready,
       Get_Frame   => ESP32C3.UART0.Get_Frame);
+
+   --  The second RNG data point (TODO.md #11): a bare data register with no
+   --  ready or health interface, checked against the same signature as
+   --  STM32G474's flag-rich RNG.
+   package RNG_Check is new Machine.RNG.Generic_Source
+     (Word     => Interfaces.Unsigned_32,
+      Is_Ready => ESP32C3.RNG.Is_Ready,
+      Get_Word => ESP32C3.RNG.Get_Word);
 
    --  Machine.GPIO.Generic_Digital_Out needs one formal procedure bound to
    --  a fixed pin (§6.4): a real conformance unit wraps ESP32C3.GPIO the
