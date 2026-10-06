@@ -371,7 +371,7 @@ Optional and last, because it touches nine list files: rename to `start.S`, sinc
 
 **Decisions** (made 2026-10-02):
 
-1. **One library, two thin mains.** `mpfs_mss_init` is a boot-stage crate (`No_Elaboration_Code`; no `Text_IO`, exceptions, secondary stack or tasking). A UBL main uses it for boot mode 2 (sNVM to E51 DTIM); linked-in startup for `Boot_Role => primary` uses it for JTAG/development. It is **not** L0 runtime: it needs hundreds of registers where the runtime keeps a handful ([README §10.1](README.md#101-the-l0l1-seam-why-the-runtime-must-not-depend-on-the-pac)), and the runtime must not own a UART driver ([§10.3](README.md#103-adatext_io-and-the-console-channel-a-runtime-fifo-application-wired-transport) rule 3).
+1. **One library, two thin mains.** `MPFS_MSS_Init` is a boot-stage package, living in the `mpfs_pac` crate alongside the generated `MPFS_MSS.*` registers it is written directly against (`No_Elaboration_Code`; no `Text_IO`, exceptions, secondary stack or tasking). A UBL main uses it for boot mode 2 (sNVM to E51 DTIM); linked-in startup for `Boot_Role => primary` uses it for JTAG/development. It is **not** L0 runtime: it needs hundreds of registers where the runtime keeps a handful ([README §10.1](README.md#101-the-l0l1-seam-why-the-runtime-must-not-depend-on-the-pac)), and the runtime must not own a UART driver ([§10.3](README.md#103-adatext_io-and-the-console-channel-a-runtime-fifo-application-wired-transport) rule 3). A consumer that only needs register access never `with`s `MPFS_MSS_Init`, so it is neither compiled nor linked in for that consumer.
 2. **The SVD is the reference; the PAC is generated from it** by `svd2ada` into a crate `mpfs_pac` (README §9), never hand-edited. The SVD is itself generated from vendor documentation by a script that is still fragile, so every SVD change is a reviewed diff, and fixes belong in the SVD (or its patch overlay), not in the Ada.
 3. **Plan recorded as A7; implementation in waves** on separate branches, listed below.
 
@@ -403,7 +403,7 @@ Optional and last, because it touches nine list files: rename to `start.S`, sinc
 | 1 | `a7-pac` | `mpfs_pac` crate generated from the SVD, with a regeneration script | no |
 | 1 | `a7-step0` | Step 0 experiment on the board, plus the register-width probe | **yes** |
 | 1 | `a7-gen` | generator hardening (Step 3), fed by the XML and the PAC | no |
-| 2 | `a7-init` | `mpfs_mss_init`, `Boot_Init`, `start.S` hook, checks and negative builds | no |
+| 2 | `a7-init` | `MPFS_MSS_Init` (in `mpfs_pac`), `Boot_Init`, `start.S` hook, checks and negative builds | no |
 | 2 | `a7-verify` | readback and functional verification on the board (Steps 4.1 and 5) | **yes** |
 
 > **Exit:** `Boot_Init => clocks` on a `primary` image brings the MSS up from boot mode 0 on an Icicle Kit with no debugger stand-in: `mtime` ticks at 1 MHz, the console prints at 115200, and `tasking_test` and `protected_test` pass every timed check.

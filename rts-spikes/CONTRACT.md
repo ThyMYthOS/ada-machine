@@ -70,10 +70,14 @@ populated directories and re-admits exactly that one.
 
 **`mpfs_pac` is not a tier-1/2/3 crate and does not belong in the §2 pinned
 table below.** It is an L1 PAC crate in the sense of [README.md §9](../README.md#9-pac-crates-l1)/[§10.1](../README.md#101-the-l0l1-seam-why-the-runtime-must-not-depend-on-the-pac)
-— an ordinary, buildable, `Preelaborate` crate with no bootstrap cycle and no
-dependency relationship with `rts_support_mpfs` or any leaf. Do not describe it
-as "tier-3, source-only, never built by Alire" (that description, and the
+— an ordinary, buildable crate with no bootstrap cycle and no dependency
+relationship with `rts_support_mpfs` or any leaf. Do not describe it as
+"tier-3, source-only, never built by Alire" (that description, and the
 `abstract project` shape it implies, belongs only to the crates in §2).
+It also holds `MPFS_MSS_Init` (RTS-PRODUCTION.md A7), a procedural,
+non-`Preelaborate` package next to the generated `Preelaborate` `MPFS_MSS.*`
+ones -- README.md §9 rule 5 constrains the PAC packages, not the crate as a
+whole, so the two coexist here rather than in a second crate.
 
 ---
 

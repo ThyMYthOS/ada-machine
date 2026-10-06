@@ -1,0 +1,48 @@
+name = "mpfs_mss_init_test"
+description = "Build-only sanity check: MPFS_MSS_Init links against light_mpfs"
+long-description = """
+Not a QEMU-asserted test like this directory's other entries -- deliberately
+not in tests.list. RTS-PRODUCTION.md A7 Step 5 is explicit that QEMU does
+not model the SCB/PLL window MPFS_MSS_Init programs, so there is nothing
+meaningful to assert from a QEMU boot here. This exists only to compile and
+link `MPFS_MSS_Init.Initialize` against the real riscv64-elf cross compiler
+and light_mpfs, on hart 0 (E51) -- the hart RTS-PRODUCTION.md A7 Step 0
+targets -- since MPFS_MSS_Init itself was only checked with the native GNAT
+semantic checker (`-gnatc`), which cannot see RISC-V-specific issues (its
+inline asm, or representation-clause legality against the real target).
+
+Build: `cd rts-spikes/tests/mpfs_mss_init_test && alr build`.
+Running it under QEMU or on a board is a separate question from building it;
+see mpfs_pac's own alire.toml for what the sequence does and does not do
+yet.
+"""
+version = "0.1.0-dev"
+licenses = "Apache-2.0 WITH LLVM-exception"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+executables = ["mpfs_mss_init_test"]
+
+[[depends-on]]
+light_mpfs = "*"
+mpfs_pac = "*"
+
+[[pins]]
+light_mpfs = { path = "../../light_mpfs" }
+mpfs_pac = { path = "../../mpfs_pac" }
+
+#  mpfs_pac vendors no example XML of its own -- this crate's is the
+#  example, under xml/ here -- and mpfs_pac.XML_File alone cannot name a
+#  path to it: ${CRATE_ROOT} does not expand inside [configuration.values]
+#  (see mpfs_pac's own alire.toml and generate_mpfs_config.py). So this
+#  points mpfs_pac at this directory via [environment], which is where
+#  ${CRATE_ROOT} does expand, and leaves XML_File a bare filename.
+[environment]
+MPFS_PAC_XML_DIR.set = "${CRATE_ROOT}/xml"
+
+[configuration.values]
+light_mpfs.Harts_Mask     = 1
+light_mpfs.Memory_Profile = "lim"
+light_mpfs.DTIM_Ways      = 0
+light_mpfs.Console        = "mmuart0"
+mpfs_pac.XML_File         = "MPFS_Icicle_MSS_Baremetal.xml"

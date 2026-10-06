@@ -1,7 +1,3 @@
-# Generated PAC files
-src/mpfs_mss*.ads
-src/mpfs_mss*.ali
-
 # Build artifacts
 lib/
 obj/
@@ -9,3 +5,8 @@ bin/
 *.ali
 *.o
 *.tmp
+
+# Generated PAC files (svd2ada's own mpfs_mss[-<peripheral>].ads, never
+# the hand-written mpfs_mss_init* package).
+src/mpfs_mss.ads
+src/mpfs_mss-*.ads

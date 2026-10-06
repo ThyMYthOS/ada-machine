@@ -1,14 +1,17 @@
 name = "mpfs_pac"
-description = "PolarFire SoC Peripheral Access Crate (PAC)"
+description = "PolarFire SoC Peripheral Access Crate (PAC) and MSS bring-up"
 long-description = """
 L1 PAC crate for the Microchip PolarFire SoC (one E51 monitor core plus
 four U54 application cores, riscv64-elf), per README.md §9. Unlike the
 tier-1/2/3 crates elsewhere in this spike, it is an **ordinary buildable
-crate**: `Preelaborate`, no elaboration code, no subprograms beyond
-trivial accessors (README.md §9 rule 5). It has no dependency on, and no
-crate relationship with, the runtime crates (`rts_support_mpfs` and
-friends) -- see README.md §10.1 on why the runtime keeps its own private
-register subset instead of depending on the PAC.
+crate**: the `MPFS_MSS.*` packages are `Preelaborate`, no elaboration
+code, no subprograms beyond trivial accessors (README.md §9 rule 5).
+That rule is per-package, not per-crate -- a crate can hold both
+`Preelaborate` register packages and a separate procedural one (this
+crate does: `MPFS_MSS_Init`, below). The PAC itself has no dependency
+on, and no crate relationship with, the runtime crates (`rts_support_mpfs`
+and friends) -- see README.md §10.1 on why the runtime keeps its own
+private register subset instead of depending on the PAC.
 
 `svd/PolarfireSoC.svd` is the single curated copy of the vendor SVD for
 this project (README.md §9 rule 1/3): nothing else in the repo vendors
@@ -32,12 +35,65 @@ crate has no dependency on), with one child package per SVD peripheral.
 authoritative source, and any manual change to them would be silently
 overwritten by the next generation run. Fixes to peripheral data belong
 in the SVD or in `generate_pac.sh`/`merge_duplicates.py` themselves.
+
+**`MPFS_MSS_Init`** is boot-stage MSS bring-up (RTS-PRODUCTION.md A7):
+`No_Elaboration_Code`, no `Text_IO`, no exceptions, no secondary stack,
+no tasking. It is not L0 runtime -- it needs hundreds of registers where
+the runtime keeps a handful (README.md §10.1) -- and it exists in this
+crate, not a separate one, because its sequence and its generator are
+both written directly against `MPFS_MSS.*`'s names and layout: a tight
+enough relation that splitting it out bought no real isolation, only a
+second crate to pin. Ported from a reference boot sequence (Microchip's
+own, adapted to Ada) rather than written from Step 0 up.
+`generate_mpfs_config.py` is A7 Step 3's generator: it reads the MSS
+Configurator XML (a directory named by the consumer's own
+`MPFS_PAC_XML_DIR`, see the `XML_File` configuration variable below --
+this crate vendors no example XML of its own) and emits
+`config/mpfs_mss_config.ads` (`MPFS_MSS_Config`),
+which `mpfs_mss_init.adb` uses for every register value that is a
+genuine per-board steady-state configuration, replacing the
+hand-transcribed values the reference carried. What still is NOT
+derived -- each procedural bring-up step the XML only records the
+post-bring-up value for, and one genuine ambiguity in the vendor data
+the generator refuses to guess at (`PLL_PHADJ`) -- is documented at
+each call site and in the generator's own docstring. The defects A7
+Step 2 still has to resolve (the 500 ns delay computed from the wrong
+clock, the PLL lock wait having no timeout, PMP/MPU/the virtual boot
+ROM/hart release not implemented) are unchanged and still marked FIXME.
+`Boot_Init`, the `start.S` hook, and the negative-build checks A7 also
+calls for are not done -- this crate is the core sequence plus its
+generator, not all of A7.
+
+A consumer that only needs `MPFS_MSS.*` register access (e.g. a
+`secondary`-role application) never `with`s `MPFS_MSS_Init`, so its
+build never compiles that package and its link never includes it --
+GNAT only compiles units reachable from the consumer's own `with`
+closure, and `-Wl,--gc-sections` drops anything left unreferenced.
+`generate_mpfs_config.py` still runs as this crate's `pre-build` action
+for every consumer regardless, since Alire actions are per-crate, not
+per-unit -- including a `secondary`-role consumer that never `with`s
+`MPFS_MSS_Init` and has no real use for `MPFS_MSS_Config`. Because this
+crate vendors no example XML, such a consumer is not expected to supply
+one just to satisfy a step it gets no benefit from: with neither
+`MPFS_PAC_XML_DIR` nor `XML_File` set, the generator prints that it is
+skipping and generates no `MPFS_MSS_Config`, rather than failing the
+build.
 """
 version = "0.1.0-dev"
 licenses = "Apache-2.0 WITH LLVM-exception"
 authors = ["Manuel Stahl"]
 maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
 maintainers-logins = ["thymythos"]
-tags = ["embedded", "riscv", "polarfire-soc", "amp"]
+tags = ["embedded", "riscv", "polarfire-soc"]
 
 project-files = ["mpfs_pac.gpr"]
+
+[configuration.variables]
+#  Bare filename (never a path) that generate_mpfs_config.py reads out of
+#  a directory. A consumer vendoring its file in its own tree needs to use
+#  MPFS_PAC_XML_DIR.set = "${CRATE_ROOT}/xml" in [environment].
+XML_File = { type = "String" }
+
+[[actions]]
+type = "pre-build"
+command = ["python3", "generate_mpfs_config.py"]
