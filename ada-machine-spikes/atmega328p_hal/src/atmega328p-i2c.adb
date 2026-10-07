@@ -70,12 +70,11 @@ is
       Addressed_Dir := None;
       Read_Pending  := False;
       Stop_Pending  := False;
-      --  Prime TWINT: issue a benign STOP (no transaction pending) so
-      --  Can_Push's "TWINT set = ready" invariant holds from the very
-      --  first real push -- TWINT's reset value is 0, and nothing else
-      --  ever sets it without a hardware action being triggered first.
-      TWCR := TWCR_TWINT or TWCR_TWSTO or TWCR_TWEN;
-      Await_TWINT;
+      --  No TWINT priming: TWINT is not set after a STOP condition (ATmega328P
+      --  datasheet, TWI chapter), so the former "benign STOP, then await
+      --  TWINT" spun forever. Can_Push instead treats "no transaction open"
+      --  as ready, since the next push then begins with a START.
+      TWCR := TWCR_TWEN;
    end Enable;
 
    procedure Set_Target (Address : Machine.I2C.Address_7_Bit) is
@@ -93,8 +92,14 @@ is
    function Can_Push return Boolean is
       Cr_Now : constant Unsigned_8 := TWCR;
       Rp_Now : constant Boolean := Read_Pending;
+      Ad_Now : constant Direction := Addressed_Dir;
    begin
-      return not Rp_Now and then (Cr_Now and TWCR_TWINT) /= 0;
+      --  Ready when no read result is outstanding and either no transaction
+      --  is open (the next push starts with a START, which needs no TWINT --
+      --  and after a STOP TWINT stays clear) or the previous action of the
+      --  open transaction has completed (TWINT set).
+      return not Rp_Now
+        and then (Ad_Now = None or else (Cr_Now and TWCR_TWINT) /= 0);
    end Can_Push;
 
    procedure Push_Write (Data : Machine.Byte; Stop : Boolean;
