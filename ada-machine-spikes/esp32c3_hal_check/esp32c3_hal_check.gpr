@@ -1,0 +1,15 @@
+with "../esp32c3_hal/esp32c3_hal.gpr";
+
+--  Compile-only check: no sources of its own, so gprbuild compiles the
+--  closure (esp32c3_pac, esp32c3_hal, machine) for RISC-V and has nothing
+--  to link. The ESP32-C3 is rv32imc; the stock light-rv32imac runtime of
+--  gnat_riscv64_elf (a superset) is used as the nearest available one --
+--  it is NOT a runtime for this chip (no startup code or linker script
+--  for it), which is exactly why spike3_esp is not linked here.
+project ESP32C3_HAL_Check is
+   for Target use "riscv64-elf";
+   for Runtime ("Ada") use "light-rv32imac";
+   for Source_Dirs use ();
+   for Object_Dir use "obj";
+   for Create_Missing_Dirs use "True";
+end ESP32C3_HAL_Check;

@@ -50,3 +50,58 @@ jobs:
       - name: Run GNATprove
         run: make gnatprove ALR="alr -n"
         working-directory: ada-machine-spikes
+
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Separate cache key from the host job: the cross toolchains
+      # (gnat_arm_elf, gnat_avr_elf, gnat_riscv64_elf) and runtimes are
+      # large and would bloat the host job's cache.
+      - name: Cache Alire toolchains and crates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/alire
+            ~/.cache/alire
+            ~/.alire
+          key: alire-cross-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/alire.toml') }}
+          restore-keys: |
+            alire-cross-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@v6
+        with:
+          cache: false
+
+      # spike1_pico_board, spike4_g474_board, spike2_avr (both bus variants)
+      # link real ELFs; esp32c3_pac/_hal are only compiled for RISC-V
+      # (spike3_esp is not linked, runtime pending, see TODO.md #15).
+      - name: Cross-build all targets
+        run: make cross ALR="alr -n"
+        working-directory: ada-machine-spikes
+
+      - name: Upload spike1_pico (RP2040) ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike1_pico-rp2040-elf
+          path: ada-machine-spikes/spike1_pico_board/bin/spike1_pico
+          if-no-files-found: error
+
+      - name: Upload spike2_avr (ATmega328P) ELFs
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike2_avr-atmega328p-elf
+          path: |
+            ada-machine-spikes/spike2_avr/bin/spi/spike2_avr
+            ada-machine-spikes/spike2_avr/bin/i2c/spike2_avr
+          if-no-files-found: error
+
+      - name: Upload spike4_g474 (STM32G474) ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike4_g474-stm32g474-elf
+          path: ada-machine-spikes/spike4_g474_board/bin/spike4_g474
+          if-no-files-found: error

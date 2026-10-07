@@ -62,8 +62,22 @@
 # `make gnatprove-spike2_avr`/`-spike2_avr-i2c` on their own always
 # regenerates it correctly and passes.
 #
+# `make cross` builds the real cross-compiled targets, separately from `all`
+# (they download large toolchains/runtimes via Alire on first use):
+#   spike4_g474_board  STM32G474, light_stm32g4xx + gnat_arm_elf -> ELF
+#   spike1_pico_board  RP2040, light_rp2040 + gnat_arm_elf -> ELF (with boot2)
+#   spike2_avr (SPI and I2C)  ATmega328P, avrada_rts + gnat_avr_elf -> ELF
+#   esp32c3_hal_check  esp32c3_pac/_hal compiled (NOT linked) for RISC-V with
+#                      gnat_riscv64_elf; spike3_esp itself is not linked, its
+#                      runtime is pending (TODO.md #15)
+# The board crates reuse the host spike's sources (Source_Dirs) and only add
+# the runtime wiring; the host crates stay the native stand-ins built by `all`.
+# Note the cross builds share the imported crates' obj/ dirs with the host
+# builds (as spike2_avr always has), so a later `make all` recompiles those.
+#
 # Usage:
 #   make             build every crate, report a pass/fail summary
+#   make cross       cross-build every board crate + spike2_avr variants
 #   make <crate>     build just that one crate, e.g. `make bme280`
 #   make gnatprove   run GNATprove on every crate, report a summary
 #   make test        build and run host_test
@@ -100,13 +114,20 @@ CRATES := \
 	spike3_esp \
 	spike4_g474
 
+# Board crates / checks built by `make cross` (not part of `all`).
+BOARD_CRATES := \
+	spike4_g474_board \
+	spike1_pico_board \
+	esp32c3_hal_check
+
 # No -f: GNATprove reuses its why3 proof session under each crate's obj/ dir,
 # re-proving only changed units. Establishing that cache cold is expensive
 # (notably on Apple silicon), so we keep it incremental and never `make clean`
 # between proof runs. Pass -f manually if you ever need a from-scratch re-proof.
 GNATPROVE_FLAGS := -j0 --level=1 --output=oneline --output-header
 
-.PHONY: all list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
+.PHONY: all cross list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
+        $(BOARD_CRATES) \
         $(CRATES) $(addprefix clean-,$(CRATES)) $(addprefix gnatprove-,$(CRATES))
 
 all:
@@ -135,6 +156,25 @@ all:
 		exit 1; \
 	fi; \
 	echo "All $(words $(CRATES)) crates built (+ spike2_avr's I2C variant)."
+
+cross:
+	@set -e; \
+	failed=""; \
+	for c in $(BOARD_CRATES) spike2_avr spike2_avr-i2c; do \
+		echo "==> $$c"; \
+		if $(MAKE) --no-print-directory ALR="$(ALR)" $$c; then \
+			echo "==> $$c: OK"; \
+		else \
+			echo "==> $$c: FAILED"; \
+			failed="$$failed $$c"; \
+		fi; \
+		echo; \
+	done; \
+	if [ -n "$$failed" ]; then \
+		echo "Failed:$$failed"; \
+		exit 1; \
+	fi; \
+	echo "All cross targets built ($(words $(BOARD_CRATES)) board/check crates + spike2_avr SPI and I2C)."
 
 list:
 	@for c in $(CRATES); do echo "$$c"; done
@@ -174,7 +214,7 @@ gnatprove-spike2_avr-i2c:
 	cd spike2_avr && $(ALR) gnatprove $(GNATPROVE_FLAGS) -XBME280_BUS=I2C
 
 # Per-crate targets, e.g. `make bme280`, `make host_test`.
-$(CRATES):
+$(CRATES) $(BOARD_CRATES):
 	cd $@ && $(ALR) build
 
 spike2_avr-i2c:

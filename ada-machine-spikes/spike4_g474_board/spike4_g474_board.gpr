@@ -1,0 +1,25 @@
+with "runtime_build.gpr";
+with "../machine/machine.gpr";
+with "../time_rng_target/time_rng_target.gpr";
+with "../stm32g474_hal/stm32g474_hal.gpr";
+
+--  Board crate: the real STM32G474 cross-build of spike4_g474. The
+--  sources are the host crate's own (nothing is copied); only the runtime
+--  wiring differs. See alire.toml for the pinned clock configuration.
+project Spike4_G474_Board is
+   for Target use runtime_build'Target;
+   for Runtime ("Ada") use runtime_build'Runtime ("Ada");
+
+   for Source_Dirs use ("../spike4_g474/src");
+   for Object_Dir use "obj";
+   for Main use ("main.adb");
+   for Exec_Dir use "bin";
+
+   package Builder is
+      for Executable ("main.adb") use "spike4_g474";
+   end Builder;
+
+   package Linker is
+      for Switches ("Ada") use Runtime_Build.Linker_Switches;
+   end Linker;
+end Spike4_G474_Board;

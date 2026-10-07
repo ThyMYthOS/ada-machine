@@ -1,0 +1,36 @@
+name = "spike4_g474_board"
+version = "0.1.0-dev"
+description = "Ada Machine spike 4, real STM32G474 cross-build (board crate)"
+long-description = "Board crate for spike4_g474: reuses its sources, links them against light_stm32g4xx with gnat_arm_elf into a Cortex-M4 ELF (Appendix D)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine", "spike", "stm32g474", "cross-build"]
+
+executables = ["spike4_g474"]
+
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
+[[depends-on]]
+machine         = "*"
+time_rng_target = "*"
+stm32g474_hal   = "*"
+light_stm32g4xx = "*"
+gnat_arm_elf    = "*"
+
+[[pins]]
+machine         = { path = "../machine" }
+time_rng_target = { path = "../time_rng_target" }
+stm32g474_hal   = { path = "../stm32g474_hal" }
+
+#  Keep the clock the HAL assumes. stm32g474_hal derives the I2C TIMINGR
+#  for HSI16 (16 MHz); the runtime's default is a 170 MHz PLL, which would
+#  silently break it. Not optional.
+[configuration.values]
+light_stm32g4xx.SYSCLK_Src = "HSI16"
+light_stm32g4xx.AHB_Pre    = "DIV1"
+light_stm32g4xx.APB1_Pre   = "DIV1"
+light_stm32g4xx.APB2_Pre   = "DIV1"

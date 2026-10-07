@@ -1,0 +1,33 @@
+with "runtime_build.gpr";
+with "../machine/machine.gpr";
+with "../machine_blocking/machine_blocking.gpr";
+with "../machine_regmap/machine_regmap.gpr";
+with "../bme280/bme280.gpr";
+with "../rp2040_hal/rp2040_hal.gpr";
+with "config/spike1_pico_board_config.gpr";
+
+--  Board crate: the real RP2040 cross-build of spike1_pico. The sources
+--  are the host crate's own (nothing is copied); only the runtime wiring
+--  differs. See alire.toml for the pinned clock configuration.
+project Spike1_Pico_Board is
+   for Target use runtime_build'Target;
+   for Runtime ("Ada") use runtime_build'Runtime ("Ada");
+
+   for Source_Dirs use ("../spike1_pico/src", "config");
+   for Object_Dir use "obj";
+   for Main use ("main.adb");
+   for Exec_Dir use "bin";
+
+   package Builder is
+      for Executable ("main.adb") use "spike1_pico";
+   end Builder;
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        Spike1_Pico_Board_Config.Ada_Compiler_Switches;
+   end Compiler;
+
+   package Linker is
+      for Switches ("Ada") use Runtime_Build.Linker_Switches;
+   end Linker;
+end Spike1_Pico_Board;

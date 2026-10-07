@@ -1,0 +1,23 @@
+name = "esp32c3_hal_check"
+version = "0.1.0-dev"
+description = "Cross-compile check of esp32c3_pac and esp32c3_hal for RISC-V (no link)"
+long-description = "Compiles (does not link) esp32c3_pac and esp32c3_hal with gnat_riscv64_elf against a stock rv32imac light runtime. spike3_esp itself is not linked: its runtime is pending (TODO.md #15, espidf_gnat_runtime evaluation)."
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "esp32c3", "riscv", "cross-build"]
+
+[configuration]
+generate_c = false
+
+[[depends-on]]
+machine       = "*"
+esp32c3_pac   = "*"
+esp32c3_hal   = "*"
+gnat_riscv64_elf = "*"
+
+[[pins]]
+machine     = { path = "../machine" }
+esp32c3_pac = { path = "../esp32c3_pac" }
+esp32c3_hal = { path = "../esp32c3_hal" }

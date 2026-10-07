@@ -35,7 +35,8 @@ machine_regmap   = { path = "../machine_regmap" }
 bme280   = { path = "../bme280" }
 rp2040_hal       = { path = "../rp2040_hal" }
 
-# Not cross-built in this environment (no light_rp2040/toolchain here,
-# §10) -- this crate is the wiring/documentation artifact for Appendix B;
-# host_test is what is actually compiled and run to check the shared
-# BME280 driver logic (Appendix A.3).
+# The real RP2040 cross-build is the board crate ../spike1_pico_board, which
+# reuses this crate's sources and links them against light_rp2040 with
+# gnat_arm_elf (`make cross`); this crate stays the host stand-in. host_test
+# is what is actually compiled and run to check the shared BME280 driver
+# logic (Appendix A.3).

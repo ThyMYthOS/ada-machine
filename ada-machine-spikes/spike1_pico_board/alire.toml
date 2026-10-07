@@ -1,0 +1,46 @@
+name = "spike1_pico_board"
+version = "0.1.0-dev"
+description = "Ada Machine spike 1, real RP2040 cross-build (board crate)"
+long-description = "Board crate for spike1_pico: reuses its sources, links them against light_rp2040 with gnat_arm_elf into a Cortex-M0+ ELF (Appendix B)"
+authors = ["Manuel Stahl"]
+maintainers = ["Manuel Stahl <thymythos@googlemail.com>"]
+maintainers-logins = ["thymythos"]
+licenses = "Apache-2.0 WITH LLVM-exception"
+tags = ["embedded", "machine", "spike", "rp2040", "bme280", "cross-build"]
+
+executables = ["spike1_pico"]
+
+#  Ada-only project; skip Alire's C-header generation for the config unit.
+[configuration]
+generate_c = false
+
+[[depends-on]]
+machine          = "*"
+machine_blocking = "*"
+machine_regmap   = "*"
+bme280           = "*"
+rp2040_hal       = "*"
+light_rp2040     = "*"
+gnat_arm_elf     = "*"
+
+[[pins]]
+machine          = { path = "../machine" }
+machine_blocking = { path = "../machine_blocking" }
+machine_regmap   = { path = "../machine_regmap" }
+bme280           = { path = "../bme280" }
+rp2040_hal       = { path = "../rp2040_hal" }
+
+[configuration.values]
+machine.Log_Level = "Debug"   # same as the host crate
+
+#  Clock: rp2040_hal hard-codes clk_sys = clk_peri = 125 MHz (I2C0, UART0)
+#  and a 1 MHz timer tick (Clock). light_rp2040's defaults (12 MHz XOSC,
+#  PLL_Sys 12 MHz * 125 / 6 / 2) give exactly 125 MHz; they are pinned
+#  explicitly so a change of the runtime's defaults cannot silently break
+#  the HAL. Board = rpi_pico supplies the boot2 for the Pico's W25Q080.
+light_rp2040.Board                = "rpi_pico"
+light_rp2040.XOSC_Frequency       = 12000000
+light_rp2040.PLL_Sys_Reference_Div = 1
+light_rp2040.PLL_Sys_VCO_Multiple  = 125
+light_rp2040.PLL_Sys_Post_Div_1    = 6
+light_rp2040.PLL_Sys_Post_Div_2    = 2
