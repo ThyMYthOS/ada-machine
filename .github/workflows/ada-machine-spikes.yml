@@ -149,10 +149,24 @@ jobs:
           name: spike2_avr-atmega328p-testmode-elf
           path: elfs
 
-      # Ubuntu 24.04 (noble) ships simavr 1.6 with the library, headers and
-      # simavr.pc in libsimavr-dev; libelf-dev for the ELF loader.
-      - name: Install simavr and its development files
-        run: sudo apt-get update && sudo apt-get install -y simavr libsimavr-dev libelf-dev
+      # simavr v1.7, the version nixpkgs provides for local runs
+      # (sim/avr/shell.nix), built from source: Ubuntu 24.04 through 26.04
+      # only package 1.6, whose TWI model differs (the I2C cases fail there).
+      # gcc-avr/avr-libc provide the device headers simavr's cores are built
+      # from; the harness links libsimavr.a statically via SIMAVR_PREFIX.
+      - name: Build simavr v1.7 from source
+        env:
+          SIMAVR_REF: v1.7
+          SIMAVR_COMMIT: 1d227277b3d0039f9faef9ea62880ca3051b14f8
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libelf-dev gcc-avr avr-libc
+          git clone --depth 1 --branch "$SIMAVR_REF" \
+            https://github.com/buserror/simavr.git "$RUNNER_TEMP/simavr-src"
+          test "$(git -C "$RUNNER_TEMP/simavr-src" rev-parse HEAD)" = "$SIMAVR_COMMIT"
+          make -C "$RUNNER_TEMP/simavr-src" install-simavr RELEASE=1 \
+            DESTDIR="$RUNNER_TEMP/simavr" PREFIX="$RUNNER_TEMP/simavr"
+          echo "SIMAVR_PREFIX=$RUNNER_TEMP/simavr" >> "$GITHUB_ENV"
 
       - name: Build the simavr harness
         run: make -C ada-machine-spikes/sim/avr

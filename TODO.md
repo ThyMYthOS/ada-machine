@@ -911,7 +911,7 @@ endless main loop.
       start) framing, and serves `host_test`'s `Mock_Regmap` bytes: expected
       **25.08 degC (`Ev_Measured` arg 2508), 1006.53 hPa, 20.78 %RH**, as the
       driver computes on the host. `make sim-avr` (simavr 1.7 via
-      `sim/avr/shell.nix` locally; Ubuntu 24.04's 1.6 in CI): SPI and I2C with the
+      `sim/avr/shell.nix` locally; the same v1.7 built from source in CI, since Ubuntu only packages 1.6, whose TWI model breaks the I2C cases): SPI and I2C with the
       good sensor -> `PASS` with three 25.08 degC events; with chip id 0x58 ->
       `FAIL INIT-WRONG_CHIP_ID`. `make sim-avr-diag` relaxes the model on purpose
       and is diagnostic only. The simulation found two HAL bugs that would hang on

@@ -11,12 +11,14 @@
 #                   crate's own bin/, i.e. what `make cross-test` builds; CI
 #                   points it at the downloaded artifact)
 #   OUT_DIR         where captured USART0 bytes and decoded logs go (logs/)
-#   SIMAVR_PREFIX   install prefix of simavr (include/simavr, lib/); if unset,
-#                   pkg-config is used. Needed under Nix, whose simavr.pc has
-#                   an empty prefix (`nix-shell` in this directory sets it).
+#   SIMAVR_PREFIX   install prefix of simavr (include/simavr, lib/libsimavr.a,
+#                   linked statically); if unset, pkg-config is used. Set by
+#                   `nix-shell` here (nixpkgs' simavr.pc has an empty prefix)
+#                   and by CI's source build.
 #
-# Ubuntu 24.04: apt-get install simavr libsimavr-dev libelf-dev (1.6); also
-# works with simavr 1.7 (the nixpkgs version used for the local run).
+# Needs simavr 1.7: nixpkgs (shell.nix) locally, the v1.7 tag built from
+# source in CI. Ubuntu (24.04 through 26.04) packages only 1.6, whose TWI
+# model breaks the I2C cases.
 
 CC      ?= cc
 ELF_DIR ?= ../../spike2_avr/bin
@@ -26,7 +28,7 @@ PYTHON  ?= python3
 
 ifdef SIMAVR_PREFIX
 SIM_CFLAGS := -I$(SIMAVR_PREFIX)/include/simavr
-SIM_LIBS   := -L$(SIMAVR_PREFIX)/lib -lsimavr -lelf -lm -lpthread
+SIM_LIBS   := $(SIMAVR_PREFIX)/lib/libsimavr.a -lelf -lm -lpthread  # static: no runtime lib path needed
 else
 SIM_CFLAGS := $(shell pkg-config --cflags simavr)
 SIM_LIBS   := $(shell pkg-config --libs simavr) -lelf -lm -lpthread

@@ -90,8 +90,8 @@
 # Simulators (TODO.md #15 Step 3): `make sim-avr` runs spike2_avr's test-mode
 # ELFs (SPI and I2C, built by cross-test-avr) in simavr against a simulated
 # BME280 -- good and wrong-chip-id sensor, four cases -- via sim/avr/. It
-# needs simavr (+ headers, libelf): apt `simavr libsimavr-dev libelf-dev`, or
-# `nix-shell` in sim/avr/. `make sim-avr-diag` is the same with two model
+# needs simavr 1.7 (+ headers, libelf): `nix-shell` in sim/avr/, or a source
+# build as in CI (Ubuntu's 1.6 package breaks the I2C cases). `make sim-avr-diag` is the same with two model
 # behaviours relaxed (diagnostic, see sim/avr/Makefile).
 #
 # Usage:
