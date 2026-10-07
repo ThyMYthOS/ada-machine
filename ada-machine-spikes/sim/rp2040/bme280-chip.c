@@ -81,8 +81,14 @@ static void write_reg(chip_state_t *c, uint8_t a, uint8_t v) {
   }
 }
 
+/* Trace of every bus callback, on when the diagram sets attrs.debug = "1".
+   Goes to wokwi-cli's own output, not the serial capture. */
+static uint32_t debug;
+
 static bool on_i2c_connect(void *user_data, uint32_t address, bool read) {
   chip_state_t *c = user_data;
+  if (debug)
+    printf("i2c connect addr=0x%02x %s\n", (unsigned)address, read ? "read" : "write");
   c->selected = (address == BME280_I2C_ADDR);
   if (!c->selected)
     return false;
@@ -96,6 +102,8 @@ static bool on_i2c_connect(void *user_data, uint32_t address, bool read) {
 
 static bool on_i2c_write(void *user_data, uint8_t byte) {
   chip_state_t *c = user_data;
+  if (debug)
+    printf("i2c write 0x%02x\n", byte);
   if (c->first_byte) {
     c->first_byte = 0;
     c->ptr = byte;
@@ -112,11 +120,15 @@ static bool on_i2c_write(void *user_data, uint8_t byte) {
 
 static uint8_t on_i2c_read(void *user_data) {
   chip_state_t *c = user_data;
+  if (debug)
+    printf("i2c read reg 0x%02x -> 0x%02x\n", c->ptr, c->regs[c->ptr]);
   return c->regs[c->ptr++];
 }
 
 static void on_i2c_disconnect(void *user_data) {
   chip_state_t *c = user_data;
+  if (debug)
+    printf("i2c disconnect\n");
   c->selected = 0;
 }
 
@@ -124,6 +136,7 @@ void chip_init(void) {
   chip_state_t *c = malloc(sizeof(chip_state_t));
   uint32_t id_attr = attr_init("chipId", BME280_GOOD_CHIP_ID);
   uint8_t chip_id = (uint8_t)attr_read(id_attr);
+  debug = attr_read(attr_init("debug", 0));
   regs_init(c, chip_id);
 
   static i2c_config_t i2c;

@@ -19,10 +19,13 @@ pin_t pin_init(const char *name, uint32_t mode) {
   return pins_seen;
 }
 uint32_t attr_init(const char *name, uint32_t def) {
-  attr_name_ok = !strcmp(name, "chipId") && def == BME280_GOOD_CHIP_ID;
-  return 1;
+  if (!strcmp(name, "chipId")) {
+    attr_name_ok = def == BME280_GOOD_CHIP_ID;
+    return 1;
+  }
+  return 2; /* "debug": reads as 0, tracing off */
 }
-uint32_t attr_read(uint32_t id) { (void)id; return attr_value; }
+uint32_t attr_read(uint32_t id) { return id == 1 ? attr_value : 0; }
 i2c_dev_t i2c_init(const i2c_config_t *c) { cfg = *c; return 1; }
 
 static int failures, checks;

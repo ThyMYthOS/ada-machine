@@ -919,7 +919,7 @@ endless main loop.
       inside the ISR (`ATmega328P.SPI.Mark_Transfer_Complete`, called by the ISR
       stub); and `ATmega328P.I2C.Enable` awaited TWINT after a STOP, which never
       sets it (priming removed, `Can_Push` ready when no transaction is open).
-- [~] **RP2040 / Wokwi.** The practical option: Wokwi simulates the Pico and has a
+- [x] **RP2040 / Wokwi.** The practical option: Wokwi simulates the Pico and has a
       custom-chip API (C compiled to WASM) with I²C and SPI, so the BME280 becomes a
       custom chip; Wokwi's built-in sensors include a BMP180, not a BME280.
       `wokwi-cli` runs in GitHub Actions with a `WOKWI_CLI_TOKEN` secret. Decision
@@ -928,26 +928,25 @@ endless main loop.
       and that secrets are not available to PRs from forks, so the job skips cleanly
       without the token. Open alternative: the community Renode RP2040 work (not in
       mainline Renode).
-      **Implemented, not yet run:** `sim/rp2040/` holds the Wokwi project
-      (`wokwi.toml` loading the test-mode ELF as firmware, `diagram.json` and
-      `diagram-bad-id.json`: Pico, BME280 chip on GP4 SDA / GP5 SCL, serial monitor
-      on GP0/GP1), the custom chip `bme280-chip.c` (register file byte-identical to
-      `sim/avr/bme280_model.c`, chip id from the `chipId` attribute, compiled by
-      `wokwi-cli chip compile`), and `check_capture.py` (renders the capture with
+      **Done.** `sim/rp2040/` holds the Wokwi project (`wokwi.toml` loading the
+      test-mode ELF as firmware, `diagram.json` and `diagram-bad-id.json`: Pico,
+      BME280 chip on GP4 SDA / GP5 SCL, serial monitor on GP0/GP1), the custom chip
+      `bme280-chip.c` (register file byte-identical to `sim/avr/bme280_model.c`,
+      chip id from the `chipId` attribute, a bus trace with `"debug": "1"`,
+      compiled by `wokwi-cli chip compile`, host unit test `make -C sim/rp2040
+      test-chip`), and `check_capture.py` (renders the capture with
       `tools/decode_log.py`, expects three 25.08 degC events for PASS and the
       `Wrong_Chip_Id` warning for the bad id). `make sim-rp2040` (needs
-      `WOKWI_CLI_TOKEN`, fails with a message without it) runs `PASS` for chip id
-      0x60 and `FAIL INIT-WRONG_CHIP_ID` for 0x58. CI job `sim-rp2040` (pinned
-      wokwi-cli v0.28.1, run through the Makefile) skips the simulation with a
-      notice when the secret is absent; the chip compile and the chip's host unit
-      test (`make -C sim/rp2040 test-chip`, 119 checks) run regardless. Verified
-      locally: the test-mode ELF builds, the chip compiles to WASM, the unit test
-      passes, `wokwi-cli lint` accepts both diagrams. **Not yet verified:** the
-      simulation itself (needs the token): whether rp2040js boots this ELF and
-      `light_rp2040`'s clock setup, whether the I²C/UART0 traffic reaches the
-      chip and serial monitor, and whether `--serial-log-file` keeps the binary
-      log records byte-exact (if it text-decodes, `check_capture.py` skips the
-      event check with a warning; the verdict check stays strict).
+      `WOKWI_CLI_TOKEN`) passes both cases: chip id 0x60 -> `PASS` with three
+      25.08 degC events, 0x58 -> `FAIL INIT-WRONG_CHIP_ID`. Wokwi boots the ELF as
+      built (boot2, `light_rp2040` clocks) and `--serial-log-file` is byte-exact.
+      CI job `sim-rp2040` (wokwi-cli v0.28.1 pinned by SHA-256) skips the
+      simulation with a notice when the secret is absent. Two `RP2040.I2C0` fixes
+      came out of bringing it up: a write-then-read relied on DW_apb_i2c's
+      automatic restart, which Wokwi's model lacks (the simulation read chip id
+      0xFF; RESTART is now set explicitly, as in pico-sdk); and, found while
+      investigating, `IC_TAR` was written while the controller was enabled, which
+      the RP2040 ignores (silicon-only: Wokwi accepts it any time).
 - [ ] **ESP32-C3 (after its runtime).** With `espidf_gnat_runtime` the firmware is a
       normal ESP-IDF image, so ESP-IDF's own QEMU integration (`idf.py qemu`, or the
       `espressif/idf` container in CI) is the natural runner. Espressif's QEMU fork

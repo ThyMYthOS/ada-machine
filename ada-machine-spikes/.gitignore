@@ -9,3 +9,6 @@ lib/
 /.alire/
 alire/
 config/
+
+# Python bytecode from tools/ and sim/ scripts.
+__pycache__/
