@@ -730,18 +730,23 @@ silicon than `host_test`. State of the art as surveyed 2026-10-07 (details per s
 | 4 `spike4_g474` | STM32G474 | `embedded_stm32g4xx` (verified under #11) | none out of the box (Renode, Wokwi, QEMU list no G4) | custom Renode platform, or build-only |
 
 **Step 0 -- CI skeleton (host only), no new risk.**
-- [ ] Add `.github/workflows/ci.yml` on `ubuntu-latest`: install Alire (the
-      `alire-project/setup-alire` action, or the release tarball), then `make all`,
-      `make test`, `make gnatprove`. Cache `~/.local/share/alire` (toolchains are
-      several GB; mind the 10 GB per-repo cache limit -- cache per toolchain, not
-      one blob). Check first that the repo builds on Linux x86_64 (it has only been
-      exercised on macOS; `avrada_rts`'s shared `-gnatet=` file argues for running
-      the AVR crates sequentially, see the Makefile note).
-- [ ] Decide the proof gate: GNATprove's exit code (errors only, the Makefile's
-      current policy) or a checked-in residual baseline per crate so a *new*
-      medium/high fails the build. The baseline-diff approach used by hand in
-      #2/#8/#11 is the thing to automate.
+- [x] Add `.github/workflows/ada-machine-spikes.yml` on `ubuntu-latest`:
+      `alire-project/setup-alire@v6` plus `alr install gnatprove=16.1.0` (setup-alire
+      brings only `gnat_native`/`gprbuild`), then `make all`, `make test`,
+      `make gnatprove` from `ada-machine-spikes/`. One
+      `actions/cache` step over `~/.local/share/alire`, `~/.cache/alire` and `~/.alire`, keyed on
+      `hashFiles('**/alire.toml')`; the action's own cache is switched off
+      (`cache: false`) because its key only changes with the Alire version, so
+      toolchains fetched during the build (`gnat_avr_elf`, ...) would never be saved.
+      The Makefile gained `ALR ?= alr` (all `alr` calls go through it); CI passes
+      `ALR="alr -n"` for non-interactive runs, local behaviour is unchanged.
+- [x] Proof gate: **GNATprove's exit code only** (user decision, 2026-10-07): the
+      build fails on GNATprove errors, not on unproved medium checks. No residual
+      baseline.
 - **Done when:** a PR shows green/red for build, `host_test` and proof on Linux.
+      **Not yet met:** the workflow has not run on GitHub, and the repo has never
+      been built on Linux x86_64 (only macOS). Checked locally: YAML parses,
+      `make -n all/gnatprove ALR="alr -n"` substitutes correctly, `make test` passes.
 
 **Step 1 -- real cross-builds as first-class targets.** Alire cannot make a
 dependency conditional on a user switch (only on OS/distribution), so a runtime

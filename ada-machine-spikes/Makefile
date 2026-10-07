@@ -69,8 +69,13 @@
 #   make test        build and run host_test
 #   make clean       remove every crate's build artifacts
 #   make list        list the crates this Makefile knows about
+#
+# Optional variables:
+#   ALR              command to invoke Alire (default: alr). Pass ALR="alr -n"
+#                    for non-interactive operation (e.g. in CI).
 
 SHELL := /bin/bash
+ALR ?= alr
 
 CRATES := \
 	machine \
@@ -109,7 +114,7 @@ all:
 	failed=""; \
 	for c in $(CRATES); do \
 		echo "==> $$c"; \
-		if ( cd "$$c" && alr build ); then \
+		if ( cd "$$c" && $(ALR) build ); then \
 			echo "==> $$c: OK"; \
 		else \
 			echo "==> $$c: FAILED"; \
@@ -139,7 +144,7 @@ gnatprove:
 	failed=""; \
 	for c in $(CRATES); do \
 		echo "==> $$c"; \
-		if ( cd "$$c" && alr gnatprove $(GNATPROVE_FLAGS) ); then \
+		if ( cd "$$c" && $(ALR) gnatprove $(GNATPROVE_FLAGS) ); then \
 			echo "==> $$c: OK"; \
 		else \
 			echo "==> $$c: FAILED"; \
@@ -163,17 +168,17 @@ gnatprove:
 
 # Per-crate GNATprove targets, e.g. `make gnatprove-bme280`.
 $(addprefix gnatprove-,$(CRATES)):
-	cd $(patsubst gnatprove-%,%,$@) && alr gnatprove $(GNATPROVE_FLAGS)
+	cd $(patsubst gnatprove-%,%,$@) && $(ALR) gnatprove $(GNATPROVE_FLAGS)
 
 gnatprove-spike2_avr-i2c:
-	cd spike2_avr && alr gnatprove $(GNATPROVE_FLAGS) -XBME280_BUS=I2C
+	cd spike2_avr && $(ALR) gnatprove $(GNATPROVE_FLAGS) -XBME280_BUS=I2C
 
 # Per-crate targets, e.g. `make bme280`, `make host_test`.
 $(CRATES):
-	cd $@ && alr build
+	cd $@ && $(ALR) build
 
 spike2_avr-i2c:
-	cd spike2_avr && alr build -- -XBME280_BUS=I2C
+	cd spike2_avr && $(ALR) build -- -XBME280_BUS=I2C
 
 test: host_test
 	./host_test/bin/host_test

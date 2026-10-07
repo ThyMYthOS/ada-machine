@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # One cache, keyed on the crate manifests: the action's own cache
+      # (cache: true) uses a key that only changes with the Alire version,
+      # so toolchains first fetched during the build (gnat_avr_elf, ...)
+      # would never be saved. Restored before setup so the toolchain
+      # selection sees what is already there.
+      - name: Cache Alire toolchains and crates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/alire
+            ~/.cache/alire
+            ~/.alire
+          key: alire-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/alire.toml') }}
+          restore-keys: |
+            alire-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@v6
+        with:
+          cache: false
+
+      - name: Build all crates
+        run: make all ALR="alr -n"
+        working-directory: ada-machine-spikes
+
+      - name: Run host_test
+        run: make test ALR="alr -n"
+        working-directory: ada-machine-spikes
+
+      # Same GNATprove as the local reference setup (FSF 16.1.0), from the
+      # Alire index rather than Ubuntu's older distro package.
+      - name: Install gnatprove
+        run: |
+          alr -n install gnatprove=16.1.0
+          echo "$HOME/.alire/bin" >> "$GITHUB_PATH"
+
+      - name: Run GNATprove
+        run: make gnatprove ALR="alr -n"
+        working-directory: ada-machine-spikes
