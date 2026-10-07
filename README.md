@@ -1141,7 +1141,7 @@ package Env_Sensor is new BME280 (Regs => Regs.As_Device, Wait => Delays.As_Sign
 4. **Whole-stack property check:** no access, tagged or heap types anywhere; every spec `SPARK_Mode`; each layer instantiated exactly once (jere's bloat rule trivially met).
 5. **The command-FIFO shape of `I2C.Generic_Master`** matches DW_apb_i2c and, since Appendix B's TWI addition, also drives AVR's register-event state machine unchanged — open question 3 (`TODO.md` P0 #1) is closed; see Appendix B for how the shape's mismatch with TWI's lack of a FIFO was actually resolved.
 
-**Build.** Host-compiles as a stand-in; the real cross-build is the board crate [`spike1_pico_board`](ada-machine-spikes/spike1_pico_board/) (`make cross`), which reuses this crate's sources and links a Cortex-M0+ ELF (with the runtime's boot2 stage) against `light_rp2040` and `gnat_arm_elf`. The runtime's default 125 MHz clk_sys and 1 MHz tick match the HAL, but it never enables `clk_peri`, which `RP2040.UART0` needs (see TODO.md #15). Not flashed or run.
+**Build.** Host-compiles as a stand-in; the real cross-build is the board crate [`spike1_pico_board`](ada-machine-spikes/spike1_pico_board/) (`make cross`), which reuses this crate's sources and links a Cortex-M0+ ELF (with the runtime's boot2 stage) against `light_rp2040` and `gnat_arm_elf`. The runtime's default 125 MHz clk_sys and 1 MHz tick match the HAL; it never enables `clk_peri`, so `RP2040.UART0.Enable` does (see TODO.md #15). Not flashed or run.
 
 ### Appendix B — Spike 2: BME280 on ATmega328P over SPI or I²C
 

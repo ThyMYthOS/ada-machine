@@ -7,7 +7,7 @@ with Machine, Machine.UART;
 use type Machine.UART.Line_Status;  --  for the Post contract's "="/"/="
 use type Machine.Byte;               --  for Get_Frame's postcondition
 with RP2040_PAC.UART0, RP2040_PAC.Resets, RP2040_PAC.IO_Bank0,
-     RP2040_PAC.Pads_Bank0;
+     RP2040_PAC.Pads_Bank0, RP2040_PAC.Clocks;
 
 package RP2040.UART0
   with Preelaborate, SPARK_Mode
@@ -30,7 +30,8 @@ is
                                 RP2040_PAC.IO_Bank0.Pins,
                                 RP2040_PAC.Pads_Bank0.Pads),
                      Input  => RP2040_PAC.Resets.RESET_DONE,
-                     Output => (RP2040_PAC.UART0.UARTCR,
+                     Output => (RP2040_PAC.Clocks.CLK_PERI_CTRL,
+                                RP2040_PAC.UART0.UARTCR,
                                 RP2040_PAC.UART0.UARTLCR_H,
                                 RP2040_PAC.UART0.UARTIBRD,
                                 RP2040_PAC.UART0.UARTFBRD));

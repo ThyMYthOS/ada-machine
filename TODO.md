@@ -766,12 +766,12 @@ projects, and pins the runtime config; the host crate stays the stand-in.
       runtime's defaults (12 MHz XOSC, pll_sys 12 * 125 / 6 / 2 = 125 MHz, 1 MHz
       watchdog tick from XOSC) match `rp2040_hal`'s hard-coded 125 MHz
       (`I2C0`, `UART0`) and 1 MHz `Clock.Ticks_Per_Second`; they are pinned
-      explicitly in the board crate's `[configuration.values]`. **Mismatch found:**
-      `Setup_Clocks` never enables `clk_peri` (reset value `CLK_PERI_CTRL.ENABLE =
-      0`) and the HAL does not either, so `RP2040.UART0` has no UARTCLK on real
-      silicon with this runtime (I2C0 runs from clk_sys and is unaffected).
-      Unfixed here (HAL untouched, not run on hardware); needs the HAL or a board
-      init to enable clk_peri from clk_sys. No UF2 (no Alire tool, none installed).
+      explicitly in the board crate's `[configuration.values]`. **`clk_peri`:** the
+      runtime's `Setup_Clocks` never enables it (reset `CLK_PERI_CTRL.ENABLE = 0`),
+      so `RP2040.UART0` had no baud clock on silicon; `RP2040.UART0.Enable` now
+      enables it from clk_sys (`RP2040_PAC.Clocks`, offsets/bits checked against
+      pico-sdk's `clocks.h`). I2C0 runs from clk_sys and was unaffected. Not run
+      on hardware. No UF2 (no Alire tool, none installed).
 - [x] `spike2_avr`: already a real build; both bus variants are in `make cross`
       (SPI 7252 B text / 292 B data, I2C 7380 B / 274 B data; `readelf`: Atmel AVR,
       `avr:2` flags as the runtime emits them).

@@ -2,6 +2,7 @@ with RP2040_PAC.UART0;      use RP2040_PAC.UART0;
 with RP2040_PAC.Resets;     use RP2040_PAC.Resets;
 with RP2040_PAC.IO_Bank0;   use RP2040_PAC.IO_Bank0;
 with RP2040_PAC.Pads_Bank0; use RP2040_PAC.Pads_Bank0;
+with RP2040_PAC.Clocks;     use RP2040_PAC.Clocks;
 with Interfaces; use Interfaces;
 
 package body RP2040.UART0
@@ -10,10 +11,11 @@ is
 
    use Machine.UART;
 
-   --  Simplified: assumes the UART peripheral clock equals the system
-   --  clock (pico-sdk's default clk_peri source); a real board may
-   --  divide clk_peri from clk_sys (D8: clock tree setup is native
-   --  configuration, not part of the portable contract).
+   --  The UART's baud clock is clk_peri, which Enable switches on below
+   --  sourced from clk_sys (no divider on RP2040), so it runs at clk_sys:
+   --  125 MHz, the frequency the light_rp2040 runtime configures (pinned in
+   --  spike1_pico_board/alire.toml). Clock tree setup beyond that is native
+   --  configuration (D8), not part of the portable contract.
    Sys_Clock_Hz : constant := 125_000_000;
 
    procedure Enable (Cfg : Config := (others => <>)) is
@@ -31,6 +33,12 @@ is
       Reset_Now : Unsigned_32;
       Done_Now  : Unsigned_32;
    begin
+      --  clk_peri resets disabled and no runtime enables it: without this
+      --  write the UART has no baud clock. AUXSRC = clk_sys is also the
+      --  reset value, so a plain write is safe (pico-sdk only needs its
+      --  disable-and-wait dance when *changing* the source).
+      CLK_PERI_CTRL := CLK_PERI_CTRL_ENABLE or CLK_PERI_CTRL_AUXSRC_CLK_SYS;
+
       --  Bring UART0, IO_BANK0 and PADS_BANK0 out of reset (idempotent).
       --  RESET/RESET_DONE read alone into a local first: SPARK requires
       --  a volatile read to be the whole right-hand side of an
