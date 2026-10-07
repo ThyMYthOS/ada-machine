@@ -891,7 +891,7 @@ endless main loop.
       garbage prefix).
 
 **Step 3 -- simulators, cheapest and most open first.**
-- [ ] **AVR / simavr (first).** Open source, runs headless on Linux, models the
+- [~] **AVR / simavr (first).** Open source, runs headless on Linux, models the
       ATmega328P's TWI, SPI and USART. Write a BME280 model in C on simavr's IRQ API
       (one model, both buses: chip-ID register, calibration block, one fixed raw
       sample so the compensated result is known), plus a harness that loads the ELF,
@@ -900,6 +900,46 @@ endless main loop.
       wrong chip ID must produce `Wrong_Chip_Id` -- the on-target twin of
       `host_test`'s bad-ID case. `yasimavr` (Python) is the fallback if the C API is
       too awkward.
+      **Status: harness, model, `make sim-avr` and CI job `sim-avr` are in place; the
+      four cases do not pass, because of two findings in the library code (not
+      worked around in the model).** `sim/avr/`: `avr_harness.c` loads the ELF as
+      atmega328p at 16 MHz, attaches the model (SPI: CS = PB2 active low, mode 0;
+      TWI: address 0x76), captures USART0 TX (simavr's stdio echo off), stops when
+      simavr reports the halt (`sleep` with I clear is `cpu_Done`: verified, the
+      `cli` + `sleep` halt ends the run) or after 10 simulated s, and exits 0 PASS /
+      1 FAIL / 2 no verdict / 3 PASS without the expected bus traffic;
+      `tools/decode_log.py` renders each capture. `bme280_model.c`: chip id 0xD0
+      (0x60, `--chip-id` for the wrong one: 0x58, a real BMP280), reset 0xE0,
+      ctrl_hum/status/ctrl_meas/config, calibration 0x88..0xA1 and 0xE1..0xE7,
+      data 0xF7..0xFE; SPI read/write framing with the 7-bit address (0xF7 is sent
+      as 0x77 for writes) and auto-increment, I2C pointer write + repeated start +
+      auto-incrementing read. It serves `host_test`'s `Mock_Regmap` bytes (BMP280
+      datasheet T/P calibration, adc_T 519888, adc_P 415148, adc_H 25000), whose
+      compensated values the repo's own driver already reproduces in `make test`:
+      **25.08 degC (`Ev_Measured` arg 2508), 1006.53 hPa, 20.78 %RH**. Built against
+      simavr 1.7 (nixpkgs, local run via `sim/avr/shell.nix`); CI installs Ubuntu
+      24.04's 1.6 (`simavr libsimavr-dev libelf-dev`), where only the compile was
+      checked (against the v1.6 headers).
+      **Results (`make -C sim/avr run`, simavr 1.7), all four cases FAIL:**
+      (1) SPI, good and bad sensor: no verdict, the CPU sleeps forever in the first
+      `Exchange`. The SPI interrupt is taken, but entering the vector clears SPIF
+      (silicon and simavr agree), and `ATmega328P.SPI.Can_Pop` requires SPIF, so
+      `Machine.Async.SPI.On_Interrupt` neither pops nor pushes the second byte
+      (`Busy` stays set). (2) I2C, good and bad: no verdict, `ATmega328P.I2C.Enable`
+      spins in `Await_TWINT` after `TWCR = TWINT|TWSTO|TWEN`; per the ATmega328P
+      datasheet a STOP does not set TWINT, and writing 1 to TWINT clears it, so this
+      should hang on silicon too (not run on hardware; simavr's TWI keeps TWINT set
+      after the write, which the harness corrects by default, `--simavr-twint`
+      restores it and then the polling driver reads a stale TWSR and reports
+      `FAIL INIT-BUS_FAULT`). `Can_Push` after a STOP depends on TWINT the same way.
+      **Diagnostic** (`make -C sim/avr run-diag`, model deliberately relaxed:
+      SPSR reads SPIF set inside the SPI ISR; a STOP sets TWINT): all four cases give
+      the expected result, i.e. SPI/I2C x good = `PASS` with three
+      `Measured temperature=25.08 degC` events and the model seeing the reset, three
+      calibration reads, three forced measurements and three data reads, and SPI/I2C
+      x wrong id (0x58) = `FAIL INIT-WRONG_CHIP_ID` with `Wrong_Chip_Id chip_id=0x58`.
+      The harness and the model are therefore sound; the green gate needs the two
+      HAL/adapter fixes.
 - [ ] **RP2040 / Wokwi.** The practical option: Wokwi simulates the Pico and has a
       custom-chip API (C compiled to WASM) with I²C and SPI, so the BME280 becomes a
       custom chip; Wokwi's built-in sensors include a BMP180, not a BME280.

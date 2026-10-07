@@ -87,10 +87,18 @@
 # has no test mode (no UART in stm32g474_hal, no sensor). `make test` also
 # runs the log-decoder self-test (tools/).
 #
+# Simulators (TODO.md #15 Step 3): `make sim-avr` runs spike2_avr's test-mode
+# ELFs (SPI and I2C, built by cross-test-avr) in simavr against a simulated
+# BME280 -- good and wrong-chip-id sensor, four cases -- via sim/avr/. It
+# needs simavr (+ headers, libelf): apt `simavr libsimavr-dev libelf-dev`, or
+# `nix-shell` in sim/avr/. `make sim-avr-diag` is the same with two model
+# behaviours relaxed (diagnostic, see sim/avr/Makefile).
+#
 # Usage:
 #   make             build every crate, report a pass/fail summary
 #   make cross       cross-build every board crate + spike2_avr variants
 #   make cross-test  cross-build the test-mode variants (see above)
+#   make sim-avr     run spike2_avr's test-mode ELFs in simavr (4 cases)
 #   make <crate>     build just that one crate, e.g. `make bme280`
 #   make gnatprove   run GNATprove on every crate, report a summary
 #   make test        build and run host_test
@@ -139,7 +147,7 @@ BOARD_CRATES := \
 # between proof runs. Pass -f manually if you ever need a from-scratch re-proof.
 GNATPROVE_FLAGS := -j0 --level=1 --output=oneline --output-header
 
-.PHONY: all cross cross-test test-decoder list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
+.PHONY: all cross cross-test cross-test-avr sim-avr sim-avr-diag test-decoder list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
         $(BOARD_CRATES) \
         $(CRATES) $(addprefix clean-,$(CRATES)) $(addprefix gnatprove-,$(CRATES))
 
@@ -193,11 +201,20 @@ cross:
 # build (spike3_esp is not linked yet, spike4_g474 has no test mode).
 TEST_MODE_X := -XADA_MACHINE_TEST_MODE=on
 
-cross-test:
+cross-test: cross-test-avr
 	cd spike1_pico_board && $(ALR) build -- $(TEST_MODE_X)
+	@echo "Test-mode ELFs built: spike1_pico_board/bin/test, spike2_avr/bin/{spi,i2c}/test"
+
+cross-test-avr:
 	cd spike2_avr && $(ALR) build -- $(TEST_MODE_X)
 	cd spike2_avr && $(ALR) build -- -XBME280_BUS=I2C $(TEST_MODE_X)
-	@echo "Test-mode ELFs built: spike1_pico_board/bin/test, spike2_avr/bin/{spi,i2c}/test"
+
+# simavr runs of the spike2_avr test-mode ELFs (needs simavr, see header).
+sim-avr: cross-test-avr
+	$(MAKE) -C sim/avr run
+
+sim-avr-diag: cross-test-avr
+	$(MAKE) -C sim/avr run-diag
 
 list:
 	@for c in $(CRATES); do echo "$$c"; done

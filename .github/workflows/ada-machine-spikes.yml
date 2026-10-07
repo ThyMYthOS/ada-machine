@@ -131,3 +131,46 @@ jobs:
             ada-machine-spikes/spike2_avr/bin/spi/test/spike2_avr
             ada-machine-spikes/spike2_avr/bin/i2c/test/spike2_avr
           if-no-files-found: error
+
+  # TODO.md #15 Step 3: run the spike2_avr test-mode ELFs from the cross job
+  # in simavr against a simulated BME280 (ada-machine-spikes/sim/avr).
+  sim-avr:
+    runs-on: ubuntu-24.04
+    needs: cross
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Uploaded with two paths, so the artifact root is spike2_avr/bin:
+      # elfs/spi/test/spike2_avr and elfs/i2c/test/spike2_avr.
+      - name: Download the spike2_avr test-mode ELFs
+        uses: actions/download-artifact@v8
+        with:
+          name: spike2_avr-atmega328p-testmode-elf
+          path: elfs
+
+      # Ubuntu 24.04 (noble) ships simavr 1.6 with the library, headers and
+      # simavr.pc in libsimavr-dev; libelf-dev for the ELF loader.
+      - name: Install simavr and its development files
+        run: sudo apt-get update && sudo apt-get install -y simavr libsimavr-dev libelf-dev
+
+      - name: Build the simavr harness
+        run: make -C ada-machine-spikes/sim/avr
+
+      - name: Run the four simulation cases
+        run: make -C ada-machine-spikes/sim/avr run ELF_DIR="$GITHUB_WORKSPACE/elfs"
+
+      # Same cases with the SPIF-in-ISR and TWINT-after-STOP behaviours
+      # relaxed in the model (see TODO.md #15): shows that the harness and the
+      # BME280 model are sound independently of those two findings.
+      - name: Run the diagnostic cases
+        if: always()
+        run: make -C ada-machine-spikes/sim/avr run-diag ELF_DIR="$GITHUB_WORKSPACE/elfs"
+
+      - name: Upload the captured logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: spike2_avr-simavr-logs
+          path: ada-machine-spikes/sim/avr/logs
+          if-no-files-found: warn
