@@ -9,7 +9,9 @@ use type Machine.Byte;            --  for Pop's postcondition ("Data = 0")
 with RP2040_PAC.I2C0, RP2040_PAC.Resets, RP2040_PAC.IO_Bank0, RP2040_PAC.Pads_Bank0;
 
 package RP2040.I2C0
-  with Preelaborate, SPARK_Mode
+  with Preelaborate, SPARK_Mode,
+       Abstract_State => State,   --  direction of the open transfer, for RESTART
+       Initializes    => State
 is
    --  Configuration: deliberately RP2040-specific (D8) -- pins, pad
    --  options, bus speed. Not part of the portable contract.
@@ -38,7 +40,8 @@ is
    --  controller is disabled, so Set_Target disables, writes, re-enables.
    procedure Set_Target (Address : Machine.I2C.Address_7_Bit)
      with Global => (Output => (RP2040_PAC.I2C0.IC_TAR,
-                                RP2040_PAC.I2C0.IC_ENABLE));
+                                RP2040_PAC.I2C0.IC_ENABLE,
+                                State));
 
    --  Never-blocking data phase over the DW_apb_i2c command FIFO;
    --  Stop => True sets the STOP bit on that FIFO entry. Volatile_Function
@@ -52,13 +55,17 @@ is
      with Inline_Always, Volatile_Function,
           Global => (Input => RP2040_PAC.I2C0.IC_STATUS);
 
+   --  Both set the RESTART bit on the first command after a change of
+   --  direction within a transfer (write -> read for Write_Read), as
+   --  pico-sdk does: DW_apb_i2c's automatic restart on a direction change
+   --  is not something every model of it implements (Wokwi's does not).
    procedure Push_Write (Data : Machine.Byte; Stop : Boolean;
                          Status : in out Machine.I2C.Bus_Status)
      with Inline_Always,
           Global => (Input  => (RP2040_PAC.I2C0.IC_RAW_INTR_STAT,
                                 RP2040_PAC.I2C0.IC_TX_ABRT_SOURCE,
                                 RP2040_PAC.I2C0.IC_CLR_TX_ABRT),
-                     In_Out => RP2040_PAC.I2C0.IC_DATA_CMD),
+                     In_Out => (RP2040_PAC.I2C0.IC_DATA_CMD, State)),
                     --  In_Out, not Output: the write is skipped on the
                     --  chained/aborted early-return paths.
           Post => (if Status'Old /= Machine.I2C.Ok
@@ -70,7 +77,7 @@ is
           Global => (Input  => (RP2040_PAC.I2C0.IC_RAW_INTR_STAT,
                                 RP2040_PAC.I2C0.IC_TX_ABRT_SOURCE,
                                 RP2040_PAC.I2C0.IC_CLR_TX_ABRT),
-                     In_Out => RP2040_PAC.I2C0.IC_DATA_CMD),
+                     In_Out => (RP2040_PAC.I2C0.IC_DATA_CMD, State)),
                     --  In_Out, not Output: the write is skipped on the
                     --  chained/aborted early-return paths.
           Post => (if Status'Old /= Machine.I2C.Ok

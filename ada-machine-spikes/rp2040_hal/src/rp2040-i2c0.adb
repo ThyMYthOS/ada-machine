@@ -5,10 +5,16 @@ with RP2040_PAC.Pads_Bank0; use RP2040_PAC.Pads_Bank0;
 with Interfaces; use Interfaces;
 
 package body RP2040.I2C0
-  with SPARK_Mode
+  with SPARK_Mode,
+       Refined_State => (State => Last_Dir)
 is
 
    use Machine.I2C;
+
+   --  Direction of the transfer still open (no STOP yet): the next
+   --  command in the other direction gets the RESTART bit.
+   type Direction is (None, Write, Read);
+   Last_Dir : Direction := None;
 
    --  Simplified: real pico-sdk-style calibration also accounts for
    --  SDA TX hold time and standard/fast-mode minimum period tables;
@@ -79,6 +85,7 @@ is
       IC_ENABLE := 0;
       IC_TAR    := Route (Address);
       IC_ENABLE := IC_ENABLE_ENABLE;
+      Last_Dir  := None;
    end Set_Target;
 
    --  A pending, unread abort blocks further FIFO use until cleared
@@ -128,10 +135,14 @@ is
       if Aborted then
          return;
       end if;
+      if Last_Dir = Read then
+         Cmd := Cmd or IC_DATA_CMD_RESTART;
+      end if;
       if Stop then
          Cmd := Cmd or IC_DATA_CMD_STOP;
       end if;
       IC_DATA_CMD := Cmd;
+      Last_Dir := (if Stop then None else Write);
    end Push_Write;
 
    procedure Push_Read_Request (Stop : Boolean;
@@ -147,10 +158,14 @@ is
       if Aborted then
          return;
       end if;
+      if Last_Dir = Write then
+         Cmd := Cmd or IC_DATA_CMD_RESTART;
+      end if;
       if Stop then
          Cmd := Cmd or IC_DATA_CMD_STOP;
       end if;
       IC_DATA_CMD := Cmd;
+      Last_Dir := (if Stop then None else Read);
    end Push_Read_Request;
 
    function Can_Pop return Boolean is
