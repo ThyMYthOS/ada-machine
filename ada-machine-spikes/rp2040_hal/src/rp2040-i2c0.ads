@@ -34,8 +34,11 @@ is
                                 RP2040_PAC.I2C0.IC_FS_SCL_LCNT));
    procedure Disable
      with Global => (Output => RP2040_PAC.I2C0.IC_ENABLE);
+   --  Writes IC_ENABLE too: DW_apb_i2c only accepts IC_TAR while the
+   --  controller is disabled, so Set_Target disables, writes, re-enables.
    procedure Set_Target (Address : Machine.I2C.Address_7_Bit)
-     with Global => (Output => RP2040_PAC.I2C0.IC_TAR);
+     with Global => (Output => (RP2040_PAC.I2C0.IC_TAR,
+                                RP2040_PAC.I2C0.IC_ENABLE));
 
    --  Never-blocking data phase over the DW_apb_i2c command FIFO;
    --  Stop => True sets the STOP bit on that FIFO entry. Volatile_Function

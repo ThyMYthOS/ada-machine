@@ -72,7 +72,13 @@ is
 
    procedure Set_Target (Address : Machine.I2C.Address_7_Bit) is
    begin
-      IC_TAR := Route (Address);
+      --  IC_TAR is only writable while the controller is disabled (the
+      --  RP2040 build of DW_apb_i2c has no dynamic TAR update); written
+      --  while enabled, the write is lost and the bus keeps addressing the
+      --  reset target. Same sequence as pico-sdk's i2c_write/read_blocking.
+      IC_ENABLE := 0;
+      IC_TAR    := Route (Address);
+      IC_ENABLE := IC_ENABLE_ENABLE;
    end Set_Target;
 
    --  A pending, unread abort blocks further FIFO use until cleared
