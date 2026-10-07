@@ -51,7 +51,12 @@ begin
             if Machine.Log.Enabled (Machine.Log.Info) then
                AVR_Board.Sink.Emit
                  (Machine.Log.Info, AVR_Board.Ev_Measured,
-                  Machine.Log.Arg (Integer (M.Temperature * 100)));
+                  --  Hundredths of a degree: dividing by the type's own Small
+                  --  stays exact and in range (multiplying by 100 inside
+                  --  Celsius overflowed its 85.00 bound above 0.85 degC);
+                  --  'Mod because Arg is modular and readings may be negative.
+                  Machine.Log.Arg'Mod
+                    (Integer (M.Temperature / AVR_Board.Env_Sensor.Celsius'(0.01))));
             end if;
          end if;
       else
