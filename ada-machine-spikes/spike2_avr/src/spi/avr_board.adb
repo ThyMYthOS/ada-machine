@@ -8,6 +8,9 @@ is
 
    procedure SPI_Interrupt is
    begin
+      --  The vector itself has already cleared SPIF in hardware; tell the
+      --  HAL the byte is done before the pump asks Can_Pop.
+      ATmega328P.SPI.Mark_Transfer_Complete;
       SPI_Async.On_Interrupt;
    end SPI_Interrupt;
 

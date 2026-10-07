@@ -4,7 +4,7 @@ with Interfaces; use Interfaces;
 
 package body ATmega328P.SPI
   with SPARK_Mode,
-       Refined_State => (State => Busy)
+       Refined_State => (State => (Busy, Transfer_Complete))
 is
 
    use Machine.SPI;
@@ -21,6 +21,16 @@ is
    --  (SPARK RM 7.2.6(5); Part_Of is only for constituents declared in a
    --  package's private part, not its body).
    Busy : Boolean := False
+     with Volatile, Async_Readers, Async_Writers;
+
+   --  Transfer_Complete re-materialises SPIF in software: executing the
+   --  SPI interrupt vector clears SPIF in hardware, so inside the ISR the
+   --  flag already reads 0 although the byte is done. The board's ISR stub
+   --  calls Mark_Transfer_Complete before machine_async's On_Interrupt, so
+   --  Can_Pop holds there; without it the received byte was never popped
+   --  and the first Exchange deadlocked. AVR-specific, not part of the
+   --  generic Machine.SPI signature.
+   Transfer_Complete : Boolean := False
      with Volatile, Async_Readers, Async_Writers;
 
    --  PB5=SCK, PB4=MISO (input, left as Hi-Z/input by DDRB), PB3=MOSI,
@@ -68,12 +78,14 @@ is
       SPSR := SPI2X;              --  SPI2X is bit 0 of SPSR
       SPCR := Ctrl;
       Busy := False;
+      Transfer_Complete := False;
    end Enable;
 
    procedure Disable is
    begin
       SPCR := 0;
       Busy := False;
+      Transfer_Complete := False;
    end Disable;
 
    function Can_Push return Boolean is
@@ -90,14 +102,16 @@ is
          return;                              --  chained: skip if pending
       end if;
       Busy := True;
+      Transfer_Complete := False;              --  reset for this new transfer
       SPDR := Unsigned_8 (Data);               --  starts the transfer
    end Push;
 
    function Can_Pop return Boolean is
       B    : constant Boolean := Busy;
+      Tc   : constant Boolean := Transfer_Complete;
       Spsr_Now : constant Unsigned_8 := SPSR;
    begin
-      return B and then (Spsr_Now and SPSR_SPIF) /= 0;
+      return B and then (Tc or (Spsr_Now and SPSR_SPIF) /= 0);
    end Can_Pop;
 
    procedure Pop (Data : out Machine.Byte;
@@ -110,6 +124,7 @@ is
       end if;
       Data := Machine.Byte (SPDR);             --  clears SPIF as a side effect
       Busy := False;
+      Transfer_Complete := False;              --  clear the completion flag too
    end Pop;
 
    procedure Enable_Interrupt is
@@ -123,5 +138,10 @@ is
    begin
       SPCR := Spcr_Now and not SPCR_SPIE;
    end Disable_Interrupt;
+
+   procedure Mark_Transfer_Complete is
+   begin
+      Transfer_Complete := True;
+   end Mark_Transfer_Complete;
 
 end ATmega328P.SPI;

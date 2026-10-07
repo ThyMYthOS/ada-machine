@@ -46,7 +46,7 @@ is
    procedure Push (Data : Machine.Byte;
                    Status : in out Machine.SPI.Bus_Status)
      with Inline_Always,                            --  SPDR := Data
-          Global => (Output => (State, ATmega328P_PAC.SPI.SPDR)),
+          Global => (In_Out => (State, ATmega328P_PAC.SPI.SPDR)),
           Post   => (if Status'Old /= Machine.SPI.Ok
                      then Status = Status'Old);    --  §7.1 rule 1
 
@@ -57,8 +57,8 @@ is
    procedure Pop (Data : out Machine.Byte;
                   Status : in out Machine.SPI.Bus_Status)
      with Inline_Always,                           --  reads SPDR
-          Global => (Input  => ATmega328P_PAC.SPI.SPDR,
-                     Output => State),
+          Global => (In_Out => (State, ATmega328P_PAC.SPI.SPDR)),
+                     --  SPDR: In_Out, the read has an effect (clears SPIF)
           Post   => (if Status'Old /= Machine.SPI.Ok
                      then Status = Status'Old and Data = 0);
 
@@ -67,4 +67,11 @@ is
      with Inline_Always, Global => (In_Out => ATmega328P_PAC.SPI.SPCR);
    procedure Disable_Interrupt
      with Inline_Always, Global => (In_Out => ATmega328P_PAC.SPI.SPCR);
+
+   --  Mark_Transfer_Complete records that the in-flight byte is done. The
+   --  hardware clears SPIF when the SPI interrupt vector executes (ATmega328P
+   --  datasheet, SPI chapter), so the ISR must call this *before*
+   --  On_Interrupt or Can_Pop never holds inside the ISR.
+   procedure Mark_Transfer_Complete
+     with Global => (In_Out => State);
 end ATmega328P.SPI;
