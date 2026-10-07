@@ -774,8 +774,10 @@ projects, and pins the runtime config; the host crate stays the stand-in.
       pico-sdk's `clocks.h`). I2C0 runs from clk_sys and was unaffected. Not run
       on hardware. No UF2 (no Alire tool, none installed).
 - [x] `spike2_avr`: already a real build; both bus variants are in `make cross`
-      (SPI 7252 B text / 292 B data, I2C 7380 B / 274 B data; `readelf`: Atmel AVR,
-      `avr:2` flags as the runtime emits them).
+      (SPI 6956 B text / 148 B data, I2C 7270 B / 144 B data; `readelf`: Atmel AVR,
+      `avr:5`). Compiled and linked with `-mmcu=atmega328p` from avrada_rts's
+      `AVR_Tool_Options` (`Linker_Switches`): the ATmega328P startup file with its
+      vector table and the 32 KB linker script.
 - [~] `spike3_esp`: **compile-checked, runtime pending.** The fallback below is
       implemented as `esp32c3_hal_check/`: `esp32c3_pac`, `esp32c3_hal` (and
       `machine`) compile for RISC-V with `gnat_riscv64_elf` 15.3.1 and its stock
@@ -867,15 +869,12 @@ endless main loop.
       is a host stand-in and uses `halt_host`, a plain loop, until it is linked).
       **Not run anywhere yet:** only built (RP2040, AVR) and exercised on the host
       (`host_test`'s `dump_log_stream` drives the same runner over mocks); the
-      simulators are Step 3. **Side findings:** (a) `spike2_avr` is linked without
-      `-mmcu` (generic avr2 link, ELF `avr:2`), whose linker script has an 8 KB text
-      region, a quarter of the chip; the test build would not link, so
-      `spike2_avr.gpr` now defines `__TEXT_REGION_LENGTH__=0x8000` for the link
-      (lifts only the overflow check, the normal ELF is unchanged). Whether simavr
-      wants a real avr5/`atmega328p` ELF is for Step 3. (b) The existing
-      `Machine.Log.Arg (Integer (M.Temperature * 100))` in the spikes' `main.adb`
-      raises `Constraint_Error` for sub-zero temperatures when checks are on; the
-      test runner uses `Arg'Mod` (two's complement) instead.
+      simulators are Step 3. **Side findings, both fixed in their own commits:** (a) `spike2_avr` was
+      compiled and linked without `-mmcu` (generic avr2, ELF `avr:2`): no vector
+      table, so `machine_async`'s SPI interrupt could never have been dispatched,
+      and an 8 KB text limit; it now uses avrada_rts's `-mmcu=atmega328p` switches.
+      (b) `main.adb`'s `Integer (M.Temperature * 100)` overflowed `Celsius` above
+      0.85 degC; it now divides by the type's Small and converts with `Arg'Mod`.
       **`spike4_g474`:** no test mode: `stm32g474_hal` has no UART at all (the log
       sink cannot be wired) and the spike has no sensor to judge; a `READY` line would
       need a new HAL unit, and no simulator can drive the target yet (Step 3).

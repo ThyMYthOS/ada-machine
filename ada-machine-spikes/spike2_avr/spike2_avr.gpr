@@ -5,6 +5,7 @@ with "../machine_regmap/machine_regmap.gpr";
 with "../bme280/bme280.gpr";
 with "../atmega328p_hal/atmega328p_hal.gpr";
 with "../avrada_rts/avrada_rts.gpr";
+with "../avrada_rts/avr_tool_options.gpr";
 with "config/spike2_avr_config.gpr";
 with "../test_support/test_mode.gpr";
 
@@ -66,17 +67,20 @@ project Spike2_AVR is
       --  profile default and apply across the whole closure (HAL/PAC/
       --  machine*/bme280 sources too, not just this crate's own), which
       --  a per-project Compiler'Default_Switches would not.
-      for Global_Compilation_Switches ("Ada") use ("-Os", "-gnatp");
+      --  -mmcu: without it the closure was compiled for the generic avr2
+      --  core (no MUL, no device defines) while avrada_rts itself uses the
+      --  real device; avrada_rts's AVR_Tool_Options carries the MCU name.
+      for Global_Compilation_Switches ("Ada") use
+        ("-Os", "-gnatp", "-mmcu=" & AVR_Tool_Options.MCU);
    end Builder;
 
-   --  The link is generic avr2-style (no -mmcu reaches the linker from
-   --  here), whose linker script has an 8 KB text region by default -- a
-   --  quarter of the ATmega328P's real 32 KB flash. Without this the
-   --  test-mode build (a few hundred bytes larger) fails to link although
-   --  it fits the chip easily. The define only lifts the overflow check;
-   --  it changes no code or layout (the normal ELF is byte-identical).
+   --  Link with avrada_rts's own linker switches (AVR_Tool_Options): above
+   --  all -mmcu, which selects the ATmega328P's startup file (vector table,
+   --  .data/.bss init) and linker script (32 KB flash). Without it the link
+   --  was generic avr2 -- no vector table at all, so machine_async's SPI
+   --  interrupt could never have been dispatched -- with an 8 KB text limit.
    package Linker is
-      for Switches ("Ada") use ("-Wl,--defsym=__TEXT_REGION_LENGTH__=0x8000");
+      for Switches ("Ada") use AVR_Tool_Options.Linker_Switches;
    end Linker;
 
    --  Target ("avr") and Runtime ("Ada") come from avrada_rts.gpr itself
