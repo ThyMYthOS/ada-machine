@@ -50,17 +50,13 @@
 # residual for bme280's Bosch arithmetic and a few others, see prior
 # session notes) still counts as OK here, same as `alr build`.
 #
-# Known flakiness: avrada_rts.gpr's "-gnatet=" switch dumps
-# avrada_rts/ada_target_properties to one fixed path shared by every
-# consumer (both spike2_avr bus variants), regenerated afresh each time
-# anything recompiles system.ads -- gnatprove's own compile pass uses
-# different switches than a real build, so running `make gnatprove`
-# straight after avrada_rts's own gnatprove entry can occasionally leave
-# spike2_avr reading a properties dump for a different mode ("missing
-# entry for Bits_BE/Double_Float_Alignment..."), a pre-existing quirk of
-# that shared-file mechanism, not spike2_avr's own sources -- re-running
-# `make gnatprove-spike2_avr`/`-spike2_avr-i2c` on their own always
-# regenerates it correctly and passes.
+# avrada_rts/ada_target_properties (the AVR target description GNATprove
+# reads) is written by a real build of avrada_rts only: avrada_rts.gpr
+# skips its "-gnatet=" switch when GPR_TOOL is "gnatprove". Regenerating it
+# inside GNATprove's own parallel (-j0) compile pass let other processes
+# read a half-written file ("missing entry for Bits_BE"), which failed CI
+# intermittently. The gnatprove targets that load avrada_rts therefore
+# build it first when the file is missing.
 #
 # `make cross` builds the real cross-compiled targets, separately from `all`
 # (they download large toolchains/runtimes via Alire on first use):
@@ -240,6 +236,13 @@ sim-rp2040: check-wokwi-token cross-test-rp2040
 
 list:
 	@for c in $(CRATES); do echo "$$c"; done
+
+# GNATprove only reads avrada_rts/ada_target_properties (see the header).
+avrada_rts/ada_target_properties:
+	cd avrada_rts && $(ALR) build
+
+gnatprove gnatprove-avrada_rts gnatprove-spike2_avr gnatprove-spike2_avr-i2c: \
+  avrada_rts/ada_target_properties
 
 gnatprove:
 	@set -e; \

@@ -2,6 +2,11 @@ with "avr_tool_options.gpr";
 
 project AVRAda_RTS is
 
+   --  Which tool loads the project: gprbuild, or gnatprove (which sets
+   --  GPR_TOOL itself); used below to keep GNATprove from regenerating
+   --  ada_target_properties.
+   GPR_Tool := external ("GPR_TOOL", "gprbuild");
+
    for Languages use ("Ada", "Asm_CPP");
 
    for Runtime ("Ada") use Project'Project_Dir;
@@ -39,9 +44,19 @@ project AVRAda_RTS is
         & ("-g");
 
       --  Generate ada_target_properties to give target-specific information
-      --  to formal verification tools.
-      for Switches ("system.ads") use Compiler'Default_Switches ("Ada") 
-        & ("-gnatet=" & Project'Project_Dir & "/ada_target_properties");
+      --  to formal verification tools -- in a real build only. GNATprove
+      --  reads this very file to learn the AVR target, and under its parallel
+      --  (-j0) runs its own compile of system.ads rewrote the file while
+      --  other processes were reading it ("missing entry for Bits_BE" on a
+      --  truncated file, intermittently). So GNATprove (GPR_TOOL = gnatprove)
+      --  only reads what the preceding build wrote.
+      case GPR_Tool is
+         when "gnatprove" =>
+            null;
+         when others =>
+            for Switches ("system.ads") use Compiler'Default_Switches ("Ada")
+              & ("-gnatet=" & Project'Project_Dir & "/ada_target_properties");
+      end case;
    end Compiler;
    
 end AVRAda_RTS;
