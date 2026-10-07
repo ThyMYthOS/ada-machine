@@ -6,10 +6,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # One cache, keyed on the crate manifests: the action's own cache
       # (cache: true) uses a key that only changes with the Alire version,
@@ -17,7 +17,7 @@ jobs:
       # would never be saved. Restored before setup so the toolchain
       # selection sees what is already there.
       - name: Cache Alire toolchains and crates
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/share/alire
@@ -52,16 +52,16 @@ jobs:
         working-directory: ada-machine-spikes
 
   cross:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Separate cache key from the host job: the cross toolchains
       # (gnat_arm_elf, gnat_avr_elf, gnat_riscv64_elf) and runtimes are
       # large and would bloat the host job's cache.
       - name: Cache Alire toolchains and crates
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/share/alire
@@ -84,14 +84,14 @@ jobs:
         working-directory: ada-machine-spikes
 
       - name: Upload spike1_pico (RP2040) ELF
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spike1_pico-rp2040-elf
           path: ada-machine-spikes/spike1_pico_board/bin/spike1_pico
           if-no-files-found: error
 
       - name: Upload spike2_avr (ATmega328P) ELFs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spike2_avr-atmega328p-elf
           path: |
@@ -100,7 +100,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload spike4_g474 (STM32G474) ELF
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spike4_g474-stm32g474-elf
           path: ada-machine-spikes/spike4_g474_board/bin/spike4_g474

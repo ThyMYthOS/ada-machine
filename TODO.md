@@ -744,9 +744,10 @@ silicon than `host_test`. State of the art as surveyed 2026-10-07 (details per s
       build fails on GNATprove errors, not on unproved medium checks. No residual
       baseline.
 - **Done when:** a PR shows green/red for build, `host_test` and proof on Linux.
-      **Not yet met:** the workflow has not run on GitHub, and the repo has never
-      been built on Linux x86_64 (only macOS). Checked locally: YAML parses,
-      `make -n all/gnatprove ALR="alr -n"` substitutes correctly, `make test` passes.
+      **Met** (2026-10-07: build, `host_test` and GNATprove green on GitHub). The
+      runner is pinned to `ubuntu-24.04` (`ubuntu-latest` moves to Ubuntu 26 from
+      2026-10-19) and the actions are on their Node 24 majors (`checkout@v7`,
+      `cache@v6`, `upload-artifact@v7`).
 
 **Step 1 -- real cross-builds as first-class targets.** Alire cannot make a
 dependency conditional on a user switch (only on OS/distribution), so a runtime
