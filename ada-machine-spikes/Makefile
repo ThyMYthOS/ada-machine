@@ -75,9 +75,22 @@
 # Note the cross builds share the imported crates' obj/ dirs with the host
 # builds (as spike2_avr always has), so a later `make all` recompiles those.
 #
+# Test mode (TODO.md #15 Step 2): the BME280 spikes can be built so that they
+# run a few measurement cycles, write `ADA-MACHINE-TEST: PASS` / `FAIL <code>`
+# to the UART and halt, for simulator harnesses. The switch is the GPR external
+# ADA_MACHINE_TEST_MODE (off|on, default off), declared once in
+# test_support/test_mode.gpr -- not an Alire config variable, because the board
+# crates compile the host crates' sources under other crate names (see that
+# file). `make cross-test` builds spike1_pico_board and spike2_avr (both
+# buses) in test mode; the ELFs land in bin/test/ (bin/{spi,i2c}/test/ for
+# spike2_avr) next to the normal ones, with separate obj/ dirs. spike4_g474
+# has no test mode (no UART in stm32g474_hal, no sensor). `make test` also
+# runs the log-decoder self-test (tools/).
+#
 # Usage:
 #   make             build every crate, report a pass/fail summary
 #   make cross       cross-build every board crate + spike2_avr variants
+#   make cross-test  cross-build the test-mode variants (see above)
 #   make <crate>     build just that one crate, e.g. `make bme280`
 #   make gnatprove   run GNATprove on every crate, report a summary
 #   make test        build and run host_test
@@ -126,7 +139,7 @@ BOARD_CRATES := \
 # between proof runs. Pass -f manually if you ever need a from-scratch re-proof.
 GNATPROVE_FLAGS := -j0 --level=1 --output=oneline --output-header
 
-.PHONY: all cross list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
+.PHONY: all cross cross-test test-decoder list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
         $(BOARD_CRATES) \
         $(CRATES) $(addprefix clean-,$(CRATES)) $(addprefix gnatprove-,$(CRATES))
 
@@ -176,6 +189,16 @@ cross:
 	fi; \
 	echo "All cross targets built ($(words $(BOARD_CRATES)) board/check crates + spike2_avr SPI and I2C)."
 
+# Test-mode cross builds: only the BME280 spikes that have a real target
+# build (spike3_esp is not linked yet, spike4_g474 has no test mode).
+TEST_MODE_X := -XADA_MACHINE_TEST_MODE=on
+
+cross-test:
+	cd spike1_pico_board && $(ALR) build -- $(TEST_MODE_X)
+	cd spike2_avr && $(ALR) build -- $(TEST_MODE_X)
+	cd spike2_avr && $(ALR) build -- -XBME280_BUS=I2C $(TEST_MODE_X)
+	@echo "Test-mode ELFs built: spike1_pico_board/bin/test, spike2_avr/bin/{spi,i2c}/test"
+
 list:
 	@for c in $(CRATES); do echo "$$c"; done
 
@@ -220,8 +243,13 @@ $(CRATES) $(BOARD_CRATES):
 spike2_avr-i2c:
 	cd spike2_avr && $(ALR) build -- -XBME280_BUS=I2C
 
-test: host_test
+test: host_test test-decoder
 	./host_test/bin/host_test
+
+# Log-decoder self-test: real bytes from Ada (the Log_Sink over a mock UART,
+# plus the test-mode runner's verdict) decoded by tools/decode_log.py.
+test-decoder: host_test
+	python3 tools/test_decode_log.py ./host_test/bin/dump_log_stream
 
 clean:
 	@for c in $(CRATES); do \

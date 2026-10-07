@@ -1,12 +1,17 @@
 with "../machine/machine.gpr";
+with "../machine_blocking/machine_blocking.gpr";
 with "../bme280/bme280.gpr";
 with "../time_rng_target/time_rng_target.gpr";
 with "config/host_test_config.gpr";
 
 project Host_Test is
-   for Source_Dirs use ("src", "config");
+   --  test_support/ is the spikes' shared test-mode runner (verdict line,
+   --  halt stub); dump_log_stream drives it over mocks to produce real
+   --  UART bytes for tools/test_decode_log.py.
+   for Source_Dirs use ("src", "config", "../test_support/common",
+                        "../test_support/halt_host");
    for Object_Dir use "obj";
-   for Main use ("main.adb");
+   for Main use ("main.adb", "dump_log_stream.adb");
    for Exec_Dir use "bin";
    --  Ordinary host GNAT build -- no Runtime/target attributes: this is
    --  the one crate in the spike actually meant to compile and run here.
@@ -16,6 +21,7 @@ project Host_Test is
       --  ("main"), but alire.toml's executables/"alr run" expect the
       --  crate name ("host_test").
       for Executable ("main.adb") use "host_test";
+      for Executable ("dump_log_stream.adb") use "dump_log_stream";
    end Builder;
 
    package Compiler is

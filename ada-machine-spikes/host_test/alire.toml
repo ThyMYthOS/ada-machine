@@ -8,7 +8,7 @@ maintainers-logins = ["thymythos"]
 licenses = "Apache-2.0 WITH LLVM-exception"
 tags = ["embedded", "machine", "test", "bme280", "i2c", "rng"]
 
-executables = ["host_test"]
+executables = ["host_test", "dump_log_stream"]
 
 #  Ada-only project; skip Alire's C-header generation for the config unit.
 [configuration]
@@ -16,11 +16,13 @@ generate_c = false
 
 [[depends-on]]
 machine         = "*"
+machine_blocking = "*"
 bme280          = "*"
 time_rng_target = "*"
 
 [[pins]]
 machine         = { path = "../machine" }
+machine_blocking = { path = "../machine_blocking" }
 bme280          = { path = "../bme280" }
 time_rng_target = { path = "../time_rng_target" }
 

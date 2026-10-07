@@ -11,6 +11,7 @@
 --  ordinary code regardless.
 with Machine.Log;
 with AVR_Board;
+with Test_Run;
 
 procedure Main
   with SPARK_Mode, No_Return  --  the loop below never exits (embedded main)
@@ -27,6 +28,13 @@ is
    M      : AVR_Board.Env_Sensor.Measurement;
 begin
    AVR_Board.Setup;
+
+   --  Test mode (ADA_MACHINE_TEST_MODE=on): run the measurement cycles,
+   --  write the ADA-MACHINE-TEST verdict line and halt. Enabled is a static
+   --  constant, so in a normal build this folds away.
+   if Test_Run.Enabled then
+      Test_Run.Run_And_Halt;
+   end if;
 
    AVR_Board.Env_Sensor.Initialize (Status);
    if Status = AVR_Board.Env_Sensor.Ok then

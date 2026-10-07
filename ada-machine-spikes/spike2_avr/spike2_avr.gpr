@@ -6,6 +6,7 @@ with "../bme280/bme280.gpr";
 with "../atmega328p_hal/atmega328p_hal.gpr";
 with "../avrada_rts/avrada_rts.gpr";
 with "config/spike2_avr_config.gpr";
+with "../test_support/test_mode.gpr";
 
 project Spike2_AVR is
    for Target use "avr";
@@ -29,15 +30,27 @@ project Spike2_AVR is
    --  with a different body, and sharing one Object_Dir let a stale
    --  gnatprove/gprbuild cache from one variant corrupt analysis of the
    --  other after a bare `-X` switch with no `rm -rf obj` in between.
+   --  Test mode (ADA_MACHINE_TEST_MODE, see ../test_support/test_mode.gpr):
+   --  both bus variants share one test_off/test_on pair (AVR_Board is the
+   --  same name in both). Halt: cli + sleep.
+   Test_Dirs := ();
+   case Test_Mode.Mode is
+      when "off" =>
+         Test_Dirs := ("test_off");
+      when "on" =>
+         Test_Dirs := ("test_on", "../test_support/common",
+                       "../test_support/halt_avr");
+   end case;
+
    case Bus is
       when "SPI" =>
-         for Source_Dirs use ("src", "src/spi", "config");
-         for Object_Dir use "obj/spi";
-         for Exec_Dir use "bin/spi";
+         for Source_Dirs use ("src", "src/spi", "config") & Test_Dirs;
+         for Object_Dir use "obj/spi" & Test_Mode.Dir_Suffix;
+         for Exec_Dir use "bin/spi" & Test_Mode.Dir_Suffix;
       when "I2C" =>
-         for Source_Dirs use ("src", "src/i2c", "config");
-         for Object_Dir use "obj/i2c";
-         for Exec_Dir use "bin/i2c";
+         for Source_Dirs use ("src", "src/i2c", "config") & Test_Dirs;
+         for Object_Dir use "obj/i2c" & Test_Mode.Dir_Suffix;
+         for Exec_Dir use "bin/i2c" & Test_Mode.Dir_Suffix;
    end case;
 
    for Main use ("main.adb");
@@ -55,6 +68,16 @@ project Spike2_AVR is
       --  a per-project Compiler'Default_Switches would not.
       for Global_Compilation_Switches ("Ada") use ("-Os", "-gnatp");
    end Builder;
+
+   --  The link is generic avr2-style (no -mmcu reaches the linker from
+   --  here), whose linker script has an 8 KB text region by default -- a
+   --  quarter of the ATmega328P's real 32 KB flash. Without this the
+   --  test-mode build (a few hundred bytes larger) fails to link although
+   --  it fits the chip easily. The define only lifts the overflow check;
+   --  it changes no code or layout (the normal ELF is byte-identical).
+   package Linker is
+      for Switches ("Ada") use ("-Wl,--defsym=__TEXT_REGION_LENGTH__=0x8000");
+   end Linker;
 
    --  Target ("avr") and Runtime ("Ada") come from avrada_rts.gpr itself
    --  (it declares both for its own project directory, §10); "with"ing

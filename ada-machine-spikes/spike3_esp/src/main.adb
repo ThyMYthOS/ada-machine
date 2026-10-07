@@ -13,6 +13,7 @@ with ESP32C3.UART0;
 with Machine.Log;
 with Machine.Tasking.Delays;
 with Board;
+with Test_Run;
 
 procedure Main
   with SPARK_Mode
@@ -28,6 +29,13 @@ begin
 
    ESP32C3.SPI2.Enable ((Divisor => 4, Mode => 0));
    ESP32C3.UART0.Enable ((Baud_Hz => 115_200));
+
+   --  Test mode (ADA_MACHINE_TEST_MODE=on): run the measurement cycles,
+   --  write the ADA-MACHINE-TEST verdict line and halt. Enabled is a static
+   --  constant, so in a normal build this folds away.
+   if Test_Run.Enabled then
+      Test_Run.Run_And_Halt;
+   end if;
    --  Global interrupt enable and the DMA-done interrupt's actual
    --  attachment are runtime-owned on a light-tasking profile (unlike
    --  spike 2's ZFP floor, which needed inline "sei" here) -- no inline

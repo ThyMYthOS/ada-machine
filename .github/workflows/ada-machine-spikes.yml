@@ -36,7 +36,9 @@ jobs:
         run: make all ALR="alr -n"
         working-directory: ada-machine-spikes
 
-      - name: Run host_test
+      # host_test plus the log-decoder self-test (tools/test_decode_log.py:
+      # real Log_Sink/test-mode-runner bytes from Ada, decoded by Python 3).
+      - name: Run host_test and the log-decoder self-test
         run: make test ALR="alr -n"
         working-directory: ada-machine-spikes
 
@@ -83,6 +85,14 @@ jobs:
         run: make cross ALR="alr -n"
         working-directory: ada-machine-spikes
 
+      # Test-mode variants (ADA_MACHINE_TEST_MODE=on): run a few measurement
+      # cycles, write `ADA-MACHINE-TEST: PASS|FAIL <code>` to the UART and
+      # halt, for the simulator jobs (TODO.md #15 Step 2/3). Built into
+      # separate bin/test dirs, so the normal ELFs above are untouched.
+      - name: Cross-build the test-mode variants
+        run: make cross-test ALR="alr -n"
+        working-directory: ada-machine-spikes
+
       - name: Upload spike1_pico (RP2040) ELF
         uses: actions/upload-artifact@v7
         with:
@@ -104,4 +114,20 @@ jobs:
         with:
           name: spike4_g474-stm32g474-elf
           path: ada-machine-spikes/spike4_g474_board/bin/spike4_g474
+          if-no-files-found: error
+
+      - name: Upload spike1_pico (RP2040) test-mode ELF
+        uses: actions/upload-artifact@v7
+        with:
+          name: spike1_pico-rp2040-testmode-elf
+          path: ada-machine-spikes/spike1_pico_board/bin/test/spike1_pico
+          if-no-files-found: error
+
+      - name: Upload spike2_avr (ATmega328P) test-mode ELFs
+        uses: actions/upload-artifact@v7
+        with:
+          name: spike2_avr-atmega328p-testmode-elf
+          path: |
+            ada-machine-spikes/spike2_avr/bin/spi/test/spike2_avr
+            ada-machine-spikes/spike2_avr/bin/i2c/test/spike2_avr
           if-no-files-found: error

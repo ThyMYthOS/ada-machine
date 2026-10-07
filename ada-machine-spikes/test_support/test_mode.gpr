@@ -1,0 +1,32 @@
+--  Build-time test-mode switch shared by every spike (TODO.md #15 Step 2).
+--
+--  Why a GPR external and not an Alire configuration variable: the board
+--  crates (spike1_pico_board, ...) compile the host crates' own sources
+--  under a different crate name, so a per-crate variable such as
+--  Spike1_Pico_Config.Test_Mode would not exist there; Alire also offers
+--  no command-line override of [configuration.values] (the same limit
+--  spike2_avr's BME280_BUS switch works around). One external,
+--  ADA_MACHINE_TEST_MODE, declared once here and imported by every
+--  spike/board project, reaches all of them:
+--
+--    alr build -- -XADA_MACHINE_TEST_MODE=on        (or: make cross-test)
+--
+--  Default "off". The switch selects *source directories* in each project
+--  (test_off/ holds a null Test_Run unit whose Enabled constant is False,
+--  so `if Test_Run.Enabled` folds away statically and no test code, runner
+--  instance or halt routine is even compiled; test_on/ holds the wiring of
+--  the shared test_support/ runner). Test builds use separate Object_Dir/
+--  Exec_Dir (Dir_Suffix) so they never clobber, or get mixed with, the
+--  normal build or its GNATprove session.
+abstract project Test_Mode is
+   for Source_Dirs use ();
+
+   type Mode_Kind is ("off", "on");
+   Mode : Mode_Kind := external ("ADA_MACHINE_TEST_MODE", "off");
+
+   Dir_Suffix := "";
+   case Mode is
+      when "off" => Dir_Suffix := "";
+      when "on"  => Dir_Suffix := "/test";
+   end case;
+end Test_Mode;

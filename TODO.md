@@ -830,14 +830,66 @@ projects, and pins the runtime config; the host crate stays the stand-in.
 
 **Step 2 -- a test mode that terminates.** Simulators need a pass/fail signal, not an
 endless main loop.
-- [ ] Add an Alire config switch (e.g. `Test_Mode`, default off) to each spike: run
-      N measurement cycles, emit a final `PASS`/`FAIL` record through the existing
-      UART log sink (§14.2 deferred formatting -- the harness decodes event IDs, it
-      does not match free text), then halt. AVR: `cli` + `sleep`, which simavr treats
-      as "done"; Cortex-M: a breakpoint or semihosting exit; otherwise the harness
-      times out.
-- [ ] A small host-side decoder for the log format (shared by all harnesses; also
-      the seed of README §19 open question 9's rendering table).
+- [x] Test-mode switch + verdict + halt for the BME280 spikes (`spike1_pico`,
+      `spike2_avr` SPI and I2C, `spike3_esp`); `spike4_g474` deliberately without.
+      **Mechanism:** the GPR external `ADA_MACHINE_TEST_MODE` (`off` default / `on`),
+      declared once in `test_support/test_mode.gpr` and imported by every spike and
+      board project (`alr build -- -XADA_MACHINE_TEST_MODE=on`, or `make cross-test`).
+      Not an Alire config variable: the board crates compile the host crates' sources
+      under other crate names (a `Spike1_Pico_Config.Test_Mode` would not exist
+      there), and Alire has no command-line override of `[configuration.values]`. The
+      switch picks source dirs: `test_off/` has a null `Test_Run` whose `Enabled`
+      constant is `False` (the `if Test_Run.Enabled` in `main.adb` folds away, nothing
+      is compiled); `test_on/` instantiates the shared generic
+      `test_support/common/spike_test_runner` over the crate's own wiring. Test
+      builds use separate `obj/test` and `bin/test` dirs (`bin/{spi,i2c}/test` for
+      spike 2), so the normal build and its GNATprove session are untouched. **Normal
+      build unchanged:** `arm-eabi-size`/`avr-size` are identical to before the change
+      (spike1 17272 B text / 280 data; spike2 SPI 7254 / 294, I2C 7382 / 276); test mode
+      adds 836 B text (RP2040), 346 / 510 B text and 192 / 198 B data (AVR SPI / I2C).
+      **Run:** `Initialize` + `Configure`, then 3 `Measure` cycles
+      (`Spike_Test_Runner.Cycles`); each must be `Ok` and temperature, pressure and
+      humidity inside the BME280 datasheet operating ranges (-40..85 degC,
+      300..1100 hPa, 0..100 %RH; the driver's fixed-point types carry the same
+      bounds, so this guards against them diverging). Each good cycle still emits the
+      deferred-format `Ev_Measured` event.
+      **Verdict:** `ADA-MACHINE-TEST: PASS` or `ADA-MACHINE-TEST: FAIL <code>` + `\r\n`,
+      written by the application straight through the UART L2 port (14.2 allows it at
+      application level); codes `INIT-<S>`, `MEASURE-<S>` (`<S>` = `OK`,
+      `WRONG_CHIP_ID`, `BUS_FAULT`, `TIMED_OUT`, `NOT_INITIALIZED`),
+      `RANGE-TEMP|PRESS|HUM`. **Drain:** no L2 "TX empty" query exists, so a bounded
+      20 ms delay follows the last byte (deepest TX FIFO is the ESP32-C3's 128 B =
+      ~11 ms at 115200); gap noted, no HAL touched. **Halt** (`test_support/halt_*`,
+      shared `Spike_Halt` spec): AVR `cli` + `sleep` loop built from the existing
+      `ATmega328P.Critical_Section.Enter` and `Delays.Sleep_Idle` (no new asm);
+      Cortex-M `cpsid i` + `wfi` loop (no `bkpt`); RISC-V `csrci mstatus, 8` + `wfi`
+      loop (`halt_riscv`, assembled with `gnat_riscv64_elf` but not linked: `spike3_esp`
+      is a host stand-in and uses `halt_host`, a plain loop, until it is linked).
+      **Not run anywhere yet:** only built (RP2040, AVR) and exercised on the host
+      (`host_test`'s `dump_log_stream` drives the same runner over mocks); the
+      simulators are Step 3. **Side findings:** (a) `spike2_avr` is linked without
+      `-mmcu` (generic avr2 link, ELF `avr:2`), whose linker script has an 8 KB text
+      region, a quarter of the chip; the test build would not link, so
+      `spike2_avr.gpr` now defines `__TEXT_REGION_LENGTH__=0x8000` for the link
+      (lifts only the overflow check, the normal ELF is unchanged). Whether simavr
+      wants a real avr5/`atmega328p` ELF is for Step 3. (b) The existing
+      `Machine.Log.Arg (Integer (M.Temperature * 100))` in the spikes' `main.adb`
+      raises `Constraint_Error` for sub-zero temperatures when checks are on; the
+      test runner uses `Arg'Mod` (two's complement) instead.
+      **`spike4_g474`:** no test mode: `stm32g474_hal` has no UART at all (the log
+      sink cannot be wired) and the spike has no sensor to judge; a `READY` line would
+      need a new HAL unit, and no simulator can drive the target yet (Step 3).
+- [x] Host-side decoder `tools/decode_log.py` (Python 3 stdlib): reads a file or stdin,
+      renders the 7-byte `Machine.Blocking.Log_Sink` records (Level, Event_Id BE,
+      Arg BE) with event names (table `EVENTS`: the `bme280.adb` ids and `Ev_Measured`;
+      unknown ids numeric), recognises the ASCII verdict line and resynchronises on
+      it, exit 0 = PASS, 1 = FAIL, 2 = no (complete) verdict. Its `EVENTS` table is the
+      seed of README 19 open question 9's rendering table. Self-test
+      `tools/test_decode_log.py` (part of `make test`, so the CI host job): the Ada
+      program `host_test/bin/dump_log_stream` instantiates `Log_Sink` and the test
+      runner over a mock UART and writes real PASS and FAIL byte streams, which the
+      script decodes and checks (events, negative temperature, exit codes, truncation,
+      garbage prefix).
 
 **Step 3 -- simulators, cheapest and most open first.**
 - [ ] **AVR / simavr (first).** Open source, runs headless on Linux, models the

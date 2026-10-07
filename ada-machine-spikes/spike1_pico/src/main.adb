@@ -8,6 +8,7 @@ with RP2040.I2C0;
 with RP2040.UART0;
 with Machine.Log;
 with Board;
+with Test_Run;
 
 procedure Main
   with SPARK_Mode
@@ -40,6 +41,13 @@ begin
    RP2040.GPIO.Configure (LED, RP2040.GPIO.Output);
    RP2040.I2C0.Enable ((Baud_Hz => 400_000, SDA_Pin => 4, SCL_Pin => 5));
    RP2040.UART0.Enable ((Baud_Hz => 115_200, TX_Pin => 0, RX_Pin => 1));
+
+   --  Test mode (ADA_MACHINE_TEST_MODE=on): run the measurement cycles,
+   --  write the ADA-MACHINE-TEST verdict line and halt. Enabled is a static
+   --  constant, so in a normal build this folds away.
+   if Test_Run.Enabled then
+      Test_Run.Run_And_Halt;
+   end if;
 
    Board.Env_Sensor.Initialize (Status);
    if Status = Board.Env_Sensor.Ok then

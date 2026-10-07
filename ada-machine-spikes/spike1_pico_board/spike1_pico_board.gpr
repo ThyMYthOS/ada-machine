@@ -5,6 +5,7 @@ with "../machine_regmap/machine_regmap.gpr";
 with "../bme280/bme280.gpr";
 with "../rp2040_hal/rp2040_hal.gpr";
 with "config/spike1_pico_board_config.gpr";
+with "../test_support/test_mode.gpr";
 
 --  Board crate: the real RP2040 cross-build of spike1_pico. The sources
 --  are the host crate's own (nothing is copied); only the runtime wiring
@@ -13,10 +14,21 @@ project Spike1_Pico_Board is
    for Target use runtime_build'Target;
    for Runtime ("Ada") use runtime_build'Runtime ("Ada");
 
-   for Source_Dirs use ("../spike1_pico/src", "config");
-   for Object_Dir use "obj";
+   --  Test mode (ADA_MACHINE_TEST_MODE, see ../test_support/test_mode.gpr);
+   --  Cortex-M halt: cpsid i + wfi loop.
+   case Test_Mode.Mode is
+      when "off" =>
+         for Source_Dirs use ("../spike1_pico/src", "config",
+                              "../spike1_pico/test_off");
+      when "on" =>
+         for Source_Dirs use ("../spike1_pico/src", "config",
+                              "../spike1_pico/test_on",
+                              "../test_support/common",
+                              "../test_support/halt_cortex_m");
+   end case;
+   for Object_Dir use "obj" & Test_Mode.Dir_Suffix;
    for Main use ("main.adb");
-   for Exec_Dir use "bin";
+   for Exec_Dir use "bin" & Test_Mode.Dir_Suffix;
 
    package Builder is
       for Executable ("main.adb") use "spike1_pico";
