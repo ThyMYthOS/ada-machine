@@ -1,0 +1,5 @@
+bme280.chip.wasm
+/wokwi-api.h
+firmware/
+build/
+logs/

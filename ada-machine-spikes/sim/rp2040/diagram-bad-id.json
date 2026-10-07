@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "author": "Ada Machine",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-pi-pico", "id": "pico", "top": 0, "left": 0, "attrs": {} },
+    { "type": "chip-bme280", "id": "bme", "top": 40, "left": 160, "attrs": { "chipId": "88" } }
+  ],
+  "connections": [
+    [ "$serialMonitor:RX", "pico:GP0", "", [] ],
+    [ "$serialMonitor:TX", "pico:GP1", "", [] ],
+    [ "pico:GP4", "bme:SDA", "green", [] ],
+    [ "pico:GP5", "bme:SCL", "blue", [] ],
+    [ "pico:3V3", "bme:VCC", "red", [] ],
+    [ "pico:GND.8", "bme:GND", "black", [] ]
+  ],
+  "dependencies": {}
+}

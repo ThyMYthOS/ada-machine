@@ -188,3 +188,78 @@ jobs:
           name: spike2_avr-simavr-logs
           path: ada-machine-spikes/sim/avr/logs
           if-no-files-found: warn
+
+  # TODO.md #15 Step 3: run the spike1_pico (RP2040) test-mode ELF from the
+  # cross job in Wokwi's hosted simulator against a custom BME280 chip
+  # (ada-machine-spikes/sim/rp2040).
+  #
+  # The simulation needs the WOKWI_CLI_TOKEN secret, which is not available to
+  # forks and PRs from forks (and until it is added to the repository). A
+  # secret cannot be tested in an `if:` directly, so the job maps only its
+  # *presence* into a job-level env var (the token itself is passed to the one
+  # step that needs it) and the steps test that. Without the token the job is
+  # green: the chip is still compiled and unit-tested, and a notice says that
+  # the simulation was skipped.
+  #
+  # wokwi-cli is run through the Makefile rather than wokwi/wokwi-ci-action
+  # (v1): the action installs the unpinned latest CLI, takes serial_log_file
+  # relative to the workspace and runs one case per step, and the two cases
+  # here share chip compilation, capture checking (check_capture.py) and the
+  # same `make run` used locally.
+  sim-rp2040:
+    runs-on: ubuntu-24.04
+    needs: cross
+    env:
+      HAVE_WOKWI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN != '' }}
+      WOKWI_CLI_VERSION: v0.28.1
+      # SHA-256 of that release's wokwi-cli-linuxstatic-x64, as GitHub's
+      # release asset digest reports it; bump both together.
+      WOKWI_CLI_SHA256: 869f194ee473257c6112ed58d786376527769020056320b0a49a37d9e7d3bdd7
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Note when the simulation is skipped
+        if: env.HAVE_WOKWI_TOKEN != 'true'
+        run: >-
+          echo "::notice title=sim-rp2040 skipped::WOKWI_CLI_TOKEN is not
+          available (fork, PR from a fork, or secret not configured): the
+          chip is compiled and unit-tested, the Wokwi simulation is not run."
+
+      - name: Install wokwi-cli
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL -o "$RUNNER_TEMP/bin/wokwi-cli" \
+            "https://github.com/wokwi/wokwi-cli/releases/download/${WOKWI_CLI_VERSION}/wokwi-cli-linuxstatic-x64"
+          echo "${WOKWI_CLI_SHA256}  $RUNNER_TEMP/bin/wokwi-cli" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/bin/wokwi-cli"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # Needs no token: fetches wasi-sdk and wokwi-api.h on first use.
+      - name: Compile the BME280 chip to WASM
+        run: make -C ada-machine-spikes/sim/rp2040 chip
+
+      - name: Unit-test the BME280 chip's register logic on the host
+        run: make -C ada-machine-spikes/sim/rp2040 test-chip
+
+      # Uploaded as a single file: elfs/spike1_pico.
+      - name: Download the spike1_pico test-mode ELF
+        if: env.HAVE_WOKWI_TOKEN == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: spike1_pico-rp2040-testmode-elf
+          path: elfs
+
+      - name: Run the two simulation cases in Wokwi
+        if: env.HAVE_WOKWI_TOKEN == 'true'
+        run: make -C ada-machine-spikes/sim/rp2040 run ELF="$GITHUB_WORKSPACE/elfs/spike1_pico"
+        env:
+          WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+
+      - name: Upload the captured serial logs
+        if: always() && env.HAVE_WOKWI_TOKEN == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: spike1_pico-wokwi-logs
+          path: ada-machine-spikes/sim/rp2040/logs
+          if-no-files-found: warn

@@ -1,0 +1,15 @@
+# Wokwi project for the RP2040 simulation of spike1_pico (TODO.md #15 Step 3).
+# `make run` here copies the test-mode ELF to firmware/ and runs both cases;
+# docs: https://docs.wokwi.com/vscode/project-config
+[wokwi]
+version = 1
+# The Raspberry Pi Pico accepts .hex, .uf2 and .elf; the ELF is loaded as is
+# (boot2 section included).
+firmware = 'firmware/spike1_pico.elf'
+elf = 'firmware/spike1_pico.elf'
+
+# Custom chip: part type "chip-bme280" in diagram.json. The pinout JSON is
+# the file next to the binary, bme280.chip.json.
+[[chip]]
+name = 'bme280'
+binary = 'bme280.chip.wasm'

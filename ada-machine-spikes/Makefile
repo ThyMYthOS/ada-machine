@@ -94,11 +94,19 @@
 # build as in CI (Ubuntu's 1.6 package breaks the I2C cases). `make sim-avr-diag` is the same with two model
 # behaviours relaxed (diagnostic, see sim/avr/Makefile).
 #
+# `make sim-rp2040` runs spike1_pico's test-mode ELF in Wokwi (the hosted RP2040
+# simulator) against a custom BME280 chip (WASM, sim/rp2040/), good and
+# wrong-chip-id sensor, two cases. It needs `wokwi-cli` on PATH (or WOKWI_CLI=)
+# and a Wokwi CI token in the WOKWI_CLI_TOKEN environment variable (never put
+# it in a file); without the token it fails at once with a message. The chip
+# compiles and unit-tests without the token: `make -C sim/rp2040 chip test-chip`.
+#
 # Usage:
 #   make             build every crate, report a pass/fail summary
 #   make cross       cross-build every board crate + spike2_avr variants
 #   make cross-test  cross-build the test-mode variants (see above)
 #   make sim-avr     run spike2_avr's test-mode ELFs in simavr (4 cases)
+#   make sim-rp2040  run spike1_pico's test-mode ELF in Wokwi (2 cases, token)
 #   make <crate>     build just that one crate, e.g. `make bme280`
 #   make gnatprove   run GNATprove on every crate, report a summary
 #   make test        build and run host_test
@@ -147,7 +155,7 @@ BOARD_CRATES := \
 # between proof runs. Pass -f manually if you ever need a from-scratch re-proof.
 GNATPROVE_FLAGS := -j0 --level=1 --output=oneline --output-header
 
-.PHONY: all cross cross-test cross-test-avr sim-avr sim-avr-diag test-decoder list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
+.PHONY: all cross cross-test cross-test-avr cross-test-rp2040 sim-avr sim-avr-diag sim-rp2040 check-wokwi-token test-decoder list test clean gnatprove spike2_avr-i2c gnatprove-spike2_avr-i2c \
         $(BOARD_CRATES) \
         $(CRATES) $(addprefix clean-,$(CRATES)) $(addprefix gnatprove-,$(CRATES))
 
@@ -201,9 +209,11 @@ cross:
 # build (spike3_esp is not linked yet, spike4_g474 has no test mode).
 TEST_MODE_X := -XADA_MACHINE_TEST_MODE=on
 
-cross-test: cross-test-avr
-	cd spike1_pico_board && $(ALR) build -- $(TEST_MODE_X)
+cross-test: cross-test-avr cross-test-rp2040
 	@echo "Test-mode ELFs built: spike1_pico_board/bin/test, spike2_avr/bin/{spi,i2c}/test"
+
+cross-test-rp2040:
+	cd spike1_pico_board && $(ALR) build -- $(TEST_MODE_X)
 
 cross-test-avr:
 	cd spike2_avr && $(ALR) build -- $(TEST_MODE_X)
@@ -215,6 +225,18 @@ sim-avr: cross-test-avr
 
 sim-avr-diag: cross-test-avr
 	$(MAKE) -C sim/avr run-diag
+
+# Wokwi runs of the spike1_pico test-mode ELF (needs wokwi-cli and the token,
+# see header). The token check comes first so a missing token fails before the
+# build; sim/rp2040/Makefile checks it again for direct use.
+check-wokwi-token:
+	@if [ -z "$$WOKWI_CLI_TOKEN" ]; then \
+		echo "sim-rp2040: WOKWI_CLI_TOKEN is not set (create one at https://wokwi.com/dashboard/ci and export it)"; \
+		exit 1; \
+	fi
+
+sim-rp2040: check-wokwi-token cross-test-rp2040
+	$(MAKE) -C sim/rp2040 run
 
 list:
 	@for c in $(CRATES); do echo "$$c"; done

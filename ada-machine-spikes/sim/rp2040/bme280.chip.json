@@ -1,0 +1,5 @@
+{
+  "name": "BME280 (Ada Machine test model)",
+  "author": "Ada Machine",
+  "pins": ["VCC", "GND", "SCL", "SDA"]
+}
